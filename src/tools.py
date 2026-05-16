@@ -13,6 +13,7 @@ SNAPSHOT_PATH = Path(__file__).resolve().parent / 'reference_data' / 'tools_snap
 
 @dataclass(frozen=True)
 class ToolExecution:
+    """Result of executing a mirrored tool, including whether it was handled."""
     name: str
     source_hint: str
     payload: str
@@ -22,6 +23,7 @@ class ToolExecution:
 
 @lru_cache(maxsize=1)
 def load_tool_snapshot() -> tuple[PortingModule, ...]:
+    """Load and cache the tool definitions from the reference snapshot JSON."""
     raw_entries = json.loads(SNAPSHOT_PATH.read_text())
     return tuple(
         PortingModule(
@@ -38,14 +40,17 @@ PORTED_TOOLS = load_tool_snapshot()
 
 
 def build_tool_backlog() -> PortingBacklog:
+    """Build a porting backlog from the loaded tool snapshot."""
     return PortingBacklog(title='Tool surface', modules=list(PORTED_TOOLS))
 
 
 def tool_names() -> list[str]:
+    """Return the names of all ported tools."""
     return [module.name for module in PORTED_TOOLS]
 
 
 def get_tool(name: str) -> PortingModule | None:
+    """Look up a tool module by name (case-insensitive)."""
     needle = name.lower()
     for module in PORTED_TOOLS:
         if module.name.lower() == needle:
@@ -54,6 +59,7 @@ def get_tool(name: str) -> PortingModule | None:
 
 
 def filter_tools_by_permission_context(tools: tuple[PortingModule, ...], permission_context: ToolPermissionContext | None = None) -> tuple[PortingModule, ...]:
+    """Filter out tools blocked by the given permission context."""
     if permission_context is None:
         return tools
     return tuple(module for module in tools if not permission_context.blocks(module.name))
@@ -64,6 +70,7 @@ def get_tools(
     include_mcp: bool = True,
     permission_context: ToolPermissionContext | None = None,
 ) -> tuple[PortingModule, ...]:
+    """Return available tools, optionally filtered by mode, MCP inclusion, and permissions."""
     tools = list(PORTED_TOOLS)
     if simple_mode:
         tools = [module for module in tools if module.name in {'BashTool', 'FileReadTool', 'FileEditTool'}]
@@ -73,12 +80,14 @@ def get_tools(
 
 
 def find_tools(query: str, limit: int = 20) -> list[PortingModule]:
+    """Search for tools by keyword against name and source hint."""
     needle = query.lower()
     matches = [module for module in PORTED_TOOLS if needle in module.name.lower() or needle in module.source_hint.lower()]
     return matches[:limit]
 
 
 def execute_tool(name: str, payload: str = '') -> ToolExecution:
+    """Execute a mirrored tool by name, returning a simulated execution result."""
     module = get_tool(name)
     if module is None:
         return ToolExecution(name=name, source_hint='', payload=payload, handled=False, message=f'Unknown mirrored tool: {name}')
@@ -87,6 +96,7 @@ def execute_tool(name: str, payload: str = '') -> ToolExecution:
 
 
 def render_tool_index(limit: int = 20, query: str | None = None) -> str:
+    """Render a human-readable index of available tools, optionally filtered by query."""
     modules = find_tools(query, limit) if query else list(PORTED_TOOLS[:limit])
     lines = [f'Tool entries: {len(PORTED_TOOLS)}', '']
     if query:

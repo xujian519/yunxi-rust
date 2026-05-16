@@ -1,10 +1,15 @@
 use std::fmt;
 
+/// Errors that can occur during LLM interactions.
 #[derive(Debug)]
 pub enum LlmError {
+    /// Invalid or missing configuration (e.g. model name, endpoint URL).
     Config(String),
+    /// Authentication failure (e.g. invalid API key).
     Auth(String),
+    /// HTTP transport error when calling the LLM endpoint.
     Http(String),
+    /// Error while processing the streaming response.
     Stream(String),
 }
 

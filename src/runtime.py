@@ -15,6 +15,7 @@ from .execution_registry import build_execution_registry
 
 @dataclass(frozen=True)
 class RoutedMatch:
+    """A matched command or tool produced by prompt routing with a relevance score."""
     kind: str
     name: str
     source_hint: str
@@ -23,6 +24,7 @@ class RoutedMatch:
 
 @dataclass
 class RuntimeSession:
+    """Captures all state produced by a single bootstrapped session for inspection."""
     prompt: str
     context: PortContext
     setup: WorkspaceSetup
@@ -37,6 +39,7 @@ class RuntimeSession:
     persisted_session_path: str
 
     def as_markdown(self) -> str:
+        """Render the full session state as a markdown document."""
         lines = [
             '# Runtime Session',
             '',
@@ -87,7 +90,10 @@ class RuntimeSession:
 
 
 class PortRuntime:
+    """High-level runtime that routes prompts to commands/tools and manages sessions."""
+
     def route_prompt(self, prompt: str, limit: int = 5) -> list[RoutedMatch]:
+        """Tokenize the prompt and return the top matching commands and tools."""
         tokens = {token.lower() for token in prompt.replace('/', ' ').replace('-', ' ').split() if token}
         by_kind = {
             'command': self._collect_matches(tokens, PORTED_COMMANDS, 'command'),
@@ -107,6 +113,7 @@ class PortRuntime:
         return selected[:limit]
 
     def bootstrap_session(self, prompt: str, limit: int = 5) -> RuntimeSession:
+        """Build a full session from a prompt: route, execute, stream, and persist."""
         context = build_port_context()
         setup_report = run_setup(trusted=True)
         setup = setup_report.setup
@@ -152,6 +159,7 @@ class PortRuntime:
         )
 
     def run_turn_loop(self, prompt: str, limit: int = 5, max_turns: int = 3, structured_output: bool = False) -> list[TurnResult]:
+        """Run multiple conversation turns until completion or the turn limit is reached."""
         engine = QueryEnginePort.from_workspace()
         engine.config = QueryEngineConfig(max_turns=max_turns, structured_output=structured_output)
         matches = self.route_prompt(prompt, limit=limit)

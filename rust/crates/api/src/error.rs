@@ -2,15 +2,24 @@ use std::env::VarError;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
+/// Errors that can occur when interacting with the Anthropic API.
 #[derive(Debug)]
 pub enum ApiError {
+    /// The required API key environment variable is not set.
     MissingApiKey,
+    /// The saved OAuth token has expired and cannot be refreshed.
     ExpiredOAuthToken,
+    /// An authentication or authorization error with a descriptive message.
     Auth(String),
+    /// Failed to read the API key from an environment variable.
     InvalidApiKeyEnv(VarError),
+    /// An HTTP-level transport error.
     Http(reqwest::Error),
+    /// An I/O error during request processing.
     Io(std::io::Error),
+    /// A JSON serialization or deserialization error.
     Json(serde_json::Error),
+    /// The API returned a non-success HTTP status with error details.
     Api {
         status: reqwest::StatusCode,
         error_type: Option<String>,
@@ -18,18 +27,19 @@ pub enum ApiError {
         body: String,
         retryable: bool,
     },
+    /// All retry attempts were exhausted.
     RetriesExhausted {
         attempts: u32,
         last_error: Box<ApiError>,
     },
+    /// An SSE frame could not be parsed.
     InvalidSseFrame(&'static str),
-    BackoffOverflow {
-        attempt: u32,
-        base_delay: Duration,
-    },
+    /// The retry backoff calculation overflowed.
+    BackoffOverflow { attempt: u32, base_delay: Duration },
 }
 
 impl ApiError {
+    /// Returns `true` if the error is transient and the request can be retried.
     #[must_use]
     pub fn is_retryable(&self) -> bool {
         match self {

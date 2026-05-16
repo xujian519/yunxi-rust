@@ -14,6 +14,7 @@ from .transcript import TranscriptStore
 
 @dataclass(frozen=True)
 class QueryEngineConfig:
+    """Configuration parameters controlling turn limits, budgets, and output format."""
     max_turns: int = 8
     max_budget_tokens: int = 2000
     compact_after_turns: int = 12
@@ -23,6 +24,7 @@ class QueryEngineConfig:
 
 @dataclass(frozen=True)
 class TurnResult:
+    """Result of a single conversation turn, including matched tools and usage stats."""
     prompt: str
     output: str
     matched_commands: tuple[str, ...]
@@ -34,6 +36,7 @@ class TurnResult:
 
 @dataclass
 class QueryEnginePort:
+    """Python-port query engine that manages sessions, routing, and message persistence."""
     manifest: PortManifest
     config: QueryEngineConfig = field(default_factory=QueryEngineConfig)
     session_id: str = field(default_factory=lambda: uuid4().hex)
@@ -44,10 +47,12 @@ class QueryEnginePort:
 
     @classmethod
     def from_workspace(cls) -> 'QueryEnginePort':
+        """Create an engine using the workspace port manifest."""
         return cls(manifest=build_port_manifest())
 
     @classmethod
     def from_saved_session(cls, session_id: str) -> 'QueryEnginePort':
+        """Restore an engine from a previously saved session."""
         stored = load_session(session_id)
         transcript = TranscriptStore(entries=list(stored.messages), flushed=True)
         return cls(
@@ -65,6 +70,7 @@ class QueryEnginePort:
         matched_tools: tuple[str, ...] = (),
         denied_tools: tuple[PermissionDenial, ...] = (),
     ) -> TurnResult:
+        """Submit a user prompt and return the turn result after processing."""
         if len(self.mutable_messages) >= self.config.max_turns:
             output = f'Max turns reached before processing prompt: {prompt}'
             return TurnResult(
@@ -110,6 +116,7 @@ class QueryEnginePort:
         matched_tools: tuple[str, ...] = (),
         denied_tools: tuple[PermissionDenial, ...] = (),
     ):
+        """Yield streaming events for a submitted message, then finalize with usage stats."""
         yield {'type': 'message_start', 'session_id': self.session_id, 'prompt': prompt}
         if matched_commands:
             yield {'type': 'command_match', 'commands': matched_commands}
@@ -127,17 +134,21 @@ class QueryEnginePort:
         }
 
     def compact_messages_if_needed(self) -> None:
+        """Trim older messages when the history exceeds the configured compaction threshold."""
         if len(self.mutable_messages) > self.config.compact_after_turns:
             self.mutable_messages[:] = self.mutable_messages[-self.config.compact_after_turns :]
         self.transcript_store.compact(self.config.compact_after_turns)
 
     def replay_user_messages(self) -> tuple[str, ...]:
+        """Return all stored user messages from the transcript."""
         return self.transcript_store.replay()
 
     def flush_transcript(self) -> None:
+        """Mark the transcript as flushed without clearing entries."""
         self.transcript_store.flush()
 
     def persist_session(self) -> str:
+        """Save the current session to disk and return the file path."""
         self.flush_transcript()
         path = save_session(
             StoredSession(
@@ -169,6 +180,7 @@ class QueryEnginePort:
         raise RuntimeError('structured output rendering failed') from last_error
 
     def render_summary(self) -> str:
+        """Render a markdown summary of the engine state, including manifest and backlog."""
         command_backlog = build_command_backlog()
         tool_backlog = build_tool_backlog()
         sections = [
