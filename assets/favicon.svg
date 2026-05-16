@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="p1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8a0bf"/>
+      <stop offset="100%" stop-color="#c27ba0"/>
+    </linearGradient>
+    <linearGradient id="p2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4a5e5"/>
+      <stop offset="100%" stop-color="#a66bbf"/>
+    </linearGradient>
+    <linearGradient id="p3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f4b8d1"/>
+      <stop offset="100%" stop-color="#e888a8"/>
+    </linearGradient>
+    <linearGradient id="p4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b8d4e3"/>
+      <stop offset="100%" stop-color="#8bb5cf"/>
+    </linearGradient>
+    <linearGradient id="p5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f7d794"/>
+      <stop offset="100%" stop-color="#e8b84d"/>
+    </linearGradient>
+    <radialGradient id="cg" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#fff7e6"/>
+      <stop offset="60%" stop-color="#f7d794"/>
+      <stop offset="100%" stop-color="#e8b84d"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#fef9f4"/>
+  <g>
+    <path d="M32 12 C38 18 41 26 39 32 C37 29 35 27 32 25 C29 27 27 29 25 32 C23 26 26 18 32 12Z" fill="url(#p1)" transform="rotate(0 32 32)"/>
+    <path d="M32 12 C38 18 41 26 39 32 C37 29 35 27 32 25 C29 27 27 29 25 32 C23 26 26 18 32 12Z" fill="url(#p2)" transform="rotate(72 32 32)"/>
+    <path d="M32 12 C38 18 41 26 39 32 C37 29 35 27 32 25 C29 27 27 29 25 32 C23 26 26 18 32 12Z" fill="url(#p3)" transform="rotate(144 32 32)"/>
+    <path d="M32 12 C38 18 41 26 39 32 C37 29 35 27 32 25 C29 27 27 29 25 32 C23 26 26 18 32 12Z" fill="url(#p4)" transform="rotate(216 32 32)"/>
+    <path d="M32 12 C38 18 41 26 39 32 C37 29 35 27 32 25 C29 27 27 29 25 32 C23 26 26 18 32 12Z" fill="url(#p5)" transform="rotate(288 32 32)"/>
+  </g>
+  <circle cx="32" cy="32" r="5" fill="url(#cg)"/>
+</svg>

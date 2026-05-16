@@ -1,0 +1,15 @@
+[package]
+name = "compat-harness"
+description = "云熙智能体 - 兼容性工具 (YunXi Agent Compat Harness)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+commands = { path = "../commands" }
+tools = { path = "../tools" }
+runtime = { path = "../runtime" }
+
+[lints]
+workspace = true

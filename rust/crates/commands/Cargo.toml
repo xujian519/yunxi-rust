@@ -1,0 +1,13 @@
+[package]
+name = "commands"
+description = "云熙智能体 - 命令注册 (YunXi Agent Commands)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+runtime = { path = "../runtime" }

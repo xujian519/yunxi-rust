@@ -1,0 +1,33 @@
+[package]
+name = "yunxi-cli"
+description = "云熙智能体 - 专业专利智能体命令行工具 (YunXi Agent CLI)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "yunxi"
+path = "src/main.rs"
+
+[dependencies]
+api = { path = "../api" }
+commands = { path = "../commands" }
+llm = { path = "../llm" }
+compat-harness = { path = "../compat-harness" }
+crossterm = "0.28"
+pulldown-cmark = "0.13"
+ratatui = { version = "0.29", optional = true }
+rustyline = "15"
+runtime = { path = "../runtime" }
+serde_json = "1"
+syntect = "5"
+tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+tools = { path = "../tools" }
+
+[features]
+default = ["tui"]
+tui = ["ratatui"]
+
+[lints]
+workspace = true

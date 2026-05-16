@@ -1,0 +1,38 @@
+# Rust build artifacts
+rust/target/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Environment
+*.env
+.venv/
+venv/
+
+# Session and state files
+.port_sessions/
+.omc/
+.claude/
+*.clawd-todos.json
+
+# Sandbox
+.sandbox-home/
+
+# Misc
+*.log
