@@ -99,7 +99,10 @@ impl OpenAiClient {
             tokio::time::sleep(delay).await;
         }
 
-        Err(last_error.expect("retry loop must capture an error"))
+        Err(
+            #[allow(clippy::expect_used)]
+            last_error.expect("retry loop must capture an error"),
+        )
     }
 
     async fn send_raw(

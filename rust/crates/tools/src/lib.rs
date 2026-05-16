@@ -2151,7 +2151,8 @@ fn execute_notebook_edit(input: NotebookEditInput) -> Result<NotebookEditOutput,
 
     let cell_id = match edit_mode {
         NotebookEditMode::Insert => {
-            let resolved_cell_type = resolved_cell_type.expect("insert cell type");
+            let resolved_cell_type =
+                resolved_cell_type.ok_or_else(|| String::from("insert requires a cell type"))?;
             let new_id = make_cell_id(cells.len());
             let new_cell = build_notebook_cell(&new_id, resolved_cell_type, &new_source);
             let insert_at = target_index.map_or(cells.len(), |index| index + 1);
@@ -2163,16 +2164,20 @@ fn execute_notebook_edit(input: NotebookEditInput) -> Result<NotebookEditOutput,
                 .map(ToString::to_string)
         }
         NotebookEditMode::Delete => {
-            let removed = cells.remove(target_index.expect("delete target index"));
+            let removed = cells
+                .remove(target_index.ok_or_else(|| String::from("delete requires a target cell"))?);
             removed
                 .get("id")
                 .and_then(serde_json::Value::as_str)
                 .map(ToString::to_string)
         }
         NotebookEditMode::Replace => {
-            let resolved_cell_type = resolved_cell_type.expect("replace cell type");
+            let resolved_cell_type =
+                resolved_cell_type.ok_or_else(|| String::from("replace requires a cell type"))?;
             let cell = cells
-                .get_mut(target_index.expect("replace target index"))
+                .get_mut(
+                    target_index.ok_or_else(|| String::from("replace requires a target cell"))?,
+                )
                 .ok_or_else(|| String::from("Cell index out of range"))?;
             cell["source"] = serde_json::Value::Array(source_lines(&new_source));
             cell["cell_type"] = serde_json::Value::String(match resolved_cell_type {
@@ -2342,7 +2347,7 @@ fn execute_config(input: ConfigInput) -> Result<ConfigOutput, String> {
     if let Some(value) = input.value {
         let normalized = normalize_config_value(spec, value)?;
         let previous_value = get_nested_value(&document, spec.path).cloned();
-        set_nested_value(&mut document, spec.path, normalized.clone());
+        set_nested_value(&mut document, spec.path, normalized.clone())?;
         write_json_object(&path, &document)?;
         Ok(ConfigOutput {
             success: true,
@@ -2639,11 +2644,17 @@ fn get_nested_value<'a>(
     Some(current)
 }
 
-fn set_nested_value(root: &mut serde_json::Map<String, Value>, path: &[&str], new_value: Value) {
-    let (first, rest) = path.split_first().expect("config path must not be empty");
+fn set_nested_value(
+    root: &mut serde_json::Map<String, Value>,
+    path: &[&str],
+    new_value: Value,
+) -> Result<(), String> {
+    let (first, rest) = path
+        .split_first()
+        .ok_or_else(|| String::from("config path must not be empty"))?;
     if rest.is_empty() {
         root.insert((*first).to_string(), new_value);
-        return;
+        return Ok(());
     }
 
     let entry = root
@@ -2652,8 +2663,10 @@ fn set_nested_value(root: &mut serde_json::Map<String, Value>, path: &[&str], ne
     if !entry.is_object() {
         *entry = Value::Object(serde_json::Map::new());
     }
-    let map = entry.as_object_mut().expect("object inserted");
-    set_nested_value(map, rest, new_value);
+    let map = entry
+        .as_object_mut()
+        .ok_or_else(|| String::from("expected JSON object"))?;
+    set_nested_value(map, rest, new_value)
 }
 
 fn iso8601_timestamp() -> String {

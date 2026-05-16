@@ -317,7 +317,10 @@ impl LiveCli {
                     estimated_tokens: self.runtime.estimated_tokens(),
                 },
                 self.permission_mode.as_str(),
-                &status_context(Some(&self.session.path)).expect("status context should load"),
+                &{
+                    #[allow(clippy::expect_used)]
+                    status_context(Some(&self.session.path)).expect("status context should load")
+                },
             )
         );
     }

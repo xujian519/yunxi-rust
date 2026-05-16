@@ -302,7 +302,10 @@ impl AnthropicClient {
 
         Err(ApiError::RetriesExhausted {
             attempts,
-            last_error: Box::new(last_error.expect("retry loop must capture an error")),
+            last_error: Box::new(
+                #[allow(clippy::expect_used)]
+                last_error.expect("retry loop must capture an error"),
+            ),
         })
     }
 

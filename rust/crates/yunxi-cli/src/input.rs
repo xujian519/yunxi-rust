@@ -105,8 +105,9 @@ impl LineEditor {
             .completion_type(CompletionType::List)
             .edit_mode(EditMode::Emacs)
             .build();
+        #[allow(clippy::expect_used)]
         let mut editor = Editor::<SlashCommandHelper, DefaultHistory>::with_config(config)
-            .expect("rustyline editor should initialize");
+            .expect("rustyline editor initialization should not fail with valid config");
         editor.set_helper(Some(SlashCommandHelper::new(completions)));
         editor.bind_sequence(KeyEvent(KeyCode::Char('J'), Modifiers::CTRL), Cmd::Newline);
         editor.bind_sequence(KeyEvent(KeyCode::Enter, Modifiers::SHIFT), Cmd::Newline);
