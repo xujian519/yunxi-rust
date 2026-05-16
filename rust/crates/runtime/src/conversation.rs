@@ -15,32 +15,43 @@ const AUTO_COMPACTION_THRESHOLD_ENV_VAR: &str = "CLAUDE_CODE_AUTO_COMPACT_INPUT_
 /// 别名，优先使用 YUNXI_ 前缀
 const YUNXI_AUTO_COMPACTION_THRESHOLD_ENV_VAR: &str = "YUNXI_AUTO_COMPACT_INPUT_TOKENS";
 
+/// A structured API request containing the system prompt and conversation history.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApiRequest {
     pub system_prompt: Vec<String>,
     pub messages: Vec<ConversationMessage>,
 }
 
+/// Events emitted by the LLM streaming response.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssistantEvent {
+    /// A fragment of assistant-generated text.
     TextDelta(String),
+    /// The assistant requests invocation of a tool.
     ToolUse {
         id: String,
         name: String,
         input: String,
     },
+    /// Token usage reported by the API for the current turn.
     Usage(TokenUsage),
+    /// Signals the end of the assistant message.
     MessageStop,
 }
 
+/// Abstraction over the LLM API client that streams assistant events.
 pub trait ApiClient {
+    /// Send a request to the LLM and return the collected streaming events.
     fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError>;
 }
 
+/// Abstraction over tool execution, dispatching tool calls by name.
 pub trait ToolExecutor {
+    /// Execute a tool by name with the given JSON input string.
     fn execute(&mut self, tool_name: &str, input: &str) -> Result<String, ToolError>;
 }
 
+/// Error returned when a tool execution fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolError {
     message: String,
@@ -63,6 +74,7 @@ impl Display for ToolError {
 
 impl std::error::Error for ToolError {}
 
+/// Top-level error type for the conversation runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeError {
     message: String,
@@ -85,6 +97,7 @@ impl Display for RuntimeError {
 
 impl std::error::Error for RuntimeError {}
 
+/// Summary of a single user turn, including all assistant messages and tool results.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnSummary {
     pub assistant_messages: Vec<ConversationMessage>,
@@ -94,11 +107,13 @@ pub struct TurnSummary {
     pub auto_compaction: Option<AutoCompactionEvent>,
 }
 
+/// Records that auto-compaction occurred during a turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AutoCompactionEvent {
     pub removed_message_count: usize,
 }
 
+/// Core conversation loop that orchestrates API calls, tool execution, and permission checks.
 pub struct ConversationRuntime<C, T> {
     session: Session,
     api_client: C,
@@ -433,6 +448,7 @@ fn merge_hook_feedback(messages: &[String], output: String, denied: bool) -> Str
 
 type ToolHandler = Box<dyn FnMut(&str) -> Result<String, ToolError>>;
 
+/// A [`ToolExecutor`] that dispatches calls to statically registered handler closures.
 #[derive(Default)]
 pub struct StaticToolExecutor {
     handlers: BTreeMap<String, ToolHandler>,

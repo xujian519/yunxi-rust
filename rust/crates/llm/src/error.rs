@@ -44,3 +44,72 @@ impl From<runtime::RuntimeError> for LlmError {
         Self::Stream(value.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_constructor() {
+        let err = LlmError::config("missing key");
+        match &err {
+            LlmError::Config(msg) => assert_eq!(msg, "missing key"),
+            _ => panic!("expected Config variant"),
+        }
+    }
+
+    #[test]
+    fn auth_constructor() {
+        let err = LlmError::auth("forbidden");
+        match &err {
+            LlmError::Auth(msg) => assert_eq!(msg, "forbidden"),
+            _ => panic!("expected Auth variant"),
+        }
+    }
+
+    #[test]
+    fn http_constructor() {
+        let err = LlmError::http("timeout");
+        match &err {
+            LlmError::Http(msg) => assert_eq!(msg, "timeout"),
+            _ => panic!("expected Http variant"),
+        }
+    }
+
+    #[test]
+    fn stream_constructor() {
+        let err = LlmError::stream("broken pipe");
+        match &err {
+            LlmError::Stream(msg) => assert_eq!(msg, "broken pipe"),
+            _ => panic!("expected Stream variant"),
+        }
+    }
+
+    #[test]
+    fn display_config() {
+        let msg = LlmError::Config(String::from("bad cfg")).to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("config"));
+    }
+
+    #[test]
+    fn display_auth() {
+        let msg = LlmError::Auth(String::from("denied")).to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("auth"));
+    }
+
+    #[test]
+    fn display_http() {
+        let msg = LlmError::Http(String::from("503")).to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("http"));
+    }
+
+    #[test]
+    fn display_stream() {
+        let msg = LlmError::Stream(String::from("eof")).to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("stream"));
+    }
+}

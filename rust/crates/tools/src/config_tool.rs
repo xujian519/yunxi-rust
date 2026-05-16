@@ -350,3 +350,53 @@ fn set_nested_value(
         .ok_or_else(|| String::from("expected JSON object"))?;
     set_nested_value(map, rest, new_value)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn set_nested_value_empty_path_returns_err() {
+        let mut doc = serde_json::Map::new();
+        let result = set_nested_value(&mut doc, &[], json!(true));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("empty"));
+    }
+
+    #[test]
+    fn get_nested_value_empty_path_returns_none() {
+        let doc = serde_json::Map::new();
+        assert!(get_nested_value(&doc, &[]).is_none());
+    }
+
+    #[test]
+    fn read_json_object_nonexistent_file_returns_empty_map() {
+        let path = PathBuf::from("/tmp/__yunxi_test_no_such_file__.json");
+        let result = read_json_object(&path);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn set_and_get_nested_value_single_key() {
+        let mut doc = serde_json::Map::new();
+        set_nested_value(&mut doc, &["theme"], json!("dark")).unwrap();
+        let val = get_nested_value(&doc, &["theme"]);
+        assert_eq!(val.unwrap().as_str(), Some("dark"));
+    }
+
+    #[test]
+    fn set_and_get_nested_value_deep_path() {
+        let mut doc = serde_json::Map::new();
+        set_nested_value(&mut doc, &["a", "b", "c"], json!(42)).unwrap();
+        let val = get_nested_value(&doc, &["a", "b", "c"]);
+        assert_eq!(val.unwrap().as_i64(), Some(42));
+    }
+
+    #[test]
+    fn get_nested_value_missing_key_returns_none() {
+        let doc = serde_json::Map::new();
+        assert!(get_nested_value(&doc, &["missing"]).is_none());
+    }
+}

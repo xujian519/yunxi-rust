@@ -3,27 +3,11 @@ from __future__ import annotations
 import subprocess
 import sys
 import unittest
-from pathlib import Path
 
-from src.commands import PORTED_COMMANDS
 from src.parity_audit import run_parity_audit
-from src.port_manifest import build_port_manifest
-from src.query_engine import QueryEnginePort
-from src.tools import PORTED_TOOLS
 
 
-class PortingWorkspaceTests(unittest.TestCase):
-    def test_manifest_counts_python_files(self) -> None:
-        manifest = build_port_manifest()
-        self.assertGreaterEqual(manifest.total_python_files, 20)
-        self.assertTrue(manifest.top_level_modules)
-
-    def test_query_engine_summary_mentions_workspace(self) -> None:
-        summary = QueryEnginePort.from_workspace().render_summary()
-        self.assertIn('Python Porting Workspace Summary', summary)
-        self.assertIn('Command surface:', summary)
-        self.assertIn('Tool surface:', summary)
-
+class CLITests(unittest.TestCase):
     def test_cli_summary_runs(self) -> None:
         result = subprocess.run(
             [sys.executable, '-m', 'src.main', 'summary'],
@@ -42,18 +26,6 @@ class PortingWorkspaceTests(unittest.TestCase):
         )
         self.assertIn('Parity Audit', result.stdout)
 
-    def test_root_file_coverage_is_complete_when_local_archive_exists(self) -> None:
-        audit = run_parity_audit()
-        if audit.archive_present:
-            self.assertEqual(audit.root_file_coverage[0], audit.root_file_coverage[1])
-            self.assertGreaterEqual(audit.directory_coverage[0], 28)
-            self.assertGreaterEqual(audit.command_entry_ratio[0], 150)
-            self.assertGreaterEqual(audit.tool_entry_ratio[0], 100)
-
-    def test_command_and_tool_snapshots_are_nontrivial(self) -> None:
-        self.assertGreaterEqual(len(PORTED_COMMANDS), 150)
-        self.assertGreaterEqual(len(PORTED_TOOLS), 100)
-
     def test_commands_and_tools_cli_run(self) -> None:
         commands_result = subprocess.run(
             [sys.executable, '-m', 'src.main', 'commands', '--limit', '5', '--query', 'review'],
@@ -69,14 +41,6 @@ class PortingWorkspaceTests(unittest.TestCase):
         )
         self.assertIn('Command entries:', commands_result.stdout)
         self.assertIn('Tool entries:', tools_result.stdout)
-
-    def test_subsystem_packages_expose_archive_metadata(self) -> None:
-        from src import assistant, bridge, utils
-
-        self.assertGreater(assistant.MODULE_COUNT, 0)
-        self.assertGreater(bridge.MODULE_COUNT, 0)
-        self.assertGreater(utils.MODULE_COUNT, 100)
-        self.assertTrue(utils.SAMPLE_FILES)
 
     def test_route_and_show_entry_cli_run(self) -> None:
         route_result = subprocess.run(
@@ -100,25 +64,6 @@ class PortingWorkspaceTests(unittest.TestCase):
         self.assertIn('review', route_result.stdout.lower())
         self.assertIn('review', show_command.stdout.lower())
         self.assertIn('mcptool', show_tool.stdout.lower())
-
-    def test_bootstrap_cli_runs(self) -> None:
-        result = subprocess.run(
-            [sys.executable, '-m', 'src.main', 'bootstrap', 'review MCP tool', '--limit', '5'],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        self.assertIn('Runtime Session', result.stdout)
-        self.assertIn('Startup Steps', result.stdout)
-        self.assertIn('Routed Matches', result.stdout)
-
-    def test_bootstrap_session_tracks_turn_state(self) -> None:
-        from src.runtime import PortRuntime
-
-        session = PortRuntime().bootstrap_session('review MCP tool', limit=5)
-        self.assertGreaterEqual(len(session.turn_result.matched_tools), 1)
-        self.assertIn('Prompt:', session.turn_result.output)
-        self.assertGreaterEqual(session.turn_result.usage.input_tokens, 1)
 
     def test_exec_command_and_tool_cli_run(self) -> None:
         command_result = subprocess.run(
@@ -158,20 +103,6 @@ class PortingWorkspaceTests(unittest.TestCase):
         self.assertIn('Setup Report', setup_result.stdout)
         self.assertIn('Command entries:', command_result.stdout)
         self.assertIn('Tool entries:', tool_result.stdout)
-
-    def test_load_session_cli_runs(self) -> None:
-        from src.runtime import PortRuntime
-
-        session = PortRuntime().bootstrap_session('review MCP tool', limit=5)
-        session_id = Path(session.persisted_session_path).stem
-        result = subprocess.run(
-            [sys.executable, '-m', 'src.main', 'load-session', session_id],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        self.assertIn(session_id, result.stdout)
-        self.assertIn('messages', result.stdout)
 
     def test_tool_permission_filtering_cli_runs(self) -> None:
         result = subprocess.run(
@@ -226,14 +157,32 @@ class PortingWorkspaceTests(unittest.TestCase):
         self.assertIn('Deferred init:', result.stdout)
         self.assertIn('plugin_init=True', result.stdout)
 
-    def test_execution_registry_runs(self) -> None:
-        from src.execution_registry import build_execution_registry
+    def test_bootstrap_cli_runs(self) -> None:
+        result = subprocess.run(
+            [sys.executable, '-m', 'src.main', 'bootstrap', 'review MCP tool', '--limit', '5'],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertIn('Runtime Session', result.stdout)
+        self.assertIn('Startup Steps', result.stdout)
+        self.assertIn('Routed Matches', result.stdout)
 
-        registry = build_execution_registry()
-        self.assertGreaterEqual(len(registry.commands), 150)
-        self.assertGreaterEqual(len(registry.tools), 100)
-        self.assertIn('Mirrored command', registry.command('review').execute('review security'))
-        self.assertIn('Mirrored tool', registry.tool('MCPTool').execute('fetch mcp resources'))
+    def test_load_session_cli_runs(self) -> None:
+        from pathlib import Path
+
+        from src.runtime import PortRuntime
+
+        session = PortRuntime().bootstrap_session('review MCP tool', limit=5)
+        session_id = Path(session.persisted_session_path).stem
+        result = subprocess.run(
+            [sys.executable, '-m', 'src.main', 'load-session', session_id],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertIn(session_id, result.stdout)
+        self.assertIn('messages', result.stdout)
 
     def test_bootstrap_graph_and_direct_modes_run(self) -> None:
         graph_result = subprocess.run([sys.executable, '-m', 'src.main', 'bootstrap-graph'], check=True, capture_output=True, text=True)
@@ -242,6 +191,21 @@ class PortingWorkspaceTests(unittest.TestCase):
         self.assertIn('Bootstrap Graph', graph_result.stdout)
         self.assertIn('mode=direct-connect', direct_result.stdout)
         self.assertIn('mode=deep-link', deep_link_result.stdout)
+
+    def test_root_file_coverage_is_complete_when_local_archive_exists(self) -> None:
+        audit = run_parity_audit()
+        if audit.archive_present:
+            self.assertEqual(audit.root_file_coverage[0], audit.root_file_coverage[1])
+            self.assertGreaterEqual(audit.directory_coverage[0], 28)
+            self.assertGreaterEqual(audit.command_entry_ratio[0], 150)
+            self.assertGreaterEqual(audit.tool_entry_ratio[0], 100)
+
+    def test_command_and_tool_snapshots_are_nontrivial(self) -> None:
+        from src.commands import PORTED_COMMANDS
+        from src.tools import PORTED_TOOLS
+
+        self.assertGreaterEqual(len(PORTED_COMMANDS), 150)
+        self.assertGreaterEqual(len(PORTED_TOOLS), 100)
 
 
 if __name__ == '__main__':

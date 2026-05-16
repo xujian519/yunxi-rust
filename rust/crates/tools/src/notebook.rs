@@ -261,3 +261,64 @@ pub(crate) fn format_notebook_edit_mode(mode: NotebookEditMode) -> String {
 pub(crate) fn make_cell_id(index: usize) -> String {
     format!("cell-{}", index + 1)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn execute_rejects_non_ipynb_extension() {
+        let input = NotebookEditInput {
+            notebook_path: String::from("/tmp/test.txt"),
+            cell_id: None,
+            new_source: Some(String::from("print(1)")),
+            cell_type: None,
+            edit_mode: None,
+        };
+        let result = execute_notebook_edit(input);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains(".ipynb"));
+    }
+
+    #[test]
+    fn execute_rejects_nonexistent_file() {
+        let input = NotebookEditInput {
+            notebook_path: String::from("/tmp/nonexistent_test_notebook.ipynb"),
+            cell_id: None,
+            new_source: Some(String::from("hello")),
+            cell_type: None,
+            edit_mode: None,
+        };
+        let result = execute_notebook_edit(input);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn source_lines_empty_string() {
+        let lines = source_lines("");
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].as_str(), Some(""));
+    }
+
+    #[test]
+    fn source_lines_single_line_no_newline() {
+        let lines = source_lines("hello");
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].as_str(), Some("hello"));
+    }
+
+    #[test]
+    fn source_lines_trailing_newline() {
+        let lines = source_lines("a\nb\n");
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].as_str(), Some("a\n"));
+        assert_eq!(lines[1].as_str(), Some("b\n"));
+    }
+
+    #[test]
+    fn make_cell_id_format() {
+        assert_eq!(make_cell_id(0), "cell-1");
+        assert_eq!(make_cell_id(4), "cell-5");
+        assert_eq!(make_cell_id(99), "cell-100");
+    }
+}

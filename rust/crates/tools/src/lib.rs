@@ -26,18 +26,23 @@ pub use agent::{
 };
 pub use agent_helpers::canonical_tool_token;
 
+/// A named tool entry with its availability source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolManifestEntry {
     pub name: String,
     pub source: ToolSource,
 }
 
+/// Whether a tool is always available or conditionally enabled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolSource {
+    /// Always available in the tool set.
     Base,
+    /// Only available under specific runtime conditions.
     Conditional,
 }
 
+/// A registry of [`ToolManifestEntry`] values for tool discovery and enumeration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ToolRegistry {
     entries: Vec<ToolManifestEntry>,
@@ -55,6 +60,7 @@ impl ToolRegistry {
     }
 }
 
+/// Describes a tool's name, description, JSON input schema, and required permission level.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ToolSpec {
     pub name: &'static str,
@@ -63,6 +69,7 @@ pub struct ToolSpec {
     pub required_permission: PermissionMode,
 }
 
+/// Returns the full set of MVP tool specifications supported by YunXi.
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn mvp_tool_specs() -> Vec<ToolSpec> {

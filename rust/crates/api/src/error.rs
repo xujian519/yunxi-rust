@@ -132,3 +132,203 @@ impl From<VarError> for ApiError {
         Self::InvalidApiKeyEnv(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_retryable_missing_api_key() {
+        assert!(!ApiError::MissingApiKey.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_expired_oauth_token() {
+        assert!(!ApiError::ExpiredOAuthToken.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_auth() {
+        assert!(!ApiError::Auth(String::from("bad token")).is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_invalid_api_key_env() {
+        assert!(!ApiError::InvalidApiKeyEnv(VarError::NotPresent).is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_io() {
+        assert!(!ApiError::Io(std::io::Error::other("disk")).is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_json() {
+        let err = serde_json::from_str::<serde_json::Value>("{bad}").unwrap_err();
+        assert!(!ApiError::Json(err).is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_api_retryable_true() {
+        let err = ApiError::Api {
+            status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            error_type: None,
+            message: None,
+            body: String::from("boom"),
+            retryable: true,
+        };
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_api_retryable_false() {
+        let err = ApiError::Api {
+            status: reqwest::StatusCode::BAD_REQUEST,
+            error_type: None,
+            message: None,
+            body: String::from("bad"),
+            retryable: false,
+        };
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_retries_exhausted_inner_retryable() {
+        let err = ApiError::RetriesExhausted {
+            attempts: 3,
+            last_error: Box::new(ApiError::Api {
+                status: reqwest::StatusCode::SERVICE_UNAVAILABLE,
+                error_type: None,
+                message: None,
+                body: String::new(),
+                retryable: true,
+            }),
+        };
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_retries_exhausted_inner_not_retryable() {
+        let err = ApiError::RetriesExhausted {
+            attempts: 3,
+            last_error: Box::new(ApiError::MissingApiKey),
+        };
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_invalid_sse_frame() {
+        assert!(!ApiError::InvalidSseFrame("bad frame").is_retryable());
+    }
+
+    #[test]
+    fn is_retryable_backoff_overflow() {
+        assert!(!ApiError::BackoffOverflow {
+            attempt: 50,
+            base_delay: Duration::from_secs(1),
+        }
+        .is_retryable());
+    }
+
+    #[test]
+    fn display_missing_api_key() {
+        let msg = ApiError::MissingApiKey.to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("ANTHROPIC"));
+    }
+
+    #[test]
+    fn display_expired_oauth_token() {
+        let msg = ApiError::ExpiredOAuthToken.to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("expired"));
+    }
+
+    #[test]
+    fn display_auth() {
+        let msg = ApiError::Auth(String::from("denied")).to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("denied"));
+    }
+
+    #[test]
+    fn display_invalid_api_key_env() {
+        let msg = ApiError::InvalidApiKeyEnv(VarError::NotPresent).to_string();
+        assert!(!msg.is_empty());
+    }
+
+    #[test]
+    fn display_io() {
+        let msg = ApiError::Io(std::io::Error::other("fail")).to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("io error"));
+    }
+
+    #[test]
+    fn display_json() {
+        let err = serde_json::from_str::<serde_json::Value>("!!!").unwrap_err();
+        let msg = ApiError::Json(err).to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("json error"));
+    }
+
+    #[test]
+    fn display_api_with_type_and_message() {
+        let msg = ApiError::Api {
+            status: reqwest::StatusCode::BAD_REQUEST,
+            error_type: Some(String::from("invalid_request")),
+            message: Some(String::from("bad input")),
+            body: String::new(),
+            retryable: false,
+        }
+        .to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("400"));
+        assert!(msg.contains("invalid_request"));
+        assert!(msg.contains("bad input"));
+    }
+
+    #[test]
+    fn display_api_without_type_and_message() {
+        let msg = ApiError::Api {
+            status: reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            error_type: None,
+            message: None,
+            body: String::from("server error"),
+            retryable: true,
+        }
+        .to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("500"));
+        assert!(msg.contains("server error"));
+    }
+
+    #[test]
+    fn display_retries_exhausted() {
+        let msg = ApiError::RetriesExhausted {
+            attempts: 5,
+            last_error: Box::new(ApiError::MissingApiKey),
+        }
+        .to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("5"));
+    }
+
+    #[test]
+    fn display_invalid_sse_frame() {
+        let msg = ApiError::InvalidSseFrame("truncated").to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("truncated"));
+    }
+
+    #[test]
+    fn display_backoff_overflow() {
+        let msg = ApiError::BackoffOverflow {
+            attempt: 99,
+            base_delay: Duration::from_millis(200),
+        }
+        .to_string();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("99"));
+    }
+}
