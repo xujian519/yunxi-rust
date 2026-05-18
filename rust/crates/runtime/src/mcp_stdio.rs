@@ -356,6 +356,14 @@ impl McpServerManager {
         &self.unsupported_servers
     }
 
+    /// 发现所有 MCP 服务器的工具
+    ///
+    /// # Errors
+    ///
+    /// - 如果服务器初始化失败,返回错误
+    /// - 如果服务器通信失败,返回错误
+    /// - 如果 JSON-RPC 调用失败,返回错误
+    /// - 如果服务器返回无效响应,返回错误
     pub async fn discover_tools(&mut self) -> Result<Vec<ManagedMcpTool>, McpServerManagerError> {
         let server_names = self.servers.keys().cloned().collect::<Vec<_>>();
         let mut discovered_tools = Vec::new();
@@ -430,6 +438,14 @@ impl McpServerManager {
         Ok(discovered_tools)
     }
 
+    /// 调用 MCP 工具
+    ///
+    /// # Errors
+    ///
+    /// - 如果工具不存在,返回错误
+    /// - 如果服务器初始化失败,返回错误
+    /// - 如果工具调用失败,返回错误
+    /// - 如果 JSON-RPC 调用失败,返回错误
     pub async fn call_tool(
         &mut self,
         qualified_tool_name: &str,
@@ -469,6 +485,11 @@ impl McpServerManager {
         Ok(response)
     }
 
+    /// 关闭所有 MCP 服务器
+    ///
+    /// # Errors
+    ///
+    /// - 如果服务器关闭失败,返回错误
     pub async fn shutdown(&mut self) -> Result<(), McpServerManagerError> {
         let server_names = self.servers.keys().cloned().collect::<Vec<_>>();
         for server_name in server_names {
@@ -578,6 +599,12 @@ pub struct McpStdioProcess {
 }
 
 impl McpStdioProcess {
+    /// 生成新的 MCP stdio 进程
+    ///
+    /// # Errors
+    ///
+    /// - 如果进程启动失败,返回 IO 错误
+    /// - 如果 stdin 或 stdout 管道缺失,返回 IO 错误
     pub fn spawn(transport: &McpStdioTransport) -> io::Result<Self> {
         let mut command = Command::new(&transport.command);
         command
@@ -604,20 +631,42 @@ impl McpStdioProcess {
         })
     }
 
+    /// 写入所有字节
+    ///
+    /// # Errors
+    ///
+    /// - 如果写入失败,返回 IO 错误
     pub async fn write_all(&mut self, bytes: &[u8]) -> io::Result<()> {
         self.stdin.write_all(bytes).await
     }
 
+    /// 刷新输出缓冲区
+    ///
+    /// # Errors
+    ///
+    /// - 如果刷新失败,返回 IO 错误
     pub async fn flush(&mut self) -> io::Result<()> {
         self.stdin.flush().await
     }
 
+    /// 写入一行文本
+    ///
+    /// # Errors
+    ///
+    /// - 如果写入失败,返回 IO 错误
+    /// - 如果刷新失败,返回 IO 错误
     pub async fn write_line(&mut self, line: &str) -> io::Result<()> {
         self.write_all(line.as_bytes()).await?;
         self.write_all(b"\n").await?;
         self.flush().await
     }
 
+    /// 读取一行文本
+    ///
+    /// # Errors
+    ///
+    /// - 如果读取失败,返回 IO 错误
+    /// - 如果流已关闭,返回 IO 错误
     pub async fn read_line(&mut self) -> io::Result<String> {
         let mut line = String::new();
         let bytes_read = self.stdout.read_line(&mut line).await?;
@@ -630,6 +679,11 @@ impl McpStdioProcess {
         Ok(line)
     }
 
+    /// 读取可用字节
+    ///
+    /// # Errors
+    ///
+    /// - 如果读取失败,返回 IO 错误
     pub async fn read_available(&mut self) -> io::Result<Vec<u8>> {
         let mut buffer = vec![0_u8; 4096];
         let read = self.stdout.read(&mut buffer).await?;
@@ -637,12 +691,28 @@ impl McpStdioProcess {
         Ok(buffer)
     }
 
+    /// 写入帧数据
+    ///
+    /// # Errors
+    ///
+    /// - 如果编码失败,返回 IO 错误
+    /// - 如果写入失败,返回 IO 错误
+    /// - 如果刷新失败,返回 IO 错误
     pub async fn write_frame(&mut self, payload: &[u8]) -> io::Result<()> {
         let encoded = encode_frame(payload);
         self.write_all(&encoded).await?;
         self.flush().await
     }
 
+    /// 读取帧数据
+    ///
+    /// # Errors
+    ///
+    /// - 如果读取失败,返回 IO 错误
+    /// - 如果流已关闭,返回 IO 错误
+    /// - 如果缺少 Content-Length 头,返回 IO 错误
+    /// - 如果 Content-Length 解析失败,返回 IO 错误
+    /// - 如果读取 payload 失败,返回 IO 错误
     pub async fn read_frame(&mut self) -> io::Result<Vec<u8>> {
         let mut content_length = None;
         loop {
@@ -674,18 +744,35 @@ impl McpStdioProcess {
         Ok(payload)
     }
 
+    /// 写入 JSON-RPC 消息
+    ///
+    /// # Errors
+    ///
+    /// - 如果序列化失败,返回 IO 错误
+    /// - 如果写入失败,返回 IO 错误
     pub async fn write_jsonrpc_message<T: Serialize>(&mut self, message: &T) -> io::Result<()> {
         let body = serde_json::to_vec(message)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         self.write_frame(&body).await
     }
 
+    /// 读取 JSON-RPC 消息
+    ///
+    /// # Errors
+    ///
+    /// - 如果读取失败,返回 IO 错误
+    /// - 如果反序列化失败,返回 IO 错误
     pub async fn read_jsonrpc_message<T: DeserializeOwned>(&mut self) -> io::Result<T> {
         let payload = self.read_frame().await?;
         serde_json::from_slice(&payload)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
     }
 
+    /// 发送 JSON-RPC 请求
+    ///
+    /// # Errors
+    ///
+    /// - 如果写入失败,返回 IO 错误
     pub async fn send_request<T: Serialize>(
         &mut self,
         request: &JsonRpcRequest<T>,
@@ -693,10 +780,22 @@ impl McpStdioProcess {
         self.write_jsonrpc_message(request).await
     }
 
+    /// 读取 JSON-RPC 响应
+    ///
+    /// # Errors
+    ///
+    /// - 如果读取失败,返回 IO 错误
+    /// - 如果反序列化失败,返回 IO 错误
     pub async fn read_response<T: DeserializeOwned>(&mut self) -> io::Result<JsonRpcResponse<T>> {
         self.read_jsonrpc_message().await
     }
 
+    /// 发送请求并读取响应
+    ///
+    /// # Errors
+    ///
+    /// - 如果发送失败,返回 IO 错误
+    /// - 如果读取失败,返回 IO 错误
     pub async fn request<TParams: Serialize, TResult: DeserializeOwned>(
         &mut self,
         id: JsonRpcId,
@@ -708,6 +807,12 @@ impl McpStdioProcess {
         self.read_response().await
     }
 
+    /// 初始化 MCP 连接
+    ///
+    /// # Errors
+    ///
+    /// - 如果发送失败,返回 IO 错误
+    /// - 如果读取失败,返回 IO 错误
     pub async fn initialize(
         &mut self,
         id: JsonRpcId,
@@ -716,6 +821,12 @@ impl McpStdioProcess {
         self.request(id, "initialize", Some(params)).await
     }
 
+    /// 列出可用工具
+    ///
+    /// # Errors
+    ///
+    /// - 如果发送失败,返回 IO 错误
+    /// - 如果读取失败,返回 IO 错误
     pub async fn list_tools(
         &mut self,
         id: JsonRpcId,
@@ -724,6 +835,12 @@ impl McpStdioProcess {
         self.request(id, "tools/list", params).await
     }
 
+    /// 调用工具
+    ///
+    /// # Errors
+    ///
+    /// - 如果发送失败,返回 IO 错误
+    /// - 如果读取失败,返回 IO 错误
     pub async fn call_tool(
         &mut self,
         id: JsonRpcId,
@@ -732,6 +849,12 @@ impl McpStdioProcess {
         self.request(id, "tools/call", Some(params)).await
     }
 
+    /// 列出可用资源
+    ///
+    /// # Errors
+    ///
+    /// - 如果发送失败,返回 IO 错误
+    /// - 如果读取失败,返回 IO 错误
     pub async fn list_resources(
         &mut self,
         id: JsonRpcId,
@@ -740,6 +863,12 @@ impl McpStdioProcess {
         self.request(id, "resources/list", params).await
     }
 
+    /// 读取资源
+    ///
+    /// # Errors
+    ///
+    /// - 如果发送失败,返回 IO 错误
+    /// - 如果读取失败,返回 IO 错误
     pub async fn read_resource(
         &mut self,
         id: JsonRpcId,
@@ -748,10 +877,20 @@ impl McpStdioProcess {
         self.request(id, "resources/read", Some(params)).await
     }
 
+    /// 终止进程
+    ///
+    /// # Errors
+    ///
+    /// - 如果终止失败,返回 IO 错误
     pub async fn terminate(&mut self) -> io::Result<()> {
         self.child.kill().await
     }
 
+    /// 等待进程退出
+    ///
+    /// # Errors
+    ///
+    /// - 如果等待失败,返回 IO 错误
     pub async fn wait(&mut self) -> io::Result<std::process::ExitStatus> {
         self.child.wait().await
     }
@@ -765,6 +904,12 @@ impl McpStdioProcess {
     }
 }
 
+/// 生成 MCP stdio 进程
+///
+/// # Errors
+///
+/// - 如果传输类型不是 stdio,返回 IO 错误
+/// - 如果进程生成失败,返回 IO 错误
 pub fn spawn_mcp_stdio_process(bootstrap: &McpClientBootstrap) -> io::Result<McpStdioProcess> {
     match &bootstrap.transport {
         McpClientTransport::Stdio(transport) => McpStdioProcess::spawn(transport),

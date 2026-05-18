@@ -111,8 +111,9 @@ impl Session {
     /// # 参数
     /// - `path`: 保存路径
     ///
-    /// # 错误
-    /// - 如果文件写入失败，返回 `Io` 错误
+    /// # Errors
+    ///
+    /// - 如果文件写入失败,返回 `Io` 错误
     pub fn save_to_path(&self, path: impl AsRef<Path>) -> Result<(), SessionError> {
         fs::write(path, self.to_json().render())?;
         Ok(())
@@ -126,10 +127,11 @@ impl Session {
     /// # 返回
     /// 加载的会话
     ///
-    /// # 错误
-    /// - 如果文件读取失败，返回 `Io` 错误
-    /// - 如果 JSON 解析失败，返回 `Json` 错误
-    /// - 如果格式不正确，返回 `Format` 错误
+    /// # Errors
+    ///
+    /// - 如果文件读取失败,返回 `Io` 错误
+    /// - 如果 JSON 解析失败,返回 `Json` 错误
+    /// - 如果格式不正确,返回 `Format` 错误
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, SessionError> {
         let contents = fs::read_to_string(path)?;
         Self::from_json(&JsonValue::parse(&contents)?)
@@ -163,8 +165,9 @@ impl Session {
     /// # 返回
     /// 解析后的会话
     ///
-    /// # 错误
-    /// - 如果 JSON 格式不正确，返回 `Format` 错误
+    /// # Errors
+    ///
+    /// - 如果 JSON 格式不正确,返回 `Format` 错误
     pub fn from_json(value: &JsonValue) -> Result<Self, SessionError> {
         let object = value
             .as_object()

@@ -1,15 +1,22 @@
 use std::collections::BTreeMap;
 
+/// 权限模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PermissionMode {
+    /// 只读模式
     ReadOnly,
+    /// 工作区写入模式
     WorkspaceWrite,
+    /// 危险完全访问模式
     DangerFullAccess,
+    /// 提示模式
     Prompt,
+    /// 允许所有模式
     Allow,
 }
 
 impl PermissionMode {
+    /// 转换为字符串
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -22,30 +29,50 @@ impl PermissionMode {
     }
 }
 
+/// 权限请求
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PermissionRequest {
+    /// 工具名称
     pub tool_name: String,
+    /// 工具输入
     pub input: String,
+    /// 当前模式
     pub current_mode: PermissionMode,
+    /// 所需模式
     pub required_mode: PermissionMode,
 }
 
+/// 权限提示决策
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionPromptDecision {
+    /// 允许
     Allow,
+    /// 拒绝
     Deny { reason: String },
 }
 
+/// 权限提示器
 pub trait PermissionPrompter {
+    /// 决定是否允许权限
+    ///
+    /// # 参数
+    /// - `request`: 权限请求
+    ///
+    /// # 返回
+    /// 权限提示决策
     fn decide(&mut self, request: &PermissionRequest) -> PermissionPromptDecision;
 }
 
+/// 权限结果
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PermissionOutcome {
+    /// 允许
     Allow,
+    /// 拒绝
     Deny { reason: String },
 }
 
+/// 权限策略
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PermissionPolicy {
     active_mode: PermissionMode,
@@ -53,6 +80,13 @@ pub struct PermissionPolicy {
 }
 
 impl PermissionPolicy {
+    /// 创建新的权限策略
+    ///
+    /// # 参数
+    /// - `active_mode`: 激活的权限模式
+    ///
+    /// # 返回
+    /// 新的权限策略
     #[must_use]
     pub fn new(active_mode: PermissionMode) -> Self {
         Self {
@@ -61,6 +95,14 @@ impl PermissionPolicy {
         }
     }
 
+    /// 设置工具所需权限
+    ///
+    /// # 参数
+    /// - `tool_name`: 工具名称
+    /// - `required_mode`: 所需权限模式
+    ///
+    /// # 返回
+    /// 修改后的权限策略
     #[must_use]
     pub fn with_tool_requirement(
         mut self,
@@ -72,11 +114,22 @@ impl PermissionPolicy {
         self
     }
 
+    /// 获取当前激活的权限模式
+    ///
+    /// # 返回
+    /// 当前权限模式
     #[must_use]
     pub fn active_mode(&self) -> PermissionMode {
         self.active_mode
     }
 
+    /// 获取工具所需权限模式
+    ///
+    /// # 参数
+    /// - `tool_name`: 工具名称
+    ///
+    /// # 返回
+    /// 工具所需权限模式，默认为 `DangerFullAccess`
     #[must_use]
     pub fn required_mode_for(&self, tool_name: &str) -> PermissionMode {
         self.tool_requirements
@@ -85,6 +138,15 @@ impl PermissionPolicy {
             .unwrap_or(PermissionMode::DangerFullAccess)
     }
 
+    /// 授权工具使用
+    ///
+    /// # 参数
+    /// - `tool_name`: 工具名称
+    /// - `input`: 工具输入
+    /// - `prompter`: 可选的权限提示器
+    ///
+    /// # 返回
+    /// 权限结果
     #[must_use]
     pub fn authorize(
         &self,

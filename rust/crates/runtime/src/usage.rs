@@ -15,15 +15,21 @@ pub fn register_custom_pricing(pricing: BTreeMap<String, ModelPricing>) {
     CUSTOM_PRICING.set(pricing).ok();
 }
 
+/// 模型定价
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ModelPricing {
+    /// 每百万输入 token 的价格
     pub input_cost_per_million: f64,
+    /// 每百万输出 token 的价格
     pub output_cost_per_million: f64,
+    /// 每百万缓存创建 token 的价格
     pub cache_creation_cost_per_million: f64,
+    /// 每百万缓存读取 token 的价格
     pub cache_read_cost_per_million: f64,
 }
 
 impl ModelPricing {
+    /// 默认 Sonnet 层级定价
     #[must_use]
     pub const fn default_sonnet_tier() -> Self {
         Self {
@@ -35,23 +41,37 @@ impl ModelPricing {
     }
 }
 
+/// Token 使用统计
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TokenUsage {
+    /// 输入 token 数量
     pub input_tokens: u32,
+    /// 输出 token 数量
     pub output_tokens: u32,
+    /// 缓存创建输入 token 数量
     pub cache_creation_input_tokens: u32,
+    /// 缓存读取输入 token 数量
     pub cache_read_input_tokens: u32,
 }
 
+/// 用量费用估算
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UsageCostEstimate {
+    /// 输入费用（美元）
     pub input_cost_usd: f64,
+    /// 输出费用（美元）
     pub output_cost_usd: f64,
+    /// 缓存创建费用（美元）
     pub cache_creation_cost_usd: f64,
+    /// 缓存读取费用（美元）
     pub cache_read_cost_usd: f64,
 }
 
 impl UsageCostEstimate {
+    /// 计算总费用
+    ///
+    /// # 返回
+    /// 总费用（美元）
     #[must_use]
     pub fn total_cost_usd(self) -> f64 {
         self.input_cost_usd
@@ -61,6 +81,13 @@ impl UsageCostEstimate {
     }
 }
 
+/// 获取模型定价
+///
+/// # 参数
+/// - `model`: 模型名称
+///
+/// # 返回
+/// 模型定价（如果存在）
 #[must_use]
 pub fn pricing_for_model(model: &str) -> Option<ModelPricing> {
     let normalized = model.to_ascii_lowercase();
@@ -125,6 +152,10 @@ pub fn pricing_for_model(model: &str) -> Option<ModelPricing> {
 }
 
 impl TokenUsage {
+    /// 计算总 token 数量
+    ///
+    /// # 返回
+    /// 总 token 数量
     #[must_use]
     pub fn total_tokens(self) -> u32 {
         self.input_tokens
@@ -133,11 +164,22 @@ impl TokenUsage {
             + self.cache_read_input_tokens
     }
 
+    /// 估算费用（美元）
+    ///
+    /// # 返回
+    /// 费用估算
     #[must_use]
     pub fn estimate_cost_usd(self) -> UsageCostEstimate {
         self.estimate_cost_usd_with_pricing(ModelPricing::default_sonnet_tier())
     }
 
+    /// 使用指定定价估算费用
+    ///
+    /// # 参数
+    /// - `pricing`: 模型定价
+    ///
+    /// # 返回
+    /// 费用估算
     #[must_use]
     pub fn estimate_cost_usd_with_pricing(self, pricing: ModelPricing) -> UsageCostEstimate {
         UsageCostEstimate {
@@ -154,11 +196,26 @@ impl TokenUsage {
         }
     }
 
+    /// 生成摘要行
+    ///
+    /// # 参数
+    /// - `label`: 标签
+    ///
+    /// # 返回
+    /// 摘要行列表
     #[must_use]
     pub fn summary_lines(self, label: &str) -> Vec<String> {
         self.summary_lines_for_model(label, None)
     }
 
+    /// 生成指定模型的摘要行
+    ///
+    /// # 参数
+    /// - `label`: 标签
+    /// - `model`: 模型名称（可选）
+    ///
+    /// # 返回
+    /// 摘要行列表
     #[must_use]
     pub fn summary_lines_for_model(self, label: &str, model: Option<&str>) -> Vec<String> {
         let pricing = model.and_then(pricing_for_model);
@@ -202,11 +259,19 @@ fn cost_for_tokens(tokens: u32, usd_per_million_tokens: f64) -> f64 {
     f64::from(tokens) / 1_000_000.0 * usd_per_million_tokens
 }
 
+/// 格式化美元金额
+///
+/// # 参数
+/// - `amount`: 金额
+///
+/// # 返回
+/// 格式化的美元字符串
 #[must_use]
 pub fn format_usd(amount: f64) -> String {
     format!("${amount:.4}")
 }
 
+/// 用量追踪器
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UsageTracker {
     latest_turn: TokenUsage,
@@ -215,11 +280,19 @@ pub struct UsageTracker {
 }
 
 impl UsageTracker {
+    /// 创建新的用量追踪器
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 从会话创建用量追踪器
+    ///
+    /// # 参数
+    /// - `session`: 会话
+    ///
+    /// # 返回
+    /// 用量追踪器
     #[must_use]
     pub fn from_session(session: &Session) -> Self {
         let mut tracker = Self::new();
@@ -231,6 +304,10 @@ impl UsageTracker {
         tracker
     }
 
+    /// 记录用量
+    ///
+    /// # 参数
+    /// - `usage`: Token 使用统计
     pub fn record(&mut self, usage: TokenUsage) {
         self.latest_turn = usage;
         self.cumulative.input_tokens += usage.input_tokens;
@@ -240,16 +317,28 @@ impl UsageTracker {
         self.turns += 1;
     }
 
+    /// 获取当前回合用量
+    ///
+    /// # 返回
+    /// 当前回合用量
     #[must_use]
     pub fn current_turn_usage(&self) -> TokenUsage {
         self.latest_turn
     }
 
+    /// 获取累计用量
+    ///
+    /// # 返回
+    /// 累计用量
     #[must_use]
     pub fn cumulative_usage(&self) -> TokenUsage {
         self.cumulative
     }
 
+    /// 获取回合数
+    ///
+    /// # 返回
+    /// 回合数
     #[must_use]
     pub fn turns(&self) -> u32 {
         self.turns

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 
+/// JSON 值
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JsonValue {
     Null,
@@ -11,12 +12,18 @@ pub enum JsonValue {
     Object(BTreeMap<String, JsonValue>),
 }
 
+/// JSON 错误
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JsonError {
     message: String,
 }
 
 impl JsonError {
+    /// 创建新的 JSON 错误
+    ///
+    /// # 参数
+    ///
+    /// * `message` - 错误消息
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
         Self {
@@ -34,6 +41,7 @@ impl Display for JsonError {
 impl std::error::Error for JsonError {}
 
 impl JsonValue {
+    /// 渲染为 JSON 字符串
     #[must_use]
     pub fn render(&self) -> String {
         match self {
@@ -60,6 +68,11 @@ impl JsonValue {
         }
     }
 
+    /// 解析 JSON 字符串
+    ///
+    /// # 错误
+    ///
+    /// 如果 JSON 格式无效或存在尾部内容，返回 `JsonError`。
     pub fn parse(source: &str) -> Result<Self, JsonError> {
         let mut parser = Parser::new(source);
         let value = parser.parse_value()?;
@@ -71,6 +84,7 @@ impl JsonValue {
         }
     }
 
+    /// 转换为对象
     #[must_use]
     pub fn as_object(&self) -> Option<&BTreeMap<String, JsonValue>> {
         match self {
@@ -79,6 +93,7 @@ impl JsonValue {
         }
     }
 
+    /// 转换为数组
     #[must_use]
     pub fn as_array(&self) -> Option<&[JsonValue]> {
         match self {
@@ -87,6 +102,7 @@ impl JsonValue {
         }
     }
 
+    /// 转换为字符串
     #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
@@ -95,6 +111,7 @@ impl JsonValue {
         }
     }
 
+    /// 转换为布尔值
     #[must_use]
     pub fn as_bool(&self) -> Option<bool> {
         match self {
@@ -103,6 +120,7 @@ impl JsonValue {
         }
     }
 
+    /// 转换为 i64 数字
     #[must_use]
     pub fn as_i64(&self) -> Option<i64> {
         match self {

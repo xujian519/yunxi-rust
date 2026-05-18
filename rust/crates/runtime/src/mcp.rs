@@ -3,6 +3,14 @@ use crate::config::{McpServerConfig, ScopedMcpServerConfig};
 const CLAUDEAI_SERVER_PREFIX: &str = "claude.ai ";
 const CCR_PROXY_PATH_MARKERS: [&str; 2] = ["/v2/session_ingress/shttp/mcp/", "/v2/ccr-sessions/"];
 
+/// 将名称标准化为 MCP 工具兼容格式
+///
+/// 将非字母数字字符替换为下划线。对于以 `claude.ai ` 开头的名称，
+/// 会进一步压缩连续的下划线并去除首尾下划线。
+///
+/// # 参数
+///
+/// * `name` - 原始服务器或工具名称
 #[must_use]
 pub fn normalize_name_for_mcp(name: &str) -> String {
     let mut normalized = name
@@ -22,11 +30,27 @@ pub fn normalize_name_for_mcp(name: &str) -> String {
     normalized
 }
 
+/// 生成 MCP 工具前缀
+///
+/// 返回格式为 `mcp__{normalized_name}__` 的字符串前缀，
+/// 用于标识工具所属的 MCP 服务器。
+///
+/// # 参数
+///
+/// * `server_name` - MCP 服务器名称
 #[must_use]
 pub fn mcp_tool_prefix(server_name: &str) -> String {
     format!("mcp__{}__", normalize_name_for_mcp(server_name))
 }
 
+/// 生成完整的 MCP 工具名称
+///
+/// 结合服务器前缀和标准化后的工具名称，生成完整的工具标识符。
+///
+/// # 参数
+///
+/// * `server_name` - MCP 服务器名称
+/// * `tool_name` - 工具名称
 #[must_use]
 pub fn mcp_tool_name(server_name: &str, tool_name: &str) -> String {
     format!(
@@ -36,6 +60,14 @@ pub fn mcp_tool_name(server_name: &str, tool_name: &str) -> String {
     )
 }
 
+/// 解包 CCR 代理 URL
+///
+/// 从 Claude CCR 代理 URL 中提取实际的 MCP 服务器 URL。
+/// 如果 URL 不包含代理标记，则原样返回。
+///
+/// # 参数
+///
+/// * `url` - 可能包含 CCR 代理信息的 URL
 #[must_use]
 pub fn unwrap_ccr_proxy_url(url: &str) -> String {
     if !CCR_PROXY_PATH_MARKERS
@@ -61,6 +93,14 @@ pub fn unwrap_ccr_proxy_url(url: &str) -> String {
     url.to_string()
 }
 
+/// 生成 MCP 服务器签名
+///
+/// 根据服务器配置生成唯一签名，用于标识服务器类型和连接参数。
+/// SDK 类型的服务器返回 `None`。
+///
+/// # 参数
+///
+/// * `config` - MCP 服务器配置
 #[must_use]
 pub fn mcp_server_signature(config: &McpServerConfig) -> Option<String> {
     match config {
@@ -80,6 +120,14 @@ pub fn mcp_server_signature(config: &McpServerConfig) -> Option<String> {
     }
 }
 
+/// 生成作用域 MCP 配置的哈希值
+///
+/// 忽略配置源（用户/本地/项目），仅根据配置内容生成稳定的哈希值。
+/// 用于检测配置是否发生变化。
+///
+/// # 参数
+///
+/// * `config` - 作用域 MCP 服务器配置
 #[must_use]
 pub fn scoped_mcp_config_hash(config: &ScopedMcpServerConfig) -> String {
     let rendered = match &config.config {

@@ -1,0 +1,97 @@
+[
+  {
+    "id": "cn-novelty-argue",
+    "name": "CN新颖性争辩",
+    "description": "针对中国OA新颖性驳回的争辩模板",
+    "rejection_type": "Novelty",
+    "strategy": "argue",
+    "success_rate": 0.65,
+    "content": "尊敬的审查员：\n\n关于权利要求{claim_numbers}的新颖性问题，申请人认为：\n\n1. 对比文件{reference_id}未公开{distinguishing_feature}。\n2. 本申请权利要求{claim_numbers}与对比文件{reference_id}至少存在以下区别技术特征：\n   - {difference_1}\n   - {difference_2}\n\n基于上述区别，本申请具备新颖性。\n\n请予考量。",
+    "variables": [
+      "claim_numbers",
+      "reference_id",
+      "distinguishing_feature",
+      "difference_1",
+      "difference_2"
+    ]
+  },
+  {
+    "id": "cn-inventiveness-argue",
+    "name": "CN创造性争辩",
+    "description": "针对中国OA创造性驳回的争辩模板",
+    "rejection_type": "Inventiveness",
+    "strategy": "argue",
+    "success_rate": 0.60,
+    "content": "尊敬的审查员：\n\n关于权利要求{claim_numbers}的创造性问题，申请人认为：\n\n1. 对比文件{reference_id}未给出采用{technical_feature}的技术启示。\n2. 本申请权利要求{claim_numbers}相对于对比文件{reference_id}具备突出的实质性特点：\n   - {substantive_feature}\n3. 本申请产生了{technical_effect}的有益效果，具备显著的进步。\n\n基于上述理由，本申请具备创造性。\n\n请予考量。",
+    "variables": [
+      "claim_numbers",
+      "reference_id",
+      "technical_feature",
+      "substantive_feature",
+      "technical_effect"
+    ]
+  },
+  {
+    "id": "cn-support-amend",
+    "name": "CN充分公开修改",
+    "description": "针对说明书不支持/未充分公开的修改模板",
+    "rejection_type": "Support",
+    "strategy": "amend",
+    "success_rate": 0.75,
+    "content": "尊敬的审查员：\n\n针对审查员指出的说明书未充分公开问题，申请人修改权利要求{claim_numbers}如下：\n\n修改后：\n{amended_claims}\n\n上述修改内容来源于说明书第{specification_page}页第{line}行记载的：\n{specification_content}\n\n修改后的权利要求已得到说明书支持，符合专利法第26条第3款规定。\n\n请予考量。",
+    "variables": [
+      "claim_numbers",
+      "amended_claims",
+      "specification_page",
+      "line",
+      "specification_content"
+    ]
+  },
+  {
+    "id": "general-amend-claims",
+    "name": "通用权利要求修改",
+    "description": "通用权利要求修改模板",
+    "rejection_type": "Other",
+    "strategy": "amend",
+    "success_rate": 0.80,
+    "content": "尊敬的审查员：\n\n针对审查意见，申请人修改权利要求{claim_numbers}如下：\n\n原权利要求：\n{original_claims}\n\n修改后权利要求：\n{amended_claims}\n\n修改依据：说明书第{specification_page}页记载。\n\n请予考量。",
+    "variables": [
+      "claim_numbers",
+      "original_claims",
+      "amended_claims",
+      "specification_page"
+    ]
+  },
+  {
+    "id": "pct-novelty-argue",
+    "name": "PCT Novelty Argument",
+    "description": "PCT novelty argument template",
+    "rejection_type": "Novelty",
+    "strategy": "argue",
+    "success_rate": 0.65,
+    "content": "Dear Examiner,\n\nRegarding the novelty of claims {claim_numbers}, the Applicant respectfully submits:\n\n1. The prior art reference {reference_id} does not disclose {distinguishing_feature}.\n2. The claims {claim_numbers} are novel over {reference_id} due to at least the following distinguishing features:\n   - {difference_1}\n   - {difference_2}\n\nBased on the above, the claimed invention possesses novelty.\n\nRespectfully submitted.",
+    "variables": [
+      "claim_numbers",
+      "reference_id",
+      "distinguishing_feature",
+      "difference_1",
+      "difference_2"
+    ]
+  },
+  {
+    "id": "pct-inventiveness-argue",
+    "name": "PCT Inventive Step Argument",
+    "description": "PCT inventive step argument template",
+    "rejection_type": "Inventiveness",
+    "strategy": "argue",
+    "success_rate": 0.60,
+    "content": "Dear Examiner,\n\nRegarding the inventive step of claims {claim_numbers}, the Applicant respectfully submits:\n\n1. The prior art reference {reference_id} does not suggest the combination of {technical_feature}.\n2. The claimed invention possesses an inventive step because:\n   - {inventive_feature}\n   - {technical_effect}\n\nBased on the above, the claimed invention involves an inventive step.\n\nRespectfully submitted.",
+    "variables": [
+      "claim_numbers",
+      "reference_id",
+      "technical_feature",
+      "inventive_feature",
+      "technical_effect"
+    ]
+  }
+]

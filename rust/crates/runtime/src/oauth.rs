@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::config::OAuthConfig;
 
+/// OAuth 令牌集
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OAuthTokenSet {
     pub access_token: String,
@@ -17,6 +18,9 @@ pub struct OAuthTokenSet {
     pub scopes: Vec<String>,
 }
 
+/// PKCE 代码对
+///
+/// 用于 PKCE (Proof Key for Code Exchange) 流程的验证器和挑战码。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PkceCodePair {
     pub verifier: String,
@@ -24,6 +28,7 @@ pub struct PkceCodePair {
     pub challenge_method: PkceChallengeMethod,
 }
 
+/// PKCE 挑战方法
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PkceChallengeMethod {
     S256,
@@ -38,6 +43,7 @@ impl PkceChallengeMethod {
     }
 }
 
+/// OAuth 授权请求
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OAuthAuthorizationRequest {
     pub authorize_url: String,
@@ -50,6 +56,7 @@ pub struct OAuthAuthorizationRequest {
     pub extra_params: BTreeMap<String, String>,
 }
 
+/// OAuth 令牌交换请求
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OAuthTokenExchangeRequest {
     pub grant_type: &'static str,
@@ -60,6 +67,7 @@ pub struct OAuthTokenExchangeRequest {
     pub state: String,
 }
 
+/// OAuth 刷新请求
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OAuthRefreshRequest {
     pub grant_type: &'static str,
@@ -68,6 +76,7 @@ pub struct OAuthRefreshRequest {
     pub scopes: Vec<String>,
 }
 
+/// OAuth 回调参数
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OAuthCallbackParams {
     pub code: Option<String>,
@@ -111,6 +120,14 @@ impl From<StoredOAuthCredentials> for OAuthTokenSet {
 }
 
 impl OAuthAuthorizationRequest {
+    /// 从配置创建授权请求
+    ///
+    /// # 参数
+    ///
+    /// * `config` - OAuth 配置
+    /// * `redirect_uri` - 回调 URI
+    /// * `state` - 状态参数
+    /// * `pkce` - PKCE 代码对
     #[must_use]
     pub fn from_config(
         config: &OAuthConfig,
@@ -130,12 +147,19 @@ impl OAuthAuthorizationRequest {
         }
     }
 
+    /// 添加额外参数
+    ///
+    /// # 参数
+    ///
+    /// * `key` - 参数键
+    /// * `value` - 参数值
     #[must_use]
     pub fn with_extra_param(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.extra_params.insert(key.into(), value.into());
         self
     }
 
+    /// 构建完整的授权 URL
     #[must_use]
     pub fn build_url(&self) -> String {
         let mut params = vec![
@@ -174,6 +198,15 @@ impl OAuthAuthorizationRequest {
 }
 
 impl OAuthTokenExchangeRequest {
+    /// 从配置创建令牌交换请求
+    ///
+    /// # 参数
+    ///
+    /// * `config` - OAuth 配置
+    /// * `code` - 授权码
+    /// * `state` - 状态参数
+    /// * `verifier` - PKCE 验证器
+    /// * `redirect_uri` - 回调 URI
     #[must_use]
     pub fn from_config(
         config: &OAuthConfig,
@@ -192,6 +225,7 @@ impl OAuthTokenExchangeRequest {
         }
     }
 
+    /// 生成表单参数
     #[must_use]
     pub fn form_params(&self) -> BTreeMap<&str, String> {
         BTreeMap::from([
@@ -206,6 +240,13 @@ impl OAuthTokenExchangeRequest {
 }
 
 impl OAuthRefreshRequest {
+    /// 从配置创建刷新请求
+    ///
+    /// # 参数
+    ///
+    /// * `config` - OAuth 配置
+    /// * `refresh_token` - 刷新令牌
+    /// * `scopes` - 可选的作用域列表
     #[must_use]
     pub fn from_config(
         config: &OAuthConfig,
@@ -220,6 +261,7 @@ impl OAuthRefreshRequest {
         }
     }
 
+    /// 生成表单参数
     #[must_use]
     pub fn form_params(&self) -> BTreeMap<&str, String> {
         BTreeMap::from([
@@ -231,6 +273,11 @@ impl OAuthRefreshRequest {
     }
 }
 
+/// 生成 PKCE 代码对
+///
+/// # Errors
+///
+/// - 如果无法读取随机数据,返回 IO 错误
 pub fn generate_pkce_pair() -> io::Result<PkceCodePair> {
     let verifier = generate_random_token(32)?;
     Ok(PkceCodePair {
@@ -240,25 +287,43 @@ pub fn generate_pkce_pair() -> io::Result<PkceCodePair> {
     })
 }
 
+/// 生成随机状态值
+///
+/// # Errors
+///
+/// - 如果无法读取随机数据,返回 IO 错误
 pub fn generate_state() -> io::Result<String> {
     generate_random_token(32)
 }
 
+/// 使用 S256 方法生成 PKCE 挑战码
 #[must_use]
 pub fn code_challenge_s256(verifier: &str) -> String {
     let digest = Sha256::digest(verifier.as_bytes());
     base64url_encode(&digest)
 }
 
+/// 生成本地回调 URI
 #[must_use]
 pub fn loopback_redirect_uri(port: u16) -> String {
     format!("http://localhost:{port}/callback")
 }
 
+/// 获取凭据文件路径
+///
+/// # Errors
+///
+/// - 如果无法确定配置目录,返回 IO 错误
 pub fn credentials_path() -> io::Result<PathBuf> {
     Ok(credentials_home_dir()?.join("credentials.json"))
 }
 
+/// 加载 OAuth 凭据
+///
+/// # Errors
+///
+/// - 如果文件读取失败,返回 IO 错误
+/// - 如果 JSON 解析失败,返回 IO 错误
 pub fn load_oauth_credentials() -> io::Result<Option<OAuthTokenSet>> {
     let path = credentials_path()?;
     let root = read_credentials_root(&path)?;
@@ -273,6 +338,12 @@ pub fn load_oauth_credentials() -> io::Result<Option<OAuthTokenSet>> {
     Ok(Some(stored.into()))
 }
 
+/// 保存 OAuth 凭据
+///
+/// # Errors
+///
+/// - 如果文件写入失败,返回 IO 错误
+/// - 如果 JSON 序列化失败,返回 IO 错误
 pub fn save_oauth_credentials(token_set: &OAuthTokenSet) -> io::Result<()> {
     let path = credentials_path()?;
     let mut root = read_credentials_root(&path)?;
@@ -284,6 +355,11 @@ pub fn save_oauth_credentials(token_set: &OAuthTokenSet) -> io::Result<()> {
     write_credentials_root(&path, &root)
 }
 
+/// 清除 OAuth 凭据
+///
+/// # Errors
+///
+/// - 如果文件写入失败,返回 IO 错误
 pub fn clear_oauth_credentials() -> io::Result<()> {
     let path = credentials_path()?;
     let mut root = read_credentials_root(&path)?;
@@ -291,6 +367,11 @@ pub fn clear_oauth_credentials() -> io::Result<()> {
     write_credentials_root(&path, &root)
 }
 
+/// 解析 OAuth 回调请求目标
+///
+/// # Errors
+///
+/// - 如果回调路径不是 `/callback`,返回错误字符串
 pub fn parse_oauth_callback_request_target(target: &str) -> Result<OAuthCallbackParams, String> {
     let (path, query) = target
         .split_once('?')
@@ -301,6 +382,11 @@ pub fn parse_oauth_callback_request_target(target: &str) -> Result<OAuthCallback
     parse_oauth_callback_query(query)
 }
 
+/// 解析 OAuth 回调查询字符串
+///
+/// # Errors
+///
+/// - 如果 URL 解码失败,返回错误字符串
 pub fn parse_oauth_callback_query(query: &str) -> Result<OAuthCallbackParams, String> {
     let mut params = BTreeMap::new();
     for pair in query.split('&').filter(|pair| !pair.is_empty()) {

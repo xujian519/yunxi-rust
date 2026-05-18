@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+/// 文件系统隔离模式
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum FilesystemIsolationMode {
@@ -24,6 +25,7 @@ impl FilesystemIsolationMode {
     }
 }
 
+/// 沙箱配置
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct SandboxConfig {
     pub enabled: Option<bool>,
@@ -33,6 +35,7 @@ pub struct SandboxConfig {
     pub allowed_mounts: Vec<String>,
 }
 
+/// 沙箱请求
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct SandboxRequest {
     pub enabled: bool,
@@ -42,12 +45,14 @@ pub struct SandboxRequest {
     pub allowed_mounts: Vec<String>,
 }
 
+/// 容器环境信息
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ContainerEnvironment {
     pub in_container: bool,
     pub markers: Vec<String>,
 }
 
+/// 沙箱状态
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct SandboxStatus {
@@ -67,6 +72,7 @@ pub struct SandboxStatus {
     pub fallback_reason: Option<String>,
 }
 
+/// 沙箱检测输入
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SandboxDetectionInputs<'a> {
     pub env_pairs: Vec<(String, String)>,
@@ -75,6 +81,7 @@ pub struct SandboxDetectionInputs<'a> {
     pub proc_1_cgroup: Option<&'a str>,
 }
 
+/// Linux 沙箱命令
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinuxSandboxCommand {
     pub program: String,
@@ -83,6 +90,15 @@ pub struct LinuxSandboxCommand {
 }
 
 impl SandboxConfig {
+    /// 解析沙箱请求
+    ///
+    /// # 参数
+    ///
+    /// * `enabled_override` - 是否启用覆盖
+    /// * `namespace_override` - 命名空间限制覆盖
+    /// * `network_override` - 网络隔离覆盖
+    /// * `filesystem_mode_override` - 文件系统模式覆盖
+    /// * `allowed_mounts_override` - 允许的挂载点覆盖
     #[must_use]
     pub fn resolve_request(
         &self,
@@ -105,6 +121,7 @@ impl SandboxConfig {
     }
 }
 
+/// 检测容器环境
 #[must_use]
 pub fn detect_container_environment() -> ContainerEnvironment {
     let proc_1_cgroup = fs::read_to_string("/proc/1/cgroup").ok();
@@ -116,6 +133,11 @@ pub fn detect_container_environment() -> ContainerEnvironment {
     })
 }
 
+/// 从输入检测容器环境
+///
+/// # 参数
+///
+/// * `inputs` - 沙箱检测输入
 #[must_use]
 pub fn detect_container_environment_from(
     inputs: SandboxDetectionInputs<'_>,
@@ -152,12 +174,24 @@ pub fn detect_container_environment_from(
     }
 }
 
+/// 解析沙箱状态
+///
+/// # 参数
+///
+/// * `config` - 沙箱配置
+/// * `cwd` - 当前工作目录
 #[must_use]
 pub fn resolve_sandbox_status(config: &SandboxConfig, cwd: &Path) -> SandboxStatus {
     let request = config.resolve_request(None, None, None, None, None);
     resolve_sandbox_status_for_request(&request, cwd)
 }
 
+/// 解析沙箱状态（基于请求）
+///
+/// # 参数
+///
+/// * `request` - 沙箱请求
+/// * `cwd` - 当前工作目录
 #[must_use]
 pub fn resolve_sandbox_status_for_request(request: &SandboxRequest, cwd: &Path) -> SandboxStatus {
     let container = detect_container_environment();
@@ -207,6 +241,13 @@ pub fn resolve_sandbox_status_for_request(request: &SandboxRequest, cwd: &Path) 
     }
 }
 
+/// 构建 Linux 沙箱命令
+///
+/// # 参数
+///
+/// * `command` - 要执行的命令
+/// * `cwd` - 当前工作目录
+/// * `status` - 沙箱状态
 #[must_use]
 pub fn build_linux_sandbox_command(
     command: &str,

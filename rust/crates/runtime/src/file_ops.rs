@@ -9,126 +9,205 @@ use regex::RegexBuilder;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
+/// 文本文件载荷
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TextFilePayload {
+    /// 文件路径
     #[serde(rename = "filePath")]
     pub file_path: String,
+    /// 文件内容
     pub content: String,
+    /// 行数
     #[serde(rename = "numLines")]
     pub num_lines: usize,
+    /// 起始行号
     #[serde(rename = "startLine")]
     pub start_line: usize,
+    /// 总行数
     #[serde(rename = "totalLines")]
     pub total_lines: usize,
 }
 
+/// 读取文件输出
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ReadFileOutput {
+    /// 类型
     #[serde(rename = "type")]
     pub kind: String,
+    /// 文件内容
     pub file: TextFilePayload,
 }
 
+/// 结构化补丁块
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StructuredPatchHunk {
+    /// 旧起始行
     #[serde(rename = "oldStart")]
     pub old_start: usize,
+    /// 旧行数
     #[serde(rename = "oldLines")]
     pub old_lines: usize,
+    /// 新起始行
     #[serde(rename = "newStart")]
     pub new_start: usize,
+    /// 新行数
     #[serde(rename = "newLines")]
     pub new_lines: usize,
+    /// 行列表
     pub lines: Vec<String>,
 }
 
+/// 写入文件输出
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WriteFileOutput {
+    /// 类型
     #[serde(rename = "type")]
     pub kind: String,
+    /// 文件路径
     #[serde(rename = "filePath")]
     pub file_path: String,
+    /// 文件内容
     pub content: String,
+    /// 结构化补丁
     #[serde(rename = "structuredPatch")]
     pub structured_patch: Vec<StructuredPatchHunk>,
+    /// 原始文件
     #[serde(rename = "originalFile")]
     pub original_file: Option<String>,
+    /// Git 差异
     #[serde(rename = "gitDiff")]
     pub git_diff: Option<serde_json::Value>,
 }
 
+/// 编辑文件输出
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EditFileOutput {
+    /// 文件路径
     #[serde(rename = "filePath")]
     pub file_path: String,
+    /// 旧字符串
     #[serde(rename = "oldString")]
     pub old_string: String,
+    /// 新字符串
     #[serde(rename = "newString")]
     pub new_string: String,
+    /// 原始文件
     #[serde(rename = "originalFile")]
     pub original_file: String,
+    /// 结构化补丁
     #[serde(rename = "structuredPatch")]
     pub structured_patch: Vec<StructuredPatchHunk>,
+    /// 用户是否修改
     #[serde(rename = "userModified")]
     pub user_modified: bool,
+    /// 是否替换全部
     #[serde(rename = "replaceAll")]
     pub replace_all: bool,
+    /// Git 差异
     #[serde(rename = "gitDiff")]
     pub git_diff: Option<serde_json::Value>,
 }
 
+/// 全局搜索输出
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GlobSearchOutput {
+    /// 持续时间（毫秒）
     #[serde(rename = "durationMs")]
     pub duration_ms: u128,
+    /// 文件数量
     #[serde(rename = "numFiles")]
     pub num_files: usize,
+    /// 文件名列表
     pub filenames: Vec<String>,
+    /// 是否截断
     pub truncated: bool,
 }
 
+/// 正则搜索输入
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GrepSearchInput {
+    /// 搜索模式
     pub pattern: String,
+    /// 路径
     pub path: Option<String>,
+    /// Glob 模式
     pub glob: Option<String>,
+    /// 输出模式
     #[serde(rename = "output_mode")]
     pub output_mode: Option<String>,
+    /// 上下文行数（前）
     #[serde(rename = "-B")]
     pub before: Option<usize>,
+    /// 上下文行数（后）
     #[serde(rename = "-A")]
     pub after: Option<usize>,
+    /// 上下文行数（短）
     #[serde(rename = "-C")]
     pub context_short: Option<usize>,
+    /// 上下文行数
     pub context: Option<usize>,
+    /// 显示行号
     #[serde(rename = "-n")]
     pub line_numbers: Option<bool>,
+    /// 忽略大小写
     #[serde(rename = "-i")]
     pub case_insensitive: Option<bool>,
+    /// 文件类型
     #[serde(rename = "type")]
     pub file_type: Option<String>,
+    /// 结果限制
     pub head_limit: Option<usize>,
+    /// 偏移量
     pub offset: Option<usize>,
+    /// 多行模式
     pub multiline: Option<bool>,
 }
 
+/// 正则搜索输出
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GrepSearchOutput {
+    /// 模式
     pub mode: Option<String>,
+    /// 文件数量
     #[serde(rename = "numFiles")]
     pub num_files: usize,
+    /// 文件名列表
     pub filenames: Vec<String>,
+    /// 内容
     pub content: Option<String>,
+    /// 行数
     #[serde(rename = "numLines")]
     pub num_lines: Option<usize>,
+    /// 匹配数
     #[serde(rename = "numMatches")]
     pub num_matches: Option<usize>,
+    /// 应用的限制
     #[serde(rename = "appliedLimit")]
     pub applied_limit: Option<usize>,
+    /// 应用的偏移
     #[serde(rename = "appliedOffset")]
     pub applied_offset: Option<usize>,
 }
 
+/// 读取文件内容
+///
+/// # Errors
+///
+/// - 如果路径规范化失败,返回 IO 错误
+/// - 如果文件读取失败,返回 IO 错误
+/// 读取文件
+///
+/// # 参数
+/// - `path`: 文件路径
+/// - `offset`: 起始行偏移
+/// - `limit`: 最大行数
+///
+/// # 返回
+/// 读取文件输出
+///
+/// # 错误
+/// - 如果路径无效，返回错误
+/// - 如果文件读取失败，返回错误
 pub fn read_file(
     path: &str,
     offset: Option<usize>,
@@ -155,6 +234,20 @@ pub fn read_file(
     })
 }
 
+/// 写入文件
+///
+/// # 参数
+/// - `path`: 文件路径
+/// - `content`: 文件内容
+///
+/// # 返回
+/// 写入文件输出
+///
+/// # Errors
+///
+/// - 如果路径规范化失败,返回 IO 错误
+/// - 如果目录创建失败,返回 IO 错误
+/// - 如果文件写入失败,返回 IO 错误
 pub fn write_file(path: &str, content: &str) -> io::Result<WriteFileOutput> {
     let absolute_path = normalize_path_allow_missing(path)?;
     let original_file = fs::read_to_string(&absolute_path).ok();
@@ -177,6 +270,31 @@ pub fn write_file(path: &str, content: &str) -> io::Result<WriteFileOutput> {
     })
 }
 
+/// 编辑文件内容
+///
+/// # Errors
+///
+/// - 如果路径规范化失败,返回 IO 错误
+/// - 如果文件读取失败,返回 IO 错误
+/// - 如果 old_string 和 new_string 相同,返回错误
+/// - 如果 old_string 未找到,返回错误
+/// - 如果文件写入失败,返回 IO 错误
+/// 编辑文件
+///
+/// # 参数
+/// - `path`: 文件路径
+/// - `old_string`: 旧字符串
+/// - `new_string`: 新字符串
+/// - `replace_all`: 是否替换全部
+///
+/// # 返回
+/// 编辑文件输出
+///
+/// # 错误
+/// - 如果路径无效，返回错误
+/// - 如果文件读取失败，返回错误
+/// - 如果旧字符串和新字符串相同，返回错误
+/// - 如果旧字符串未找到，返回错误
 pub fn edit_file(
     path: &str,
     old_string: &str,
@@ -217,6 +335,25 @@ pub fn edit_file(
     })
 }
 
+/// 全局搜索文件
+///
+/// # Errors
+///
+/// - 如果路径规范化失败,返回 IO 错误
+/// - 如果目录访问失败,返回 IO 错误
+/// - 如果文件枚举失败,返回 IO 错误
+/// 全局搜索文件
+///
+/// # 参数
+/// - `pattern`: Glob 模式
+/// - `path`: 基础路径
+///
+/// # 返回
+/// 全局搜索输出
+///
+/// # 错误
+/// - 如果路径无效，返回错误
+/// - 如果 Glob 模式无效，返回错误
 pub fn glob_search(pattern: &str, path: Option<&str>) -> io::Result<GlobSearchOutput> {
     let started = Instant::now();
     let base_dir = path
@@ -260,6 +397,26 @@ pub fn glob_search(pattern: &str, path: Option<&str>) -> io::Result<GlobSearchOu
     })
 }
 
+/// 正则表达式搜索文件内容
+///
+/// # Errors
+///
+/// - 如果路径规范化失败,返回 IO 错误
+/// - 如果当前目录访问失败,返回 IO 错误
+/// - 如果正则表达式编译失败,返回 IO 错误
+/// - 如果 glob 模式解析失败,返回 IO 错误
+/// 正则搜索文件内容
+///
+/// # 参数
+/// - `input`: 搜索输入
+///
+/// # 返回
+/// 正则搜索输出
+///
+/// # 错误
+/// - 如果路径无效，返回错误
+/// - 如果正则表达式无效，返回错误
+/// - 如果 Glob 模式无效，返回错误
 pub fn grep_search(input: &GrepSearchInput) -> io::Result<GrepSearchOutput> {
     let base_path = input
         .path

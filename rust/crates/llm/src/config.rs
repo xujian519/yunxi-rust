@@ -24,6 +24,11 @@ pub struct PricingConfig {
 }
 
 impl LlmConfig {
+    /// 加载 LLM 配置
+    ///
+    /// # Errors
+    ///
+    /// - 如果配置加载失败,返回 Llm 错误
     pub fn load() -> Result<Self, LlmError> {
         let config_path = Self::discover_config_path();
         let Some(path) = config_path else {

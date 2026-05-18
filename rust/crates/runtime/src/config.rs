@@ -301,9 +301,10 @@ impl ConfigLoader {
     /// # 返回
     /// 合并后的运行时配置
     ///
-    /// # 错误
-    /// - 如果文件读取失败，返回 `Io` 错误
-    /// - 如果 JSON 解析失败，返回 `Parse` 错误
+    /// # Errors
+    ///
+    /// - 如果文件读取失败,返回 `Io` 错误
+    /// - 如果 JSON 解析失败,返回 `Parse` 错误
     pub fn load(&self) -> Result<RuntimeConfig, ConfigError> {
         let mut merged = BTreeMap::new();
         let mut loaded_entries = Vec::new();

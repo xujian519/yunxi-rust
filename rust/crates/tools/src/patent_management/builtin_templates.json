@@ -1,0 +1,76 @@
+[
+  {
+    "id": "oa-response",
+    "name": "审查意见答复模板",
+    "description": "用于答复专利审查意见的标准模板",
+    "required_vars": [
+      "applicant_name",
+      "application_number",
+      "invention_title",
+      "rejection_summary",
+      "response_arguments",
+      "amendments_summary",
+      "conclusion"
+    ],
+    "content": "\n审查意见答复书\n\n申请人：{{applicant_name}}\n申请号：{{application_number}}\n发明名称：{{invention_title}}\n\n一、审查意见概述\n{{rejection_summary}}\n\n二、答复理由\n{{response_arguments}}\n\n三、修改说明\n{{amendments_summary}}\n\n四、结论\n{{conclusion}}\n\n此致\n国家知识产权局\n"
+  },
+  {
+    "id": "patent-application",
+    "name": "专利申请文件模板",
+    "description": "标准专利申请文件模板",
+    "required_vars": [
+      "invention_title",
+      "applicant_name",
+      "inventor_name",
+      "technical_field",
+      "background",
+      "invention_summary",
+      "claims",
+      "abstract"
+    ],
+    "content": "\n发明名称：{{invention_title}}\n\n申请人：{{applicant_name}}\n发明人：{{inventor_name}}\n\n【技术领域】\n{{technical_field}}\n\n【背景技术】\n{{background}}\n\n【发明内容】\n{{invention_summary}}\n\n【权利要求书】\n{{claims}}\n\n【摘要】\n{{abstract}}\n"
+  },
+  {
+    "id": "invalidity-request",
+    "name": "无效宣告请求模板",
+    "description": "专利无效宣告请求书模板",
+    "required_vars": [
+      "requester",
+      "patent_number",
+      "patent_title",
+      "patentee",
+      "invalidity_grounds",
+      "evidence",
+      "arguments"
+    ],
+    "content": "\n无效宣告请求书\n\n请求人：{{requester}}\n专利号：{{patent_number}}\n专利名称：{{patent_title}}\n专利权人：{{patentee}}\n\n一、无效宣告理由\n{{invalidity_grounds}}\n\n二、证据列表\n{{evidence}}\n\n三、具体理由和陈述\n{{arguments}}\n\n此致\n国家知识产权局\n"
+  },
+  {
+    "id": "infringement-analysis",
+    "name": "侵权分析报告模板",
+    "description": "专利侵权分析报告模板",
+    "required_vars": [
+      "patent_number",
+      "patent_title",
+      "accused_product",
+      "claims_analysis",
+      "infringement_conclusion",
+      "recommendations"
+    ],
+    "content": "\n专利侵权分析报告\n\n专利号：{{patent_number}}\n专利名称：{{patent_title}}\n被控侵权产品：{{accused_product}}\n\n一、权利要求分析\n{{claims_analysis}}\n\n二、侵权结论\n{{infringement_conclusion}}\n\n三、建议\n{{recommendations}}\n"
+  },
+  {
+    "id": "patent-search-report",
+    "name": "专利检索报告模板",
+    "description": "专利检索分析报告模板",
+    "required_vars": [
+      "search_topic",
+      "databases",
+      "search_strategy",
+      "results_summary",
+      "relevant_patents",
+      "conclusion"
+    ],
+    "content": "\n专利检索报告\n\n检索主题：{{search_topic}}\n检索数据库：{{databases}}\n\n一、检索策略\n{{search_strategy}}\n\n二、检索结果概述\n{{results_summary}}\n\n三、相关专利列表\n{{relevant_patents}}\n\n四、结论\n{{conclusion}}\n"
+  }
+]

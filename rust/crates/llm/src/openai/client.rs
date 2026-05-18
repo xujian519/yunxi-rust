@@ -43,6 +43,12 @@ impl OpenAiClient {
         self
     }
 
+    /// 流式聊天完成
+    ///
+    /// # Errors
+    ///
+    /// - 如果请求发送失败,返回 Llm 错误
+    /// - 如果重试耗尽,返回 Llm 错误
     pub async fn stream_chat(
         &self,
         request: &ChatCompletionRequest,
@@ -144,6 +150,12 @@ pub struct OpenAiStream {
 }
 
 impl OpenAiStream {
+    /// 获取下一个块
+    ///
+    /// # Errors
+    ///
+    /// - 如果读取失败,返回 Llm 错误
+    /// - 如果解析失败,返回 Llm 错误
     pub async fn next_chunk(&mut self) -> Result<Option<ChatCompletionChunk>, LlmError> {
         loop {
             if let Some(chunk) = self.pending.pop_front() {

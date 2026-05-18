@@ -72,6 +72,14 @@ pub(crate) fn execute_agent(input: AgentInput) -> Result<AgentOutput, String> {
     execute_agent_with_spawn(input, spawn_agent_job)
 }
 
+/// 使用自定义 spawn 函数执行智能体
+///
+/// # Errors
+///
+/// - 如果描述为空,返回错误
+/// - 如果提示为空,返回错误
+/// - 如果代理存储目录创建失败,返回错误
+/// - 如果智能体执行失败,返回错误
 pub fn execute_agent_with_spawn<F>(input: AgentInput, spawn_fn: F) -> Result<AgentOutput, String>
 where
     F: FnOnce(AgentJob) -> Result<(), String>,
@@ -235,6 +243,11 @@ pub fn agent_permission_policy() -> runtime::PermissionPolicy {
     crate::agent_helpers::agent_permission_policy()
 }
 
+/// 持久化智能体终端状态
+///
+/// # Errors
+///
+/// - 如果文件操作失败,返回错误
 pub fn persist_agent_terminal_state(
     manifest: &AgentOutput,
     status: &str,

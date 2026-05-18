@@ -3,6 +3,9 @@ use std::collections::BTreeMap;
 use crate::config::{McpOAuthConfig, McpServerConfig, ScopedMcpServerConfig};
 use crate::mcp::{mcp_server_signature, mcp_tool_prefix, normalize_name_for_mcp};
 
+/// MCP 客户端传输类型
+///
+/// 表示 MCP 服务器的不同连接方式。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum McpClientTransport {
     Stdio(McpStdioTransport),
@@ -13,6 +16,9 @@ pub enum McpClientTransport {
     ClaudeAiProxy(McpClaudeAiProxyTransport),
 }
 
+/// MCP Stdio 传输配置
+///
+/// 通过标准输入输出与 MCP 服务器通信的配置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpStdioTransport {
     pub command: String,
@@ -20,6 +26,9 @@ pub struct McpStdioTransport {
     pub env: BTreeMap<String, String>,
 }
 
+/// MCP 远程传输配置
+///
+/// 通过 HTTP、SSE 或 WebSocket 与 MCP 服务器通信的配置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpRemoteTransport {
     pub url: String,
@@ -28,23 +37,33 @@ pub struct McpRemoteTransport {
     pub auth: McpClientAuth,
 }
 
+/// MCP SDK 传输配置
+///
+/// 通过内置 SDK 与 MCP 服务器通信的配置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpSdkTransport {
     pub name: String,
 }
 
+/// Claude AI 代理传输配置
+///
+/// 通过 Claude AI 代理与 MCP 服务器通信的配置。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpClaudeAiProxyTransport {
     pub url: String,
     pub id: String,
 }
 
+/// MCP 客户端认证方式
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum McpClientAuth {
     None,
     OAuth(McpOAuthConfig),
 }
 
+/// MCP 客户端启动配置
+///
+/// 包含连接 MCP 服务器所需的所有元数据。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpClientBootstrap {
     pub server_name: String,
@@ -55,6 +74,12 @@ pub struct McpClientBootstrap {
 }
 
 impl McpClientBootstrap {
+    /// 从作用域配置创建启动配置
+    ///
+    /// # 参数
+    ///
+    /// * `server_name` - MCP 服务器名称
+    /// * `config` - 作用域 MCP 服务器配置
     #[must_use]
     pub fn from_scoped_config(server_name: &str, config: &ScopedMcpServerConfig) -> Self {
         Self {
@@ -68,6 +93,11 @@ impl McpClientBootstrap {
 }
 
 impl McpClientTransport {
+    /// 从 MCP 服务器配置创建传输配置
+    ///
+    /// # 参数
+    ///
+    /// * `config` - MCP 服务器配置
     #[must_use]
     pub fn from_config(config: &McpServerConfig) -> Self {
         match config {
@@ -108,11 +138,17 @@ impl McpClientTransport {
 }
 
 impl McpClientAuth {
+    /// 从 OAuth 配置创建认证配置
+    ///
+    /// # 参数
+    ///
+    /// * `oauth` - 可选的 OAuth 配置
     #[must_use]
     pub fn from_oauth(oauth: Option<McpOAuthConfig>) -> Self {
         oauth.map_or(Self::None, Self::OAuth)
     }
 
+    /// 检查是否需要用户认证
     #[must_use]
     pub const fn requires_user_auth(&self) -> bool {
         matches!(self, Self::OAuth(_))

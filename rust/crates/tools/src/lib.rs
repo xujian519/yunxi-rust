@@ -398,6 +398,12 @@ pub fn mvp_tool_specs() -> Vec<ToolSpec> {
 /// Dispatches tool execution by name, deserializing the input JSON and returning the result.
 ///
 /// Returns an error string if the tool name is unknown or execution fails.
+///
+/// # Errors
+///
+/// - 如果工具名称未知,返回错误
+/// - 如果输入反序列化失败,返回错误
+/// - 如果工具执行失败,返回错误
 pub fn execute_tool(name: &str, input: &Value) -> Result<String, String> {
     match name {
         "bash" => from_value::<BashCommandInput>(input).and_then(run_bash),

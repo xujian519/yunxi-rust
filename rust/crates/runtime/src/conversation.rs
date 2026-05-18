@@ -42,12 +42,20 @@ pub enum AssistantEvent {
 /// Abstraction over the LLM API client that streams assistant events.
 pub trait ApiClient {
     /// Send a request to the LLM and return the collected streaming events.
+    ///
+    /// # Errors
+    ///
+    /// - 如果 API 请求失败,返回相应的运行时错误
     fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError>;
 }
 
 /// Abstraction over tool execution, dispatching tool calls by name.
 pub trait ToolExecutor {
     /// Execute a tool by name with the given JSON input string.
+    ///
+    /// # Errors
+    ///
+    /// - 如果工具执行失败,返回工具错误
     fn execute(&mut self, tool_name: &str, input: &str) -> Result<String, ToolError>;
 }
 
@@ -58,6 +66,7 @@ pub struct ToolError {
 }
 
 impl ToolError {
+    /// 创建新的工具错误
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
         Self {
@@ -81,6 +90,7 @@ pub struct RuntimeError {
 }
 
 impl RuntimeError {
+    /// 创建新的运行时错误
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
         Self {
@@ -131,6 +141,14 @@ where
     C: ApiClient,
     T: ToolExecutor,
 {
+    /// 创建新的对话运行时实例
+    ///
+    /// # 参数
+    /// - `session`: 会话对象
+    /// - `api_client`: LLM API 客户端
+    /// - `tool_executor`: 工具执行器
+    /// - `permission_policy`: 权限策略
+    /// - `system_prompt`: 系统提示词列表
     #[must_use]
     pub fn new(
         session: Session,
@@ -149,6 +167,15 @@ where
         )
     }
 
+    /// 使用功能配置创建新的对话运行时实例
+    ///
+    /// # 参数
+    /// - `session`: 会话对象
+    /// - `api_client`: LLM API 客户端
+    /// - `tool_executor`: 工具执行器
+    /// - `permission_policy`: 权限策略
+    /// - `system_prompt`: 系统提示词列表
+    /// - `feature_config`: 运行时功能配置
     #[must_use]
     #[allow(clippy::needless_pass_by_value)]
     pub fn new_with_features(
@@ -173,18 +200,45 @@ where
         }
     }
 
+    /// 设置最大迭代次数
+    ///
+    /// # 参数
+    /// - `max_iterations`: 最大迭代次数
+    ///
+    /// # 返回
+    /// 修改后的 `ConversationRuntime` 实例
     #[must_use]
     pub fn with_max_iterations(mut self, max_iterations: usize) -> Self {
         self.max_iterations = max_iterations;
         self
     }
 
+    /// 设置自动压缩输入 token 阈值
+    ///
+    /// # 参数
+    /// - `threshold`: 自动压缩的输入 token 阈值
+    ///
+    /// # 返回
+    /// 修改后的 `ConversationRuntime` 实例
     #[must_use]
     pub fn with_auto_compaction_input_tokens_threshold(mut self, threshold: u32) -> Self {
         self.auto_compaction_input_tokens_threshold = threshold;
         self
     }
 
+    /// 运行单个用户回合
+    ///
+    /// # 参数
+    /// - `user_input`: 用户输入
+    /// - `prompter`: 可选的权限提示器
+    ///
+    /// # 返回
+    /// 回合摘要，包含助手消息、工具结果和用量统计
+    ///
+    /// # Errors
+    ///
+    /// - 如果超过最大迭代次数,返回错误
+    /// - 如果 API 流式传输失败,返回错误
     pub fn run_turn(
         &mut self,
         user_input: impl Into<String>,
@@ -300,30 +354,57 @@ where
         })
     }
 
+    /// 压缩会话
+    ///
+    /// # 参数
+    /// - `config`: 压缩配置
+    ///
+    /// # 返回
+    /// 压缩结果
     #[must_use]
     pub fn compact(&self, config: CompactionConfig) -> CompactionResult {
         compact_session(&self.session, config)
     }
 
+    /// 估算会话 token 数量
+    ///
+    /// # 返回
+    /// 估算的 token 数量
     #[must_use]
     pub fn estimated_tokens(&self) -> usize {
         estimate_session_tokens(&self.session)
     }
 
+    /// 获取用量追踪器
+    ///
+    /// # 返回
+    /// 用量追踪器的不可变引用
     #[must_use]
     pub fn usage(&self) -> &UsageTracker {
         &self.usage_tracker
     }
 
+    /// 获取会话
+    ///
+    /// # 返回
+    /// 会话的不可变引用
     #[must_use]
     pub fn session(&self) -> &Session {
         &self.session
     }
 
+    /// 获取会话的可变引用
+    ///
+    /// # 返回
+    /// 会话的可变引用
     pub fn session_mut(&mut self) -> &mut Session {
         &mut self.session
     }
 
+    /// 消耗运行时并返回会话
+    ///
+    /// # 返回
+    /// 拥有的会话
     #[must_use]
     pub fn into_session(self) -> Session {
         self.session
@@ -355,6 +436,12 @@ where
     }
 }
 
+/// 从环境变量读取自动压缩阈值
+///
+/// 依次检查 `YUNXI_AUTO_COMPACT_INPUT_TOKENS` 和 `CLAUDE_CODE_AUTO_COMPACT_INPUT_TOKENS` 环境变量
+///
+/// # 返回
+/// 自动压缩阈值
 #[must_use]
 pub fn auto_compaction_threshold_from_env() -> u32 {
     parse_auto_compaction_threshold(
@@ -455,11 +542,20 @@ pub struct StaticToolExecutor {
 }
 
 impl StaticToolExecutor {
+    /// 创建新的静态工具执行器
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 注册工具处理器
+    ///
+    /// # 参数
+    /// - `tool_name`: 工具名称
+    /// - `handler`: 工具处理函数
+    ///
+    /// # 返回
+    /// 修改后的 `StaticToolExecutor` 实例
     #[must_use]
     pub fn register(
         mut self,

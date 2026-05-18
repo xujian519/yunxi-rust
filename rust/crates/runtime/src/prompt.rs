@@ -70,6 +70,10 @@ pub struct ProjectContext {
 
 impl ProjectContext {
     /// 发现项目上下文（不包含 Git 信息）
+    ///
+    /// # Errors
+    ///
+    /// - 如果指令文件发现失败,返回 IO 错误
     pub fn discover(
         cwd: impl Into<PathBuf>,
         current_date: impl Into<String>,
@@ -86,6 +90,10 @@ impl ProjectContext {
     }
 
     /// 发现项目上下文（包含 Git 信息）
+    ///
+    /// # Errors
+    ///
+    /// - 如果项目上下文发现失败,返回 IO 错误
     pub fn discover_with_git(
         cwd: impl Into<PathBuf>,
         current_date: impl Into<String>,
@@ -226,9 +234,10 @@ pub fn prepend_bullets(items: Vec<String>) -> Vec<String> {
 /// # 返回
 /// 系统提示词章节列表
 ///
-/// # 错误
-/// - 如果文件读取失败，返回 `Io` 错误
-/// - 如果配置加载失败，返回 `Config` 错误
+/// # Errors
+///
+/// - 如果文件读取失败,返回 `Io` 错误
+/// - 如果配置加载失败,返回 `Config` 错误
 pub fn load_system_prompt(
     cwd: impl Into<PathBuf>,
     current_date: impl Into<String>,

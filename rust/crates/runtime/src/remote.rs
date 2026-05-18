@@ -4,10 +4,14 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+/// 默认远程基础 URL
 pub const DEFAULT_REMOTE_BASE_URL: &str = "https://api.anthropic.com";
+/// 默认会话 Token 路径
 pub const DEFAULT_SESSION_TOKEN_PATH: &str = "/run/ccr/session_token";
+/// 默认系统 CA 包
 pub const DEFAULT_SYSTEM_CA_BUNDLE: &str = "/etc/ssl/certs/ca-certificates.crt";
 
+/// 上游代理环境变量键
 pub const UPSTREAM_PROXY_ENV_KEYS: [&str; 8] = [
     "HTTPS_PROXY",
     "https_proxy",
@@ -19,6 +23,7 @@ pub const UPSTREAM_PROXY_ENV_KEYS: [&str; 8] = [
     "CURL_CA_BUNDLE",
 ];
 
+/// 不代理主机列表
 pub const NO_PROXY_HOSTS: [&str; 16] = [
     "localhost",
     "127.0.0.1",
@@ -38,37 +43,61 @@ pub const NO_PROXY_HOSTS: [&str; 16] = [
     "index.crates.io",
 ];
 
+/// 远程会话上下文
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RemoteSessionContext {
+    /// 是否启用
     pub enabled: bool,
+    /// 会话 ID
     pub session_id: Option<String>,
+    /// 基础 URL
     pub base_url: String,
 }
 
+/// 上游代理引导
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpstreamProxyBootstrap {
+    /// 远程会话上下文
     pub remote: RemoteSessionContext,
+    /// 上游代理是否启用
     pub upstream_proxy_enabled: bool,
+    /// Token 路径
     pub token_path: PathBuf,
+    /// CA 包路径
     pub ca_bundle_path: PathBuf,
+    /// 系统 CA 路径
     pub system_ca_path: PathBuf,
+    /// Token
     pub token: Option<String>,
 }
 
+/// 上游代理状态
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpstreamProxyState {
+    /// 是否启用
     pub enabled: bool,
+    /// 代理 URL
     pub proxy_url: Option<String>,
+    /// CA 包路径
     pub ca_bundle_path: Option<PathBuf>,
+    /// 不代理列表
     pub no_proxy: String,
 }
 
 impl RemoteSessionContext {
+    /// 从环境变量创建
     #[must_use]
     pub fn from_env() -> Self {
         Self::from_env_map(&env::vars().collect())
     }
 
+    /// 从环境变量映射创建
+    ///
+    /// # 参数
+    /// - `env_map`: 环境变量映射
+    ///
+    /// # 返回
+    /// 远程会话上下文
     #[must_use]
     pub fn from_env_map(env_map: &BTreeMap<String, String>) -> Self {
         Self {
@@ -89,11 +118,19 @@ impl RemoteSessionContext {
 }
 
 impl UpstreamProxyBootstrap {
+    /// 从环境变量创建
     #[must_use]
     pub fn from_env() -> Self {
         Self::from_env_map(&env::vars().collect())
     }
 
+    /// 从环境变量映射创建
+    ///
+    /// # 参数
+    /// - `env_map`: 环境变量映射
+    ///
+    /// # 返回
+    /// 上游代理引导
     #[must_use]
     pub fn from_env_map(env_map: &BTreeMap<String, String>) -> Self {
         let remote = RemoteSessionContext::from_env_map(env_map);
@@ -121,6 +158,10 @@ impl UpstreamProxyBootstrap {
         }
     }
 
+    /// 是否应该启用
+    ///
+    /// # 返回
+    /// 是否应该启用
     #[must_use]
     pub fn should_enable(&self) -> bool {
         self.remote.enabled
@@ -129,11 +170,22 @@ impl UpstreamProxyBootstrap {
             && self.token.is_some()
     }
 
+    /// 获取 WebSocket URL
+    ///
+    /// # 返回
+    /// WebSocket URL
     #[must_use]
     pub fn ws_url(&self) -> String {
         upstream_proxy_ws_url(&self.remote.base_url)
     }
 
+    /// 获取指定端口的状态
+    ///
+    /// # 参数
+    /// - `port`: 端口号
+    ///
+    /// # 返回
+    /// 上游代理状态
     #[must_use]
     pub fn state_for_port(&self, port: u16) -> UpstreamProxyState {
         if !self.should_enable() {
@@ -149,6 +201,7 @@ impl UpstreamProxyBootstrap {
 }
 
 impl UpstreamProxyState {
+    /// 创建禁用状态
     #[must_use]
     pub fn disabled() -> Self {
         Self {
@@ -159,6 +212,10 @@ impl UpstreamProxyState {
         }
     }
 
+    /// 获取子进程环境变量
+    ///
+    /// # 返回
+    /// 子进程环境变量映射
     #[must_use]
     pub fn subprocess_env(&self) -> BTreeMap<String, String> {
         if !self.enabled {
@@ -184,6 +241,17 @@ impl UpstreamProxyState {
     }
 }
 
+/// 读取 Token
+///
+/// # 参数
+/// - `path`: 文件路径
+///
+/// # 返回
+/// Token 内容（如果存在）
+///
+/// # Errors
+///
+/// - 如果文件读取失败,返回错误
 pub fn read_token(path: &Path) -> io::Result<Option<String>> {
     match fs::read_to_string(path) {
         Ok(contents) => {
@@ -199,6 +267,13 @@ pub fn read_token(path: &Path) -> io::Result<Option<String>> {
     }
 }
 
+/// 生成上游代理 WebSocket URL
+///
+/// # 参数
+/// - `base_url`: 基础 URL
+///
+/// # 返回
+/// WebSocket URL
 #[must_use]
 pub fn upstream_proxy_ws_url(base_url: &str) -> String {
     let base = base_url.trim_end_matches('/');
@@ -212,6 +287,10 @@ pub fn upstream_proxy_ws_url(base_url: &str) -> String {
     format!("{ws_base}/v1/code/upstreamproxy/ws")
 }
 
+/// 生成不代理列表
+///
+/// # 返回
+/// 不代理列表字符串
 #[must_use]
 pub fn no_proxy_list() -> String {
     let mut hosts = NO_PROXY_HOSTS.to_vec();
@@ -219,6 +298,13 @@ pub fn no_proxy_list() -> String {
     hosts.join(",")
 }
 
+/// 获取继承的上游代理环境变量
+///
+/// # 参数
+/// - `env_map`: 环境变量映射
+///
+/// # 返回
+/// 上游代理环境变量映射
 #[must_use]
 pub fn inherited_upstream_proxy_env(
     env_map: &BTreeMap<String, String>,

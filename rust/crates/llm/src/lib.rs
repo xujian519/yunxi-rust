@@ -38,6 +38,11 @@ pub struct LlmClient {
 }
 
 impl LlmClient {
+    /// 创建新的 LLM 客户端
+    ///
+    /// # Errors
+    ///
+    /// - 如果运行时创建失败,返回错误
     pub fn new(
         model: &str,
         enable_tools: bool,

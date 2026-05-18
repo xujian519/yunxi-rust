@@ -123,6 +123,10 @@ pub fn build_openai_request(
 }
 
 /// 将 `OpenAI` 流式 chunks 转换为 `AssistantEvent`
+///
+/// # Errors
+///
+/// - 如果写入失败,返回运行时错误
 pub fn stream_chunks_to_events(
     chunks: Vec<ChatCompletionChunk>,
     out: &mut (impl Write + ?Sized),
@@ -201,6 +205,10 @@ pub fn stream_chunks_to_events(
 }
 
 /// 读取 API Key
+///
+/// # Errors
+///
+/// - 如果环境变量未设置,返回 Llm 错误
 pub fn read_api_key(env_var: &str) -> Result<String, LlmError> {
     std::env::var(env_var)
         .map_err(|_| LlmError::auth(format!("environment variable {env_var} is not set")))

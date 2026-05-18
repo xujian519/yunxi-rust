@@ -90,17 +90,19 @@ pub struct BashCommandOutput {
     pub sandbox_status: Option<SandboxStatus>,
 }
 
-/// 执行 Bash 命令
-///
-/// # 参数
-/// - `input`: Bash 命令输入
-///
-/// # 返回
-/// Bash 命令输出
-///
-/// # 错误
-/// - 如果命令执行失败，返回 IO 错误
-pub fn execute_bash(input: BashCommandInput) -> io::Result<BashCommandOutput> {
+    /// 执行 Bash 命令
+    ///
+    /// # 参数
+    /// - `input`: Bash 命令输入
+    ///
+    /// # 返回
+    /// Bash 命令输出
+    ///
+    /// # Errors
+    ///
+    /// - 如果当前目录不可访问,返回 IO 错误
+    /// - 如果命令执行失败,返回 IO 错误
+    pub fn execute_bash(input: BashCommandInput) -> io::Result<BashCommandOutput> {
     let cwd = env::current_dir()?;
     let sandbox_status = sandbox_status_for_input(&input, &cwd);
 

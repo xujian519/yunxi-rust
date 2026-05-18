@@ -88,6 +88,11 @@ fn upstream_repo_candidates(primary_repo_root: &Path) -> Vec<PathBuf> {
     deduped
 }
 
+/// 提取清单
+///
+/// # Errors
+///
+/// - 如果文件读取失败,返回 IO 错误
 pub fn extract_manifest(paths: &UpstreamPaths) -> std::io::Result<ExtractedManifest> {
     let commands_source = fs::read_to_string(paths.commands_path())?;
     let tools_source = fs::read_to_string(paths.tools_path())?;

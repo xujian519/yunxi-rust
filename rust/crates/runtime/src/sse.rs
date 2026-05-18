@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+/// SSE 事件
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SseEvent {
     pub event: Option<String>,
@@ -8,6 +9,7 @@ pub struct SseEvent {
     pub retry: Option<u64>,
 }
 
+/// 增量 SSE 解析器
 #[derive(Debug, Clone, Default)]
 pub struct IncrementalSseParser {
     buffer: String,
@@ -18,11 +20,17 @@ pub struct IncrementalSseParser {
 }
 
 impl IncrementalSseParser {
+    /// 创建新的增量 SSE 解析器
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 推送数据块并返回已完成的事件
+    ///
+    /// # 参数
+    ///
+    /// * `chunk` - SSE 数据块
     pub fn push_chunk(&mut self, chunk: &str) -> Vec<SseEvent> {
         self.buffer.push_str(chunk);
         let mut events = Vec::new();
@@ -41,6 +49,7 @@ impl IncrementalSseParser {
         events
     }
 
+    /// 完成解析并返回剩余事件
     pub fn finish(&mut self) -> Vec<SseEvent> {
         let mut events = Vec::new();
         if !self.buffer.is_empty() {
