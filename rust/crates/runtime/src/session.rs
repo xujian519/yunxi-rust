@@ -6,24 +6,33 @@ use std::path::Path;
 use crate::json::{JsonError, JsonValue};
 use crate::usage::TokenUsage;
 
+/// 消息角色
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MessageRole {
+    /// 系统消息
     System,
+    /// 用户消息
     User,
+    /// 助手消息
     Assistant,
+    /// 工具消息
     Tool,
 }
 
+/// 内容块类型
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContentBlock {
+    /// 文本内容
     Text {
         text: String,
     },
+    /// 工具使用
     ToolUse {
         id: String,
         name: String,
         input: String,
     },
+    /// 工具结果
     ToolResult {
         tool_use_id: String,
         tool_name: String,
@@ -32,23 +41,34 @@ pub enum ContentBlock {
     },
 }
 
+/// 对话消息
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConversationMessage {
+    /// 消息角色
     pub role: MessageRole,
+    /// 内容块列表
     pub blocks: Vec<ContentBlock>,
+    /// Token 使用统计
     pub usage: Option<TokenUsage>,
 }
 
+/// 会话，包含完整的对话历史
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Session {
+    /// 版本号
     pub version: u32,
+    /// 消息列表
     pub messages: Vec<ConversationMessage>,
 }
 
+/// 会话错误
 #[derive(Debug)]
 pub enum SessionError {
+    /// IO 错误
     Io(std::io::Error),
+    /// JSON 错误
     Json(JsonError),
+    /// 格式错误
     Format(String),
 }
 
@@ -77,6 +97,7 @@ impl From<JsonError> for SessionError {
 }
 
 impl Session {
+    /// 创建新的空会话
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -85,16 +106,36 @@ impl Session {
         }
     }
 
+    /// 保存会话到指定路径
+    ///
+    /// # 参数
+    /// - `path`: 保存路径
+    ///
+    /// # 错误
+    /// - 如果文件写入失败，返回 `Io` 错误
     pub fn save_to_path(&self, path: impl AsRef<Path>) -> Result<(), SessionError> {
         fs::write(path, self.to_json().render())?;
         Ok(())
     }
 
+    /// 从指定路径加载会话
+    ///
+    /// # 参数
+    /// - `path`: 文件路径
+    ///
+    /// # 返回
+    /// 加载的会话
+    ///
+    /// # 错误
+    /// - 如果文件读取失败，返回 `Io` 错误
+    /// - 如果 JSON 解析失败，返回 `Json` 错误
+    /// - 如果格式不正确，返回 `Format` 错误
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, SessionError> {
         let contents = fs::read_to_string(path)?;
         Self::from_json(&JsonValue::parse(&contents)?)
     }
 
+    /// 转换为 JSON 值
     #[must_use]
     pub fn to_json(&self) -> JsonValue {
         let mut object = BTreeMap::new();
@@ -114,6 +155,16 @@ impl Session {
         JsonValue::Object(object)
     }
 
+    /// 从 JSON 值创建会话
+    ///
+    /// # 参数
+    /// - `value`: JSON 值
+    ///
+    /// # 返回
+    /// 解析后的会话
+    ///
+    /// # 错误
+    /// - 如果 JSON 格式不正确，返回 `Format` 错误
     pub fn from_json(value: &JsonValue) -> Result<Self, SessionError> {
         let object = value
             .as_object()
@@ -142,6 +193,7 @@ impl Default for Session {
 }
 
 impl ConversationMessage {
+    /// 创建用户文本消息
     #[must_use]
     pub fn user_text(text: impl Into<String>) -> Self {
         Self {
@@ -151,6 +203,7 @@ impl ConversationMessage {
         }
     }
 
+    /// 创建助手消息
     #[must_use]
     pub fn assistant(blocks: Vec<ContentBlock>) -> Self {
         Self {
@@ -160,6 +213,7 @@ impl ConversationMessage {
         }
     }
 
+    /// 创建带使用统计的助手消息
     #[must_use]
     pub fn assistant_with_usage(blocks: Vec<ContentBlock>, usage: Option<TokenUsage>) -> Self {
         Self {
@@ -169,6 +223,7 @@ impl ConversationMessage {
         }
     }
 
+    /// 创建工具结果消息
     #[must_use]
     pub fn tool_result(
         tool_use_id: impl Into<String>,
@@ -188,6 +243,7 @@ impl ConversationMessage {
         }
     }
 
+    /// 转换为 JSON 值
     #[must_use]
     pub fn to_json(&self) -> JsonValue {
         let mut object = BTreeMap::new();

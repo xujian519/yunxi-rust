@@ -1,17 +1,45 @@
 use crate::error::ApiError;
 use crate::types::StreamEvent;
 
+/// SSE（Server-Sent Events）流式解析器
+///
+/// 用于解析 Anthropic API 返回的 SSE 格式流数据，支持跨数据块的帧解析。
 #[derive(Debug, Default)]
 pub struct SseParser {
     buffer: Vec<u8>,
 }
 
 impl SseParser {
+    /// 创建新的 `SseParser` 实例
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use api::sse::SseParser;
+    ///
+    /// let parser = SseParser::new();
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 推入一个数据块并解析所有完整的帧
+    ///
+    /// 将新的数据块添加到内部缓冲区，并解析出所有完整的 SSE 帧。
+    /// 跨越多个数据块的帧会被正确处理。
+    ///
+    /// # 参数
+    ///
+    /// * `chunk` - 从网络流接收的数据块
+    ///
+    /// # 返回
+    ///
+    /// 返回解析出的 `StreamEvent` 列表
+    ///
+    /// # Errors
+    ///
+    /// 如果帧解析失败或数据格式不正确，返回 `ApiError`
     pub fn push(&mut self, chunk: &[u8]) -> Result<Vec<StreamEvent>, ApiError> {
         self.buffer.extend_from_slice(chunk);
         let mut events = Vec::new();
@@ -25,6 +53,18 @@ impl SseParser {
         Ok(events)
     }
 
+    /// 完成流解析并处理剩余的未完成帧
+    ///
+    /// 当流结束时调用此方法，处理缓冲区中剩余的数据。
+    /// 如果缓冲区为空，返回空列表。
+    ///
+    /// # 返回
+    ///
+    /// 返回从剩余数据解析出的 `StreamEvent` 列表
+    ///
+    /// # Errors
+    ///
+    /// 如果剩余数据无法解析为有效帧，返回 `ApiError`
     pub fn finish(&mut self) -> Result<Vec<StreamEvent>, ApiError> {
         if self.buffer.is_empty() {
             return Ok(Vec::new());
@@ -60,6 +100,22 @@ impl SseParser {
     }
 }
 
+/// 解析单个 SSE 帧
+///
+/// 解析一个完整的 SSE 帧字符串，提取事件类型和数据负载。
+/// 会忽略注释行（以 `:` 开头）和 ping 事件。
+///
+/// # 参数
+///
+/// * `frame` - SSE 帧字符串
+///
+/// # 返回
+///
+/// 返回解析出的 `StreamEvent`，如果帧为空或应被忽略则返回 `None`
+///
+/// # Errors
+///
+/// 如果 JSON 解析失败，返回 `ApiError`
 pub fn parse_frame(frame: &str) -> Result<Option<StreamEvent>, ApiError> {
     let trimmed = frame.trim();
     if trimmed.is_empty() {

@@ -297,6 +297,7 @@ fn dedupe_tools(entries: Vec<ToolManifestEntry>) -> ToolRegistry {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
 

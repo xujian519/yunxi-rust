@@ -907,37 +907,37 @@ mod tests {
         let result = execute_tool(
             "Skill",
             &json!({
-                "skill": "help",
+                "skill": "cap-retrieval",
                 "args": "overview"
             }),
         )
         .expect("Skill should succeed");
 
         let output: serde_json::Value = serde_json::from_str(&result).expect("valid json");
-        assert_eq!(output["skill"], "help");
+        assert_eq!(output["skill"], "cap-retrieval");
         assert!(output["path"]
             .as_str()
             .expect("path")
-            .ends_with("/help/SKILL.md"));
+            .ends_with("/cap-retrieval/SKILL.md"));
         assert!(output["prompt"]
             .as_str()
             .expect("prompt")
-            .contains("Guide on using oh-my-codex plugin"));
+            .contains("法律检索能力"));
 
         let dollar_result = execute_tool(
             "Skill",
             &json!({
-                "skill": "$help"
+                "skill": "$cap-retrieval"
             }),
         )
         .expect("Skill should accept $skill invocation form");
         let dollar_output: serde_json::Value =
             serde_json::from_str(&dollar_result).expect("valid json");
-        assert_eq!(dollar_output["skill"], "$help");
+        assert_eq!(dollar_output["skill"], "$cap-retrieval");
         assert!(dollar_output["path"]
             .as_str()
             .expect("path")
-            .ends_with("/help/SKILL.md"));
+            .ends_with("/cap-retrieval/SKILL.md"));
     }
 
     #[test]

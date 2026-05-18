@@ -5,13 +5,17 @@ use serde_json::json;
 
 use crate::config::{RuntimeFeatureConfig, RuntimeHookConfig};
 
+/// 钩子事件类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HookEvent {
+    /// 工具使用前钩子
     PreToolUse,
+    /// 工具使用后钩子
     PostToolUse,
 }
 
 impl HookEvent {
+    /// 转换为字符串
     fn as_str(self) -> &'static str {
         match self {
             Self::PreToolUse => "PreToolUse",
@@ -20,6 +24,7 @@ impl HookEvent {
     }
 }
 
+/// 钩子运行结果
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HookRunResult {
     denied: bool,
@@ -27,6 +32,7 @@ pub struct HookRunResult {
 }
 
 impl HookRunResult {
+    /// 创建允许结果
     #[must_use]
     pub fn allow(messages: Vec<String>) -> Self {
         Self {
@@ -35,33 +41,39 @@ impl HookRunResult {
         }
     }
 
+    /// 是否被拒绝
     #[must_use]
     pub fn is_denied(&self) -> bool {
         self.denied
     }
 
+    /// 获取消息列表
     #[must_use]
     pub fn messages(&self) -> &[String] {
         &self.messages
     }
 }
 
+/// 钩子运行器
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct HookRunner {
     config: RuntimeHookConfig,
 }
 
 impl HookRunner {
+    /// 创建新的钩子运行器
     #[must_use]
     pub fn new(config: RuntimeHookConfig) -> Self {
         Self { config }
     }
 
+    /// 从功能配置创建钩子运行器
     #[must_use]
     pub fn from_feature_config(feature_config: &RuntimeFeatureConfig) -> Self {
         Self::new(feature_config.hooks().clone())
     }
 
+    /// 运行工具使用前钩子
     #[must_use]
     pub fn run_pre_tool_use(&self, tool_name: &str, tool_input: &str) -> HookRunResult {
         self.run_commands(
@@ -74,6 +86,7 @@ impl HookRunner {
         )
     }
 
+    /// 运行工具使用后钩子
     #[must_use]
     pub fn run_post_tool_use(
         &self,

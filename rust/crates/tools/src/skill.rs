@@ -39,6 +39,12 @@ pub(crate) fn resolve_skill_path(skill: &str) -> Result<std::path::PathBuf, Stri
     if let Ok(codex_home) = std::env::var("CODEX_HOME") {
         candidates.push(std::path::PathBuf::from(codex_home).join("skills"));
     }
+    // 项目内置 skills 目录
+    let builtin = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../assets/skills");
+    if builtin.is_dir() {
+        candidates.push(builtin);
+    }
     candidates.push(std::path::PathBuf::from("/home/bellman/.codex/skills"));
 
     for root in candidates {

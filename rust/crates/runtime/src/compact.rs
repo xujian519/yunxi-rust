@@ -1,8 +1,11 @@
 use crate::session::{ContentBlock, ConversationMessage, MessageRole, Session};
 
+/// 压缩配置
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CompactionConfig {
+    /// 保留的最近消息数量
     pub preserve_recent_messages: usize,
+    /// 最大估算 token 数
     pub max_estimated_tokens: usize,
 }
 
@@ -15,25 +18,33 @@ impl Default for CompactionConfig {
     }
 }
 
+/// 压缩结果
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompactionResult {
+    /// 压缩摘要
     pub summary: String,
+    /// 格式化摘要
     pub formatted_summary: String,
+    /// 压缩后的会话
     pub compacted_session: Session,
+    /// 移除的消息数量
     pub removed_message_count: usize,
 }
 
+/// 估算会话 token 数
 #[must_use]
 pub fn estimate_session_tokens(session: &Session) -> usize {
     session.messages.iter().map(estimate_message_tokens).sum()
 }
 
+/// 检查是否应该压缩会话
 #[must_use]
 pub fn should_compact(session: &Session, config: CompactionConfig) -> bool {
     session.messages.len() > config.preserve_recent_messages
         && estimate_session_tokens(session) >= config.max_estimated_tokens
 }
 
+/// 格式化压缩摘要
 #[must_use]
 pub fn format_compact_summary(summary: &str) -> String {
     let without_analysis = strip_tag_block(summary, "analysis");
@@ -49,6 +60,7 @@ pub fn format_compact_summary(summary: &str) -> String {
     collapse_blank_lines(&formatted).trim().to_string()
 }
 
+/// 获取压缩继续消息
 #[must_use]
 pub fn get_compact_continuation_message(
     summary: &str,
@@ -71,6 +83,7 @@ pub fn get_compact_continuation_message(
     base
 }
 
+/// 压缩会话
 #[must_use]
 pub fn compact_session(session: &Session, config: CompactionConfig) -> CompactionResult {
     if !should_compact(session, config) {

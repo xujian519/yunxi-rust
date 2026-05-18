@@ -5,9 +5,12 @@ use std::process::Command;
 
 use crate::config::{ConfigError, ConfigLoader, RuntimeConfig};
 
+/// 系统提示词构建错误
 #[derive(Debug)]
 pub enum PromptBuildError {
+    /// IO 错误
     Io(std::io::Error),
+    /// 配置错误
     Config(ConfigError),
 }
 
@@ -34,27 +37,39 @@ impl From<ConfigError> for PromptBuildError {
     }
 }
 
+/// 系统提示词动态边界标记
 pub const SYSTEM_PROMPT_DYNAMIC_BOUNDARY: &str = "__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__";
+/// 前沿模型名称
 pub const FRONTIER_MODEL_NAME: &str = "Claude Opus 4.6";
 const MAX_INSTRUCTION_FILE_CHARS: usize = 4_000;
 const MAX_TOTAL_INSTRUCTION_CHARS: usize = 12_000;
 
+/// 上下文文件
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextFile {
+    /// 文件路径
     pub path: PathBuf,
+    /// 文件内容
     pub content: String,
 }
 
+/// 项目上下文
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ProjectContext {
+    /// 当前工作目录
     pub cwd: PathBuf,
+    /// 当前日期
     pub current_date: String,
+    /// Git 状态
     pub git_status: Option<String>,
+    /// Git 差异
     pub git_diff: Option<String>,
+    /// 指令文件列表
     pub instruction_files: Vec<ContextFile>,
 }
 
 impl ProjectContext {
+    /// 发现项目上下文（不包含 Git 信息）
     pub fn discover(
         cwd: impl Into<PathBuf>,
         current_date: impl Into<String>,
@@ -70,6 +85,7 @@ impl ProjectContext {
         })
     }
 
+    /// 发现项目上下文（包含 Git 信息）
     pub fn discover_with_git(
         cwd: impl Into<PathBuf>,
         current_date: impl Into<String>,
@@ -81,6 +97,7 @@ impl ProjectContext {
     }
 }
 
+/// 系统提示词构建器
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SystemPromptBuilder {
     output_style_name: Option<String>,
@@ -93,11 +110,13 @@ pub struct SystemPromptBuilder {
 }
 
 impl SystemPromptBuilder {
+    /// 创建新的构建器
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 设置输出样式
     #[must_use]
     pub fn with_output_style(mut self, name: impl Into<String>, prompt: impl Into<String>) -> Self {
         self.output_style_name = Some(name.into());
@@ -105,6 +124,7 @@ impl SystemPromptBuilder {
         self
     }
 
+    /// 设置操作系统信息
     #[must_use]
     pub fn with_os(mut self, os_name: impl Into<String>, os_version: impl Into<String>) -> Self {
         self.os_name = Some(os_name.into());
@@ -112,24 +132,28 @@ impl SystemPromptBuilder {
         self
     }
 
+    /// 设置项目上下文
     #[must_use]
     pub fn with_project_context(mut self, project_context: ProjectContext) -> Self {
         self.project_context = Some(project_context);
         self
     }
 
+    /// 设置运行时配置
     #[must_use]
     pub fn with_runtime_config(mut self, config: RuntimeConfig) -> Self {
         self.config = Some(config);
         self
     }
 
+    /// 追加自定义章节
     #[must_use]
     pub fn append_section(mut self, section: impl Into<String>) -> Self {
         self.append_sections.push(section.into());
         self
     }
 
+    /// 构建提示词章节列表
     #[must_use]
     pub fn build(&self) -> Vec<String> {
         let mut sections = Vec::new();
@@ -155,6 +179,7 @@ impl SystemPromptBuilder {
         sections
     }
 
+    /// 渲染为字符串
     #[must_use]
     pub fn render(&self) -> String {
         self.build().join("\n\n")
@@ -184,9 +209,40 @@ impl SystemPromptBuilder {
     }
 }
 
+/// 为列表项添加项目符号
 #[must_use]
 pub fn prepend_bullets(items: Vec<String>) -> Vec<String> {
     items.into_iter().map(|item| format!(" - {item}")).collect()
+}
+
+/// 加载系统提示词
+///
+/// # 参数
+/// - `cwd`: 当前工作目录
+/// - `current_date`: 当前日期
+/// - `os_name`: 操作系统名称
+/// - `os_version`: 操作系统版本
+///
+/// # 返回
+/// 系统提示词章节列表
+///
+/// # 错误
+/// - 如果文件读取失败，返回 `Io` 错误
+/// - 如果配置加载失败，返回 `Config` 错误
+pub fn load_system_prompt(
+    cwd: impl Into<PathBuf>,
+    current_date: impl Into<String>,
+    os_name: impl Into<String>,
+    os_version: impl Into<String>,
+) -> Result<Vec<String>, PromptBuildError> {
+    let cwd = cwd.into();
+    let project_context = ProjectContext::discover_with_git(&cwd, current_date.into())?;
+    let config = ConfigLoader::default_for(&cwd).load()?;
+    Ok(SystemPromptBuilder::new()
+        .with_os(os_name, os_version)
+        .with_project_context(project_context)
+        .with_runtime_config(config)
+        .build())
 }
 
 fn discover_instruction_files(cwd: &Path) -> std::io::Result<Vec<ContextFile>> {
@@ -399,22 +455,6 @@ fn collapse_blank_lines(content: &str) -> String {
         previous_blank = is_blank;
     }
     result
-}
-
-pub fn load_system_prompt(
-    cwd: impl Into<PathBuf>,
-    current_date: impl Into<String>,
-    os_name: impl Into<String>,
-    os_version: impl Into<String>,
-) -> Result<Vec<String>, PromptBuildError> {
-    let cwd = cwd.into();
-    let project_context = ProjectContext::discover_with_git(&cwd, current_date.into())?;
-    let config = ConfigLoader::default_for(&cwd).load()?;
-    Ok(SystemPromptBuilder::new()
-        .with_os(os_name, os_version)
-        .with_project_context(project_context)
-        .with_runtime_config(config)
-        .build())
 }
 
 fn render_config_section(config: &RuntimeConfig) -> String {

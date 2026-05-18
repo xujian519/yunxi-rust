@@ -397,3 +397,24 @@ fn push_anthropic_output_block(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_llm_client_construction_anthropic() {
+        std::env::set_var("ANTHROPIC_API_KEY", "test_key");
+
+        tokio::task::spawn_blocking(|| {
+            let client = LlmClient::new("claude-opus-4-6", true, false, None)
+                .expect("should construct Anthropic LLM client");
+
+            assert_eq!(client.model(), "claude-opus-4-6");
+
+            std::env::remove_var("ANTHROPIC_API_KEY");
+        })
+        .await
+        .expect("spawn_blocking task should complete");
+    }
+}

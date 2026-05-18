@@ -19,11 +19,18 @@ const DEFAULT_INITIAL_BACKOFF: Duration = Duration::from_millis(200);
 const DEFAULT_MAX_BACKOFF: Duration = Duration::from_secs(2);
 const DEFAULT_MAX_RETRIES: u32 = 2;
 
+/// Anthropic API 认证源
+///
+/// 表示可以用于 API 请求的不同认证方式。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AuthSource {
+    /// 无认证
     None,
+    /// 使用 API Key 认证
     ApiKey(String),
+    /// 使用 Bearer Token 认证
     BearerToken(String),
+    /// 同时使用 API Key 和 Bearer Token 认证
     ApiKeyAndBearer {
         api_key: String,
         bearer_token: String,
@@ -31,6 +38,18 @@ pub enum AuthSource {
 }
 
 impl AuthSource {
+    /// 从环境变量加载认证信息
+    ///
+    /// 读取 `ANTHROPIC_API_KEY` 和 `ANTHROPIC_AUTH_TOKEN` 环境变量，
+    /// 根据它们的存在情况返回对应的 `AuthSource`。
+    ///
+    /// # 返回
+    ///
+    /// 返回从环境变量构建的 `AuthSource`
+    ///
+    /// # Errors
+    ///
+    /// 如果两个环境变量都不存在，返回 `ApiError::MissingApiKey`
     pub fn from_env() -> Result<Self, ApiError> {
         let api_key = read_env_non_empty("ANTHROPIC_API_KEY")?;
         let auth_token = read_env_non_empty("ANTHROPIC_AUTH_TOKEN")?;
@@ -45,6 +64,11 @@ impl AuthSource {
         }
     }
 
+    /// 获取 API Key
+    ///
+    /// # 返回
+    ///
+    /// 如果当前认证源包含 API Key，返回 `Some(api_key)`，否则返回 `None`
     #[must_use]
     pub fn api_key(&self) -> Option<&str> {
         match self {
@@ -53,6 +77,11 @@ impl AuthSource {
         }
     }
 
+    /// 获取 Bearer Token
+    ///
+    /// # 返回
+    ///
+    /// 如果当前认证源包含 Bearer Token，返回 `Some(token)`，否则返回 `None`
     #[must_use]
     pub fn bearer_token(&self) -> Option<&str> {
         match self {
@@ -65,6 +94,11 @@ impl AuthSource {
         }
     }
 
+    /// 获取用于日志输出的脱敏授权头
+    ///
+    /// # 返回
+    ///
+    /// 返回脱敏后的授权头字符串用于日志输出
     #[must_use]
     pub fn masked_authorization_header(&self) -> &'static str {
         if self.bearer_token().is_some() {
@@ -74,6 +108,18 @@ impl AuthSource {
         }
     }
 
+    /// 将认证信息应用到 HTTP 请求构建器
+    ///
+    /// 根据当前认证源类型，将对应的认证头添加到请求中。
+    /// 如果包含 API Key，添加 `x-api-key` 头；如果包含 Bearer Token，添加 `Authorization` 头。
+    ///
+    /// # 参数
+    ///
+    /// * `request_builder` - reqwest 请求构建器
+    ///
+    /// # 返回
+    ///
+    /// 返回添加了认证头的请求构建器
     pub fn apply(&self, mut request_builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         if let Some(api_key) = self.api_key() {
             request_builder = request_builder.header("x-api-key", api_key);
@@ -85,11 +131,18 @@ impl AuthSource {
     }
 }
 
+/// OAuth 令牌集合
+///
+/// 包含从 OAuth 流程获取的访问令牌、刷新令牌和过期时间等信息。
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct OAuthTokenSet {
+    /// 访问令牌
     pub access_token: String,
+    /// 刷新令牌（可选）
     pub refresh_token: Option<String>,
+    /// 令牌过期时间戳（Unix 时间戳，可选）
     pub expires_at: Option<u64>,
+    /// 授权范围
     #[serde(default)]
     pub scopes: Vec<String>,
 }
@@ -100,6 +153,10 @@ impl From<OAuthTokenSet> for AuthSource {
     }
 }
 
+/// Anthropic API 客户端
+///
+/// 提供与 Anthropic API 交互的功能，包括发送消息、流式传输、OAuth 令牌交换等。
+/// 支持自动重试和退避策略。
 #[derive(Debug, Clone)]
 pub struct AnthropicClient {
     http: reqwest::Client,
@@ -111,6 +168,19 @@ pub struct AnthropicClient {
 }
 
 impl AnthropicClient {
+    /// 使用 API Key 创建新客户端
+    ///
+    /// # 参数
+    ///
+    /// * `api_key` - Anthropic API Key
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use api::client::AnthropicClient;
+    ///
+    /// let client = AnthropicClient::new("sk-ant-...");
+    /// ```
     #[must_use]
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
@@ -123,6 +193,11 @@ impl AnthropicClient {
         }
     }
 
+    /// 使用认证源创建新客户端
+    ///
+    /// # 参数
+    ///
+    /// * `auth` - 认证源
     #[must_use]
     pub fn from_auth(auth: AuthSource) -> Self {
         Self {
@@ -135,16 +210,37 @@ impl AnthropicClient {
         }
     }
 
+    /// 从环境变量或保存的 OAuth 令牌创建新客户端
+    ///
+    /// 优先级：环境变量 > 保存的 OAuth 令牌
+    ///
+    /// # 返回
+    ///
+    /// 返回创建的 `AnthropicClient`
+    ///
+    /// # Errors
+    ///
+    /// 如果没有可用的认证信息，返回 `ApiError`
     pub fn from_env() -> Result<Self, ApiError> {
         Ok(Self::from_auth(AuthSource::from_env_or_saved()?).with_base_url(read_base_url()))
     }
 
+    /// 设置认证源
+    ///
+    /// # 参数
+    ///
+    /// * `auth` - 新的认证源
     #[must_use]
     pub fn with_auth_source(mut self, auth: AuthSource) -> Self {
         self.auth = auth;
         self
     }
 
+    /// 设置 Bearer Token
+    ///
+    /// # 参数
+    ///
+    /// * `auth_token` - Bearer Token（如果为 `None` 或空字符串，则移除）
     #[must_use]
     pub fn with_auth_token(mut self, auth_token: Option<String>) -> Self {
         match (
@@ -170,12 +266,24 @@ impl AnthropicClient {
         self
     }
 
+    /// 设置 API Base URL
+    ///
+    /// # 参数
+    ///
+    /// * `base_url` - API Base URL
     #[must_use]
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
         self
     }
 
+    /// 设置重试策略
+    ///
+    /// # 参数
+    ///
+    /// * `max_retries` - 最大重试次数
+    /// * `initial_backoff` - 初始退避时间
+    /// * `max_backoff` - 最大退避时间
     #[must_use]
     pub fn with_retry_policy(
         mut self,
@@ -189,11 +297,29 @@ impl AnthropicClient {
         self
     }
 
+    /// 获取当前认证源
+    ///
+    /// # 返回
+    ///
+    /// 返回当前使用的认证源
     #[must_use]
     pub fn auth_source(&self) -> &AuthSource {
         &self.auth
     }
 
+    /// 发送非流式消息请求
+    ///
+    /// # 参数
+    ///
+    /// * `request` - 消息请求
+    ///
+    /// # 返回
+    ///
+    /// 返回完整的消息响应
+    ///
+    /// # Errors
+    ///
+    /// 如果网络请求失败或 API 返回错误，返回 `ApiError`
     pub async fn send_message(
         &self,
         request: &MessageRequest,
@@ -214,6 +340,19 @@ impl AnthropicClient {
         Ok(response)
     }
 
+    /// 发送流式消息请求
+    ///
+    /// # 参数
+    ///
+    /// * `request` - 消息请求
+    ///
+    /// # 返回
+    ///
+    /// 返回消息流，可通过 `next_event` 方法逐个获取事件
+    ///
+    /// # Errors
+    ///
+    /// 如果网络请求失败或 API 返回错误，返回 `ApiError`
     pub async fn stream_message(
         &self,
         request: &MessageRequest,
@@ -230,6 +369,20 @@ impl AnthropicClient {
         })
     }
 
+    /// 交换 OAuth 授权码获取令牌
+    ///
+    /// # 参数
+    ///
+    /// * `config` - OAuth 配置
+    /// * `request` - 令牌交换请求
+    ///
+    /// # 返回
+    ///
+    /// 返回 OAuth 令牌集合
+    ///
+    /// # Errors
+    ///
+    /// 如果网络请求失败或 OAuth 交换失败，返回 `ApiError`
     pub async fn exchange_oauth_code(
         &self,
         config: &OAuthConfig,
@@ -250,6 +403,20 @@ impl AnthropicClient {
             .map_err(ApiError::from)
     }
 
+    /// 刷新 OAuth 令牌
+    ///
+    /// # 参数
+    ///
+    /// * `config` - OAuth 配置
+    /// * `request` - 令牌刷新请求
+    ///
+    /// # 返回
+    ///
+    /// 返回新的 OAuth 令牌集合
+    ///
+    /// # Errors
+    ///
+    /// 如果网络请求失败或令牌刷新失败，返回 `ApiError`
     pub async fn refresh_oauth_token(
         &self,
         config: &OAuthConfig,
@@ -340,6 +507,21 @@ impl AnthropicClient {
 }
 
 impl AuthSource {
+    /// 从环境变量或保存的 OAuth 令牌加载认证信息
+    ///
+    /// 优先级：
+    /// 1. 环境变量 `ANTHROPIC_API_KEY` + `ANTHROPIC_AUTH_TOKEN`
+    /// 2. 环境变量 `ANTHROPIC_API_KEY`
+    /// 3. 环境变量 `ANTHROPIC_AUTH_TOKEN`
+    /// 4. 保存的 OAuth 令牌
+    ///
+    /// # 返回
+    ///
+    /// 返回从环境变量或保存的令牌构建的 `AuthSource`
+    ///
+    /// # Errors
+    ///
+    /// 如果没有可用的认证信息或令牌已过期且无法刷新，返回 `ApiError`
     pub fn from_env_or_saved() -> Result<Self, ApiError> {
         if let Some(api_key) = read_env_non_empty("ANTHROPIC_API_KEY")? {
             return match read_env_non_empty("ANTHROPIC_AUTH_TOKEN")? {
@@ -371,6 +553,15 @@ impl AuthSource {
     }
 }
 
+/// 检查 OAuth 令牌是否已过期
+///
+/// # 参数
+///
+/// * `token_set` - OAuth 令牌集合
+///
+/// # 返回
+///
+/// 如果令牌已过期或没有过期时间，返回 `true`
 #[must_use]
 pub fn oauth_token_is_expired(token_set: &OAuthTokenSet) -> bool {
     token_set
@@ -378,6 +569,19 @@ pub fn oauth_token_is_expired(token_set: &OAuthTokenSet) -> bool {
         .is_some_and(|expires_at| expires_at <= now_unix_timestamp())
 }
 
+/// 解析保存的 OAuth 令牌，如果过期则自动刷新
+///
+/// # 参数
+///
+/// * `config` - OAuth 配置
+///
+/// # 返回
+///
+/// 返回有效的令牌集合，如果不存在则返回 `None`
+///
+/// # Errors
+///
+/// 如果加载或刷新令牌失败，返回 `ApiError`
 pub fn resolve_saved_oauth_token(config: &OAuthConfig) -> Result<Option<OAuthTokenSet>, ApiError> {
     let Some(token_set) = load_saved_oauth_token()? else {
         return Ok(None);
@@ -385,6 +589,21 @@ pub fn resolve_saved_oauth_token(config: &OAuthConfig) -> Result<Option<OAuthTok
     resolve_saved_oauth_token_set(config, token_set).map(Some)
 }
 
+/// 解析启动时的认证源
+///
+/// 尝试从环境变量或保存的令牌加载认证信息。如果令牌过期且可刷新，会自动刷新。
+///
+/// # 参数
+///
+/// * `load_oauth_config` - 用于加载 OAuth 配置的函数
+///
+/// # 返回
+    ///
+/// 返回有效的认证源
+///
+/// # Errors
+///
+/// 如果没有可用的认证信息或令牌刷新失败，返回 `ApiError`
 pub fn resolve_startup_auth_source<F>(load_oauth_config: F) -> Result<AuthSource, ApiError>
 where
     F: FnOnce() -> Result<Option<OAuthConfig>, ApiError>,
@@ -510,6 +729,13 @@ fn read_auth_token() -> Option<String> {
         .and_then(std::convert::identity)
 }
 
+/// 从环境变量读取 API Base URL
+///
+/// 如果 `ANTHROPIC_BASE_URL` 环境变量不存在，返回默认值
+///
+/// # 返回
+///
+/// 返回 API Base URL
 #[must_use]
 pub fn read_base_url() -> String {
     std::env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| DEFAULT_BASE_URL.to_string())
@@ -523,6 +749,9 @@ fn request_id_from_headers(headers: &reqwest::header::HeaderMap) -> Option<Strin
         .map(ToOwned::to_owned)
 }
 
+/// SSE 消息流
+///
+/// 用于逐个读取流式响应中的事件。
 #[derive(Debug)]
 pub struct MessageStream {
     request_id: Option<String>,
@@ -533,11 +762,25 @@ pub struct MessageStream {
 }
 
 impl MessageStream {
+    /// 获取请求 ID
+    ///
+    /// # 返回
+    ///
+    /// 返回请求 ID（如果存在）
     #[must_use]
     pub fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }
 
+    /// 获取下一个流事件
+    ///
+    /// # 返回
+    ///
+    /// 返回下一个 `StreamEvent`，如果流结束则返回 `None`
+    ///
+    /// # Errors
+    ///
+    /// 如果网络请求失败或 SSE 解析失败，返回 `ApiError`
     pub async fn next_event(&mut self) -> Result<Option<StreamEvent>, ApiError> {
         loop {
             if let Some(event) = self.pending.pop_front() {

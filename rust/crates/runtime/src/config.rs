@@ -6,30 +6,43 @@ use std::path::{Path, PathBuf};
 use crate::json::JsonValue;
 use crate::sandbox::{FilesystemIsolationMode, SandboxConfig};
 
+/// Claude Code 设置模式名称，与 `CLAUDE_CODE_SETTINGS_SCHEMA_NAME` 等价
 pub const CLAUDE_CODE_SETTINGS_SCHEMA_NAME: &str = "SettingsSchema";
-/// 别名，与 `CLAUDE_CODE_SETTINGS_SCHEMA_NAME` 等价
+/// 云熙智能体（YunXi Agent）设置模式名称，与 `CLAUDE_CODE_SETTINGS_SCHEMA_NAME` 等价
 pub const YUNXI_SETTINGS_SCHEMA_NAME: &str = CLAUDE_CODE_SETTINGS_SCHEMA_NAME;
 
+/// 配置文件的来源层级
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ConfigSource {
+    /// 用户级配置（~/.claude/settings.json 或 ~/.claude.json）
     User,
+    /// 项目级配置（.claude.json 或 .claude/settings.json）
     Project,
+    /// 本地配置（.claude/settings.local.json）
     Local,
 }
 
+/// 解析后的权限模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResolvedPermissionMode {
+    /// 只读模式
     ReadOnly,
+    /// 工作区可写模式
     WorkspaceWrite,
+    /// 完全访问模式（危险）
     DangerFullAccess,
 }
 
+/// 配置条目，记录配置的来源和路径
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigEntry {
+    /// 配置来源
     pub source: ConfigSource,
+    /// 配置文件路径
     pub path: PathBuf,
 }
 
+/// 运行时配置，合并了所有层级的配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeConfig {
     merged: BTreeMap<String, JsonValue>,
@@ -37,6 +50,7 @@ pub struct RuntimeConfig {
     feature_config: RuntimeFeatureConfig,
 }
 
+/// 运行时功能配置
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RuntimeFeatureConfig {
     hooks: RuntimeHookConfig,
@@ -47,97 +61,149 @@ pub struct RuntimeFeatureConfig {
     sandbox: SandboxConfig,
 }
 
+/// 运行时钩子配置
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RuntimeHookConfig {
     pre_tool_use: Vec<String>,
     post_tool_use: Vec<String>,
 }
 
+/// MCP 服务器配置集合
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct McpConfigCollection {
     servers: BTreeMap<String, ScopedMcpServerConfig>,
 }
 
+/// 带作用域的 MCP 服务器配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopedMcpServerConfig {
+    /// 配置来源
     pub scope: ConfigSource,
+    /// 服务器配置
     pub config: McpServerConfig,
 }
 
+/// MCP 传输协议类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpTransport {
+    /// 标准输入输出
     Stdio,
+    /// Server-Sent Events
     Sse,
+    /// HTTP
     Http,
+    /// WebSocket
     Ws,
+    /// SDK
     Sdk,
+    /// Claude AI 代理
     ClaudeAiProxy,
 }
 
+/// MCP 服务器配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum McpServerConfig {
+    /// 标准输入输出配置
     Stdio(McpStdioServerConfig),
+    /// Server-Sent Events 配置
     Sse(McpRemoteServerConfig),
+    /// HTTP 配置
     Http(McpRemoteServerConfig),
+    /// WebSocket 配置
     Ws(McpWebSocketServerConfig),
+    /// SDK 配置
     Sdk(McpSdkServerConfig),
+    /// Claude AI 代理配置
     ClaudeAiProxy(McpClaudeAiProxyServerConfig),
 }
 
+/// MCP 标准输入输出服务器配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpStdioServerConfig {
+    /// 执行命令
     pub command: String,
+    /// 命令参数
     pub args: Vec<String>,
+    /// 环境变量
     pub env: BTreeMap<String, String>,
 }
 
+/// MCP 远程服务器配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpRemoteServerConfig {
+    /// 服务器 URL
     pub url: String,
+    /// HTTP 头部
     pub headers: BTreeMap<String, String>,
+    /// 头部辅助脚本路径
     pub headers_helper: Option<String>,
+    /// OAuth 配置
     pub oauth: Option<McpOAuthConfig>,
 }
 
+/// MCP WebSocket 服务器配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpWebSocketServerConfig {
+    /// WebSocket URL
     pub url: String,
+    /// HTTP 头部
     pub headers: BTreeMap<String, String>,
+    /// 头部辅助脚本路径
     pub headers_helper: Option<String>,
 }
 
+/// MCP SDK 服务器配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpSdkServerConfig {
+    /// 服务器名称
     pub name: String,
 }
 
+/// MCP Claude AI 代理服务器配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpClaudeAiProxyServerConfig {
+    /// 代理 URL
     pub url: String,
+    /// 服务器 ID
     pub id: String,
 }
 
+/// MCP OAuth 配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct McpOAuthConfig {
+    /// OAuth 客户端 ID
     pub client_id: Option<String>,
+    /// 回调端口
     pub callback_port: Option<u16>,
+    /// 认证服务器元数据 URL
     pub auth_server_metadata_url: Option<String>,
+    /// XAA 标志
     pub xaa: Option<bool>,
 }
 
+/// OAuth 配置
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OAuthConfig {
+    /// OAuth 客户端 ID
     pub client_id: String,
+    /// 授权 URL
     pub authorize_url: String,
+    /// Token URL
     pub token_url: String,
+    /// 回调端口
     pub callback_port: Option<u16>,
+    /// 手动重定向 URL
     pub manual_redirect_url: Option<String>,
+    /// OAuth 作用域
     pub scopes: Vec<String>,
 }
 
+/// 配置错误
 #[derive(Debug)]
 pub enum ConfigError {
+    /// IO 错误
     Io(std::io::Error),
+    /// 解析错误
     Parse(String),
 }
 
@@ -158,6 +224,7 @@ impl From<std::io::Error> for ConfigError {
     }
 }
 
+/// 配置加载器，用于加载和合并多层级的配置文件
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigLoader {
     cwd: PathBuf,
@@ -165,6 +232,11 @@ pub struct ConfigLoader {
 }
 
 impl ConfigLoader {
+    /// 创建配置加载器
+    ///
+    /// # 参数
+    /// - `cwd`: 当前工作目录
+    /// - `config_home`: 配置主目录
     #[must_use]
     pub fn new(cwd: impl Into<PathBuf>, config_home: impl Into<PathBuf>) -> Self {
         Self {
@@ -173,6 +245,13 @@ impl ConfigLoader {
         }
     }
 
+    /// 为指定目录创建默认配置加载器
+    ///
+    /// # 参数
+    /// - `cwd`: 当前工作目录
+    ///
+    /// # 说明
+    /// 配置主目录由环境变量 `CLAUDE_CONFIG_HOME` 或 `HOME/.claude` 决定
     #[must_use]
     pub fn default_for(cwd: impl Into<PathBuf>) -> Self {
         let cwd = cwd.into();
@@ -183,6 +262,10 @@ impl ConfigLoader {
         Self { cwd, config_home }
     }
 
+    /// 发现所有配置文件路径
+    ///
+    /// # 返回
+    /// 按优先级排序的配置条目列表（User → Project → Local）
     #[must_use]
     pub fn discover(&self) -> Vec<ConfigEntry> {
         let user_legacy_path = self.config_home.parent().map_or_else(
@@ -213,6 +296,14 @@ impl ConfigLoader {
         ]
     }
 
+    /// 加载并合并所有配置
+    ///
+    /// # 返回
+    /// 合并后的运行时配置
+    ///
+    /// # 错误
+    /// - 如果文件读取失败，返回 `Io` 错误
+    /// - 如果 JSON 解析失败，返回 `Parse` 错误
     pub fn load(&self) -> Result<RuntimeConfig, ConfigError> {
         let mut merged = BTreeMap::new();
         let mut loaded_entries = Vec::new();
@@ -249,6 +340,7 @@ impl ConfigLoader {
 }
 
 impl RuntimeConfig {
+    /// 创建空的运行时配置
     #[must_use]
     pub fn empty() -> Self {
         Self {
@@ -258,56 +350,67 @@ impl RuntimeConfig {
         }
     }
 
+    /// 获取合并后的配置
     #[must_use]
     pub fn merged(&self) -> &BTreeMap<String, JsonValue> {
         &self.merged
     }
 
+    /// 获取已加载的配置条目列表
     #[must_use]
     pub fn loaded_entries(&self) -> &[ConfigEntry] {
         &self.loaded_entries
     }
 
+    /// 获取指定键的配置值
     #[must_use]
     pub fn get(&self, key: &str) -> Option<&JsonValue> {
         self.merged.get(key)
     }
 
+    /// 转换为 JSON 值
     #[must_use]
     pub fn as_json(&self) -> JsonValue {
         JsonValue::Object(self.merged.clone())
     }
 
+    /// 获取功能配置
     #[must_use]
     pub fn feature_config(&self) -> &RuntimeFeatureConfig {
         &self.feature_config
     }
 
+    /// 获取 MCP 配置集合
     #[must_use]
     pub fn mcp(&self) -> &McpConfigCollection {
         &self.feature_config.mcp
     }
 
+    /// 获取钩子配置
     #[must_use]
     pub fn hooks(&self) -> &RuntimeHookConfig {
         &self.feature_config.hooks
     }
 
+    /// 获取 OAuth 配置
     #[must_use]
     pub fn oauth(&self) -> Option<&OAuthConfig> {
         self.feature_config.oauth.as_ref()
     }
 
+    /// 获取模型名称
     #[must_use]
     pub fn model(&self) -> Option<&str> {
         self.feature_config.model.as_deref()
     }
 
+    /// 获取权限模式
     #[must_use]
     pub fn permission_mode(&self) -> Option<ResolvedPermissionMode> {
         self.feature_config.permission_mode
     }
 
+    /// 获取沙盒配置
     #[must_use]
     pub fn sandbox(&self) -> &SandboxConfig {
         &self.feature_config.sandbox
@@ -315,37 +418,44 @@ impl RuntimeConfig {
 }
 
 impl RuntimeFeatureConfig {
+    /// 设置钩子配置
     #[must_use]
     pub fn with_hooks(mut self, hooks: RuntimeHookConfig) -> Self {
         self.hooks = hooks;
         self
     }
 
+    /// 获取钩子配置
     #[must_use]
     pub fn hooks(&self) -> &RuntimeHookConfig {
         &self.hooks
     }
 
+    /// 获取 MCP 配置集合
     #[must_use]
     pub fn mcp(&self) -> &McpConfigCollection {
         &self.mcp
     }
 
+    /// 获取 OAuth 配置
     #[must_use]
     pub fn oauth(&self) -> Option<&OAuthConfig> {
         self.oauth.as_ref()
     }
 
+    /// 获取模型名称
     #[must_use]
     pub fn model(&self) -> Option<&str> {
         self.model.as_deref()
     }
 
+    /// 获取权限模式
     #[must_use]
     pub fn permission_mode(&self) -> Option<ResolvedPermissionMode> {
         self.permission_mode
     }
 
+    /// 获取沙盒配置
     #[must_use]
     pub fn sandbox(&self) -> &SandboxConfig {
         &self.sandbox
@@ -353,6 +463,7 @@ impl RuntimeFeatureConfig {
 }
 
 impl RuntimeHookConfig {
+    /// 创建新的钩子配置
     #[must_use]
     pub fn new(pre_tool_use: Vec<String>, post_tool_use: Vec<String>) -> Self {
         Self {
@@ -361,11 +472,13 @@ impl RuntimeHookConfig {
         }
     }
 
+    /// 获取工具使用前的钩子命令列表
     #[must_use]
     pub fn pre_tool_use(&self) -> &[String] {
         &self.pre_tool_use
     }
 
+    /// 获取工具使用后的钩子命令列表
     #[must_use]
     pub fn post_tool_use(&self) -> &[String] {
         &self.post_tool_use
@@ -373,11 +486,13 @@ impl RuntimeHookConfig {
 }
 
 impl McpConfigCollection {
+    /// 获取所有 MCP 服务器配置
     #[must_use]
     pub fn servers(&self) -> &BTreeMap<String, ScopedMcpServerConfig> {
         &self.servers
     }
 
+    /// 获取指定名称的 MCP 服务器配置
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&ScopedMcpServerConfig> {
         self.servers.get(name)
@@ -385,6 +500,7 @@ impl McpConfigCollection {
 }
 
 impl ScopedMcpServerConfig {
+    /// 获取传输协议类型
     #[must_use]
     pub fn transport(&self) -> McpTransport {
         self.config.transport()
@@ -392,6 +508,7 @@ impl ScopedMcpServerConfig {
 }
 
 impl McpServerConfig {
+    /// 获取传输协议类型
     #[must_use]
     pub fn transport(&self) -> McpTransport {
         match self {
