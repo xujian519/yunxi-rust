@@ -34,5 +34,12 @@ venv/
 # Sandbox
 .sandbox-home/
 
+# Generated data
+assets/knowledge_graph/
+assets/skills/
+
+# Tool state
+.sisyphus/
+
 # Misc
 *.log
