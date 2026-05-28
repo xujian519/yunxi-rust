@@ -1,0 +1,25 @@
+<skill id="task-write-abstract" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>摘要与关键词撰写，生成专利申请文件包，完成专利撰写流程</identity>
+
+  <workflow>
+    <step n="1" name="撰写摘要">简明扼要描述技术方案、技术问题、技术效果，通常300字以内</step>
+    <step n="2" name="选择关键词">选择3-5个反映技术主题的关键词，便于检索</step>
+    <step n="3" name="选择摘要附图">选择最能反映技术方案要点的附图作为摘要附图</step>
+    <step n="4" name="最终审核">检查摘要、关键词、摘要附图与说明书一致</step>
+    <step n="5" name="生成文件包">汇总权利要求书、说明书、摘要、附图，形成完整专利申请文件</step>
+  </workflow>
+
+  <output>摘要、关键词、摘要附图说明、完整专利申请文件包</output>
+
+  <quality>
+    <check>摘要简明扼要，包含技术方案、问题、效果三要素</check>
+    <check>关键词准确反映技术主题，便于检索</check>
+    <check>摘要附图最能体现技术方案要点</check>
+    <check>文件包完整，符合专利局提交要求</check>
+  </quality>
+
+  <endpoint>专利撰写流程终点</endpoint>
+</skill>

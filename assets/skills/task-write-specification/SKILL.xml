@@ -1,0 +1,28 @@
+<skill id="task-write-specification" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>说明书撰写，将技术方案转化为符合专利法要求的完整说明书</identity>
+
+  <workflow>
+    <step n="1" name="撰写规划">基于交底书和检索结果确定说明书结构、重点、详略</step>
+    <step n="2" name="发明名称">简明准确反映技术主题，通常25字以内</step>
+    <step n="3" name="技术领域">明确所属技术领域，通常1-2段</step>
+    <step n="4" name="背景技术">介绍现有技术及缺陷，引出本发明要解决的技术问题</step>
+    <step n="5" name="发明内容">完整描述技术方案、技术效果、有益效果</step>
+    <step n="6" name="具体实施方式">详细描述优选实施例，支持权利要求保护范围</step>
+    <step n="7" name="附图说明">说明附图编号及简要内容</step>
+    <step n="8" name="完整审核">检查完整性、准确性、逻辑性、规范性</step>
+  </workflow>
+
+  <output>发明名称、技术领域、背景技术、发明内容、具体实施方式、附图说明完整说明书</output>
+
+  <quality>
+    <check>七部分结构完整，内容符合专利法要求</check>
+    <check>技术方案描述清楚充分，本领域技术人员能够实现</check>
+    <check>技术效果与技术方案对应，避免夸大</check>
+    <check>实施例详细具体，支持权利要求范围</check>
+  </quality>
+
+  <depends_on>task-write-claims</depends_on>
+</skill>

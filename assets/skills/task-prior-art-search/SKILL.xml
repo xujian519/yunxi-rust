@@ -1,0 +1,27 @@
+<skill id="task-prior-art-search" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>现有技术调研与对比分析，通过多轮检索识别对比文件并评估新颖性创造性</identity>
+
+  <workflow>
+    <step n="1" name="制定策略">基于交底书核心要素构建关键词、分类号、申请人检索式</step>
+    <step n="2" name="首轮检索">使用 patent_db 执行关键词检索，筛选最相关对比文件</step>
+    <step n="3" name="二轮检索">使用 patent_decisions 查找复审无效决定，检索类似技术方案</step>
+    <step n="4" name="三轮检索">使用知识图谱扩展技术关联，查找潜在等同替换方案</step>
+    <step n="5" name="对比分析">逐篇对比技术特征，标记相同、等同、区别技术特征</step>
+    <step n="6" name="特征对比">生成特征对比表，明确本申请与对比文件的技术差异</step>
+    <step n="7" name="布局建议">基于区别特征提出权利要求布局策略</step>
+    <step n="8" name="撰写策略">提出说明书撰写重点和创造性争辩方向</step>
+  </workflow>
+
+  <output>检索策略报告、对比文件清单、特征对比表、权利要求布局建议、撰写策略建议</output>
+
+  <quality>
+    <check>检索策略覆盖核心创新点，避免漏检</check>
+    <check>对比文件技术方案描述准确，特征对比客观</check>
+    <check>布局建议基于实际技术差异，具有可操作性</check>
+  </quality>
+
+  <depends_on>task-write-specification</depends_on>
+</skill>

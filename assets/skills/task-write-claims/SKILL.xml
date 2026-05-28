@@ -1,0 +1,25 @@
+<skill id="task-write-claims" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>权利要求书撰写，确定专利保护范围和层次化权利要求布局</identity>
+
+  <workflow>
+    <step n="1" name="布局确认">基于检索结果确定权利要求数量和层次结构</step>
+    <step n="2" name="撰写独立权利要求">确定必要技术特征，形成保护范围合理的独立权利要求</step>
+    <step n="3" name="撰写从属权利要求">对独立权利要求进一步限定，形成层次化保护</step>
+    <step n="4" name="完整审核">检查权利要求之间关系、技术特征、保护范围、新颖性创造性</step>
+    <step n="5" name="撰写说明">提供权利要求撰写思路和理由说明</step>
+  </workflow>
+
+  <output>权利要求书、权利要求撰写说明、保护范围分析</output>
+
+  <quality>
+    <check>独立权利要求只包含必要技术特征，保护范围合理</check>
+    <check>从属权利要求形成合理层次，涵盖优选实施例</check>
+    <check>权利要求之间引用关系清晰，无循环引用</check>
+    <check>技术特征描述准确，避免功能限定</check>
+  </quality>
+
+  <depends_on>task-write-abstract</depends_on>
+</skill>

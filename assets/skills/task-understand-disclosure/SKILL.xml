@@ -1,0 +1,26 @@
+<skill id="task-understand-disclosure" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>技术交底书理解与问题提取，将客户原始材料转化为结构化技术方案和待澄清问题清单</identity>
+
+  <workflow>
+    <step n="1" name="接收材料">确认技术交底书完整性，记录发明人、技术领域、期望保护范围</step>
+    <step n="2" name="结构化分析">提取技术问题、解决方案、技术效果、关键实施例</step>
+    <step n="3" name="要素提取">识别技术特征、创新点、技术优势、实施细节</step>
+    <step n="4" name="问题识别">标记模糊描述、缺失技术细节、不一致之处、需要补充的内容</step>
+    <step n="5" name="保护初步">评估专利性、确定核心技术点、初步权利要求范围</step>
+    <step n="6" name="生成报告">输出结构化技术方案、问题清单、保护建议、沟通材料</step>
+  </workflow>
+
+  <output>结构化技术方案、待澄清问题清单、专利保护初步建议、发明人沟通材料</output>
+
+  <quality>
+    <check>技术问题、方案、效果三要素完整</check>
+    <check>问题清单具体可操作，避免抽象</check>
+    <check>保护建议基于技术实质而非表面描述</check>
+    <check>语言准确专业，避免歧义</check>
+  </quality>
+
+  <depends_on>task-prior-art-search</depends_on>
+</skill>
