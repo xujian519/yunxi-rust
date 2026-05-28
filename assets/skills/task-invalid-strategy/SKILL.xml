@@ -1,0 +1,21 @@
+<skill id="task-invalid-strategy" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>专利无效请求分析，独立程序场景</identity>
+
+  <workflow>
+    <step n="1" name="分析目标专利">分析权利要求保护范围、技术方案、法律状态</step>
+    <step n="2" name="检索对比文件">检索国内外专利、论文、产品公开</step>
+    <step n="3" name="制定无效策略">选择无效理由、证据组合、攻击角度</step>
+    <step n="4" name="撰写请求书">撰写无效宣告请求书、证据清单、理由陈述</step>
+  </workflow>
+
+  <output>核心结论、证据检索结果、推荐无效理由、成功概率</output>
+
+  <quality>
+    <check>证据组合有效、法律依据充分、攻击角度合理</check>
+  </quality>
+
+  <depends_on></depends_on>
+</skill>

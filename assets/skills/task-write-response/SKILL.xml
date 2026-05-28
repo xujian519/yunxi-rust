@@ -1,0 +1,23 @@
+<skill id="task-write-response" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>答复文本撰写与审核，OA答复场景第4步（终点）</identity>
+
+  <workflow>
+    <step n="1" name="结构规划">按意见陈述书标准格式规划章节结构</step>
+    <step n="2" name="撰写开头">撰写抬头、案号、致审查员、概述</step>
+    <step n="3" name="分项答复">按驳回理由逐条陈述意见、引用对比</step>
+    <step n="4" name="修改说明">说明权利要求修改内容及法律依据</step>
+    <step n="5" name">撰写结尾">总结请求、附页清单、代理人签名</step>
+    <step n="6" name="审核">核对格式、逻辑、语言、法律依据</step>
+  </workflow>
+
+  <output>意见陈述书全文、权利要求修改替换页、附页</output>
+
+  <quality>
+    <check>格式规范、逻辑清晰、法律准确、语言专业、修改合规</check>
+  </quality>
+
+  <depends_on>task-response-strategy</depends_on>
+</skill>

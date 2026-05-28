@@ -1,0 +1,22 @@
+<skill id="task-response-strategy" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>答复策略制定，OA答复场景第3步</identity>
+
+  <workflow>
+    <step n="1" name="综合评估">评估各理由成立度、答复难度、修改成本</step>
+    <step n="2" name="制定策略">对每个驳回理由选择答复策略</step>
+    <step n="3" name="特殊处理">处理修改超范围、A26.4等特殊问题</step>
+    <step n="4" name="综合方案">整合各策略形成统一答复方案</step>
+    <step n="5" name="确认方案">HITL确认答复策略、修改内容、预期结果</step>
+  </workflow>
+
+  <output>逐理由答复策略、权利要求修改方案、答复方案确认</output>
+
+  <quality>
+    <check>策略选择合理、修改可行、成本可接受、整体优化</check>
+  </quality>
+
+  <depends_on>task-analyze-rejection</depends_on>
+</skill>

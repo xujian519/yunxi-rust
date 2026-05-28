@@ -1,0 +1,21 @@
+<skill id="task-inventive" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>创造性分析任务，独立分析场景</identity>
+
+  <workflow>
+    <step n="1" name="理解分析对象">读取权利要求、说明书、对比文件</step>
+    <step n="2" name="执行三步法">确定最接近现有技术、确定区别技术特征、确定发明创造性</step>
+    <step n="3" name="综合评估">评估技术问题、技术效果、显而易见性</step>
+    <step n="4" name="给出建议">给出技术方案优化、权利要求修改建议</step>
+  </workflow>
+
+  <output>核心结论、三步法分析、综合评估表、改进建议</output>
+
+  <quality>
+    <check>三步法执行准确、技术问题定位正确、技术效果充分</check>
+  </quality>
+
+  <depends_on></depends_on>
+</skill>

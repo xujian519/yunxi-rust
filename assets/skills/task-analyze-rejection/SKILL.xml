@@ -1,0 +1,22 @@
+<skill id="task-analyze-rejection" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>驳回理由深度分析，OA答复场景第2步</identity>
+
+  <workflow>
+    <step n="1" name="法律检索">检索审查员引用的法律条款、审查指南、判例</step>
+    <step n="2" name="新颖性分析">对比D1与权利要求技术特征差异、公开范围</step>
+    <step n="3" name="创造性分析">三步法评估D1+公知常识、D1+D2组合动机</step>
+    <step n="4" name="A26.3分析">公开不充分分析技术方案实现细节、实施例</step>
+    <step n="5" name="可能性评估">评估各驳回理由成立可能性、反制空间</step>
+  </workflow>
+
+  <output>新颖性分析报告、创造性分析报告、A26.3分析报告</output>
+
+  <quality>
+    <check>3种分析模板应用、法律依据准确、技术对比清晰</check>
+  </quality>
+
+  <depends_on>task-oa-analysis</depends_on>
+</skill>

@@ -1,0 +1,22 @@
+<skill id="task-oa-analysis" layer="task" version="2.0">
+  <include ref="_shared/hitl_protocol" />
+  <include ref="_shared/output_standards" />
+
+  <identity>审查意见解读与问题分解，OA答复场景第1步</identity>
+
+  <workflow>
+    <step n="1" name="读取文档">并行读取OA通知书、申请文件、对比文件</step>
+    <step n="2" name="提取关键信息">并行提取审查员、发文日、法律条款、对比文件、驳回理由</step>
+    <step n="3" name="分析驳回理由">并行分析每个驳回理由的法律依据、技术差异、结论</step>
+    <step n="4" name="查询对比文件">并行检索对比文件公开日期、技术内容、法律状态</step>
+    <step n="5" name="分解问题">按优先级和依赖关系分解为可处理子问题</step>
+  </workflow>
+
+  <output>驳回理由清单、对比文件摘要、问题分解结构</output>
+
+  <quality>
+    <check>HITL确认材料完整、确认驳回理由清单、确认问题分解</check>
+  </quality>
+
+  <depends_on>task-oa-analysis</depends_on>
+</skill>
