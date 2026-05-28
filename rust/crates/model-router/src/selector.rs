@@ -25,7 +25,7 @@ impl ModelSelector {
 
         let score = self.scorer.score(&features);
         let model = self.decide_model(&score);
-        let reason = self.generate_reason(&score, &model);
+        let reason = self.generate_reason(&score, model);
 
         Ok(ModelSelection {
             model: model.to_string(),

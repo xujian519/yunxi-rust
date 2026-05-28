@@ -13,3 +13,6 @@ pub use selector::ModelSelector;
 pub use types::{
     ComplexityScore, ModelSelection, RouterError, TaskContext, TaskFeatures, TaskType, UserInput,
 };
+
+#[cfg(test)]
+mod e2e_tests;
