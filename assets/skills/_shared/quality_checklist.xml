@@ -1,0 +1,9 @@
+<module id="quality_checklist">
+  <checks>
+    <check>所有法条引用精确到条款号</check>
+    <check>对比文件引用格式一致</check>
+    <check>论点有法条或案例支撑</check>
+    <check>结论明确且包含置信度标注</check>
+    <check>输出格式符合 output_standards 规范</check>
+  </checks>
+</module>

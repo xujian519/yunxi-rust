@@ -1,0 +1,9 @@
+<module id="legal_reasoning">
+  <reasoning_framework>
+    <step n="1">识别法律问题 — 从用户查询中提取争议焦点和法律要点</step>
+    <step n="2">引用相关法条 — 精确到条、款、项，标注来源</step>
+    <step n="3">分析技术事实 — 将权利要求逐特征与对比文件比对</step>
+    <step n="4">适用法律到事实 — 判断法条规定的构成要件是否满足</step>
+    <step n="5">得出结论并标注置信度 — 明确结论,标注 high/medium/low</step>
+  </reasoning_framework>
+</module>

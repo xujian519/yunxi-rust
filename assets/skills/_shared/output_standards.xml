@@ -1,0 +1,8 @@
+<module id="output_standards">
+  <format>
+    <citation>法条引用:《专利法》第XX条第X款,审查指南第X部分第X章第X节</citation>
+    <numbering>编号:一、(一)、1.、(1)、①</numbering>
+    <doc_ref>对比文件:首次完整信息(公开号,下称D1),后续→D1</doc_ref>
+    <terminology>术语一致:同一概念全文统一,不混用同义词</terminology>
+  </format>
+</module>
