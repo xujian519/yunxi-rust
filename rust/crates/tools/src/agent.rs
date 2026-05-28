@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
 use api::{
-    read_base_url, AnthropicClient, ContentBlockDelta, InputContentBlock, InputMessage,
-    MessageRequest, MessageResponse, OutputContentBlock, StreamEvent as ApiStreamEvent, ToolChoice,
+    read_base_url, ContentBlockDelta, InputContentBlock, InputMessage, MessageRequest,
+    MessageResponse, MessagesClient, OutputContentBlock, StreamEvent as ApiStreamEvent, ToolChoice,
     ToolDefinition, ToolResultContentBlock,
 };
 use runtime::{
@@ -19,7 +19,7 @@ use crate::agent_helpers::{
 
 // --- Constants ---
 
-const DEFAULT_AGENT_MODEL: &str = "claude-opus-4-6";
+const DEFAULT_AGENT_MODEL: &str = "deepseek-v4-pro";
 const DEFAULT_AGENT_SYSTEM_DATE: &str = "2026-03-31";
 const DEFAULT_AGENT_MAX_ITERATIONS: usize = 32;
 
@@ -97,7 +97,7 @@ where
     let output_file = output_dir.join(format!("{agent_id}.md"));
     let manifest_file = output_dir.join(format!("{agent_id}.json"));
     let normalized_subagent_type = normalize_subagent_type(input.subagent_type.as_deref());
-    let model = resolve_agent_model(input.model.as_deref());
+    let model = resolve_agent_model(input.model.as_deref(), Some(&normalized_subagent_type));
     let agent_name = input
         .name
         .as_deref()
@@ -158,6 +158,11 @@ where
 }
 
 pub fn allowed_tools_for_subagent(subagent_type: &str) -> BTreeSet<String> {
+    // 优先尝试匹配专业代理角色
+    if let Some(role) = crate::agent_roles::AgentRole::from_str_opt(subagent_type) {
+        return role.allowed_tools();
+    }
+
     let tools = match subagent_type {
         "Explore" => vec![
             "read_file",
@@ -324,14 +329,15 @@ fn run_agent_job(job: &AgentJob) -> Result<(), String> {
 
 fn build_agent_runtime(
     job: &AgentJob,
-) -> Result<ConversationRuntime<AnthropicRuntimeClient, SubagentToolExecutor>, String> {
+) -> Result<ConversationRuntime<MessagesRuntimeClient, SubagentToolExecutor>, String> {
     let model = job
         .manifest
         .model
-        .clone()
-        .unwrap_or_else(|| DEFAULT_AGENT_MODEL.to_string());
+        .as_deref()
+        .unwrap_or(DEFAULT_AGENT_MODEL)
+        .to_string();
     let allowed_tools = job.allowed_tools.clone();
-    let api_client = AnthropicRuntimeClient::new(model, allowed_tools.clone())?;
+    let api_client = MessagesRuntimeClient::new(model, allowed_tools.clone())?;
     let tool_executor = SubagentToolExecutor::new(allowed_tools);
     Ok(ConversationRuntime::new(
         Session::new(),
@@ -351,18 +357,33 @@ fn build_agent_system_prompt(subagent_type: &str) -> Result<Vec<String>, String>
         "unknown",
     )
     .map_err(|error| error.to_string())?;
-    prompt.push(format!(
-        "You are a background sub-agent of type `{subagent_type}`. Work only on the delegated task, use only the tools available to you, do not ask the user questions, and finish with a concise result."
-    ));
+
+    crate::system_prompt::append_athena_capabilities(&mut prompt);
+
+    if let Some(role) = crate::agent_roles::AgentRole::from_str_opt(subagent_type) {
+        let role_prompt = role.system_prompt();
+        // 如果 XML 角色定义中包含 <include> 标签，尝试展开
+        let cargo_manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let skills_dir = cargo_manifest.join("../../../assets/skills");
+        let resolved = crate::skill::resolve_includes(&role_prompt, &skills_dir)
+            .unwrap_or(role_prompt);
+        prompt.push(resolved);
+    } else {
+        prompt.push(format!(
+            "You are a background sub-agent of type `{subagent_type}`. Work only on the delegated task, use only the tools available to you, do not ask the user questions, and finish with a concise result."
+        ));
+    }
     Ok(prompt)
 }
 
-fn resolve_agent_model(model: Option<&str>) -> String {
-    model
-        .map(str::trim)
-        .filter(|model| !model.is_empty())
-        .unwrap_or(DEFAULT_AGENT_MODEL)
-        .to_string()
+fn resolve_agent_model(model: Option<&str>, subagent_type: Option<&str>) -> String {
+    if let Some(m) = model.map(str::trim).filter(|m| !m.is_empty()) {
+        return m.to_string();
+    }
+    if let Some(role) = subagent_type.and_then(crate::agent_roles::AgentRole::from_str_opt) {
+        return role.preferred_model().to_string();
+    }
+    DEFAULT_AGENT_MODEL.to_string()
 }
 
 fn write_agent_manifest(manifest: &AgentOutput) -> Result<(), String> {
@@ -397,16 +418,16 @@ fn format_agent_terminal_output(status: &str, result: Option<&str>, error: Optio
 
 // --- Runtime client ---
 
-struct AnthropicRuntimeClient {
+struct MessagesRuntimeClient {
     runtime: tokio::runtime::Runtime,
-    client: AnthropicClient,
+    client: MessagesClient,
     model: String,
     allowed_tools: BTreeSet<String>,
 }
 
-impl AnthropicRuntimeClient {
+impl MessagesRuntimeClient {
     fn new(model: String, allowed_tools: BTreeSet<String>) -> Result<Self, String> {
-        let client = AnthropicClient::from_env()
+        let client = MessagesClient::from_env()
             .map_err(|error| error.to_string())?
             .with_base_url(read_base_url());
         Ok(Self {
@@ -418,8 +439,12 @@ impl AnthropicRuntimeClient {
     }
 }
 
-impl ApiClient for AnthropicRuntimeClient {
-    fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError> {
+impl ApiClient for MessagesRuntimeClient {
+    fn stream(
+        &mut self,
+        request: ApiRequest,
+        _observer: &mut Option<&mut dyn runtime::TurnObserver>,
+    ) -> Result<Vec<AssistantEvent>, RuntimeError> {
         let tools = tool_specs_for_allowed_tools(Some(&self.allowed_tools))
             .into_iter()
             .map(|spec| ToolDefinition {
