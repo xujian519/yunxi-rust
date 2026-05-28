@@ -1,0 +1,23 @@
+<skill id="cap-formal-exam" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+  <identity>形式审查能力 - 依据实施细则检查申请文件的形式要件</identity>
+  <workflow>
+    <step n="1" name="说明书审查">检查说明书格式、附图标记、实施例、技术术语、用语规范</step>
+    <step n="2" name="权利要求书审查">检查权利要求书格式、编号、引用关系、用语规范</step>
+    <step n="3" name="单一性审查">判断权利要求之间是否属于一个总的发明构思</step>
+    <step n="4" name="摘要审查">检查摘要格式、字数、技术领域、技术问题、技术方案、有益效果</step>
+  </workflow>
+  <output>
+    格式:问题清单表(位置、问题类型、描述、法律依据、修改建议)
+    法条引用:《实施细则》第十八条、第十九条、第二十条、第二十二条
+    标注:引用相关审查指南章节
+  </output>
+  <quality>
+    <check>说明书格式符合细则规定</check>
+    <check>权利要求书引用关系正确完整</check>
+    <check>单一性判断有事实依据</check>
+    <check>摘要技术信息准确完整</check>
+    <check>法条引用精确到条、款、项</check>
+  </quality>
+</skill>

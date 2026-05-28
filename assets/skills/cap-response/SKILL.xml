@@ -1,0 +1,24 @@
+<skill id="cap-response" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+  <identity>审查意见答复能力 - 针对驳回理由构建全面的反驳策略和答复文本</identity>
+  <workflow>
+    <step n="1" name="分析驳回理由">逐项分析审查员引用的法条、对比文件和技术特征对比,识别核心争议点</step>
+    <step n="2" name="检索支撑材料">检索补充对比文件、公知常识证据、类似案例,构建反驳论据</step>
+    <step n="3" name="构建答复论点">基于事实和法条,逐项构建反驳论点,明确结论和理由</step>
+    <step n="4" name="建议权利要求修改">针对审查员指出的问题,提出具体的权利要求修改方案</step>
+    <step n="5" name="撰写答复文本">按照答复模板,撰写正式的答复文本,包括格式和签字</step>
+  </workflow>
+  <output>
+    格式:答复报告(理由分析、论据列表、反驳策略、修改建议、答复文本)
+    策略:全面反驳、部分反驳+修改、接受+修改
+    模板:官方案例中认可的答复格式
+    标注:引用相关法条和审查指南章节
+  </output>
+  <quality>
+    <check>每个驳回理由都有对应的反驳论点</check>
+    <check>修改建议不超出原始公开范围</check>
+    <check>答复文本格式正确完整</check>
+    <check>论点有法条和证据支撑</check>
+  </quality>
+</skill>

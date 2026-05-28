@@ -1,0 +1,23 @@
+<skill id="cap-invalid" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+  <identity>无效策略分析能力 - 评估专利无效宣告的成功率和最优证据组合</identity>
+  <workflow>
+    <step n="1" name="分析权利要求">逐项分析独立和从属权利要求的技术特征和保护范围</step>
+    <step n="2" name="检索对比文件">针对最接近的现有技术进行检索,重点关注发明创造的关键创新点</step>
+    <step n="3" name="检索类似案例">检索无效决定、行政诉讼判决,参考审查员的类似认定</step>
+    <step n="4" name="分析证据组合">评估不同证据组合的强度和成功率,识别最优攻击路径</step>
+    <step n="5" name="评估成功率">基于法条适用、证据充分性、类似案例,预估整体成功率</step>
+  </workflow>
+  <output>
+    格式:策略报告(权利要求分析、证据列表、组合策略、成功率评估、风险提示)
+    策略类型:D1单独使用、D1+D2组合使用、D1+公知常识、D1+D2+公知常识、D1+证据链
+    标注:引用A45、细则65、审查指南第四部分第8章第2节
+  </output>
+  <quality>
+    <check>提供至少3种不同的证据组合策略</check>
+    <check>每个策略明确对应具体的法条理由</check>
+    <check>成功评估基于数据和案例而非主观判断</check>
+    <check>标注策略的强项和弱项</check>
+  </quality>
+</skill>

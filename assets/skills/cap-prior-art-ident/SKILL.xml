@@ -1,0 +1,23 @@
+<skill id="cap-prior-art-ident" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+  <identity>现有技术识别能力 - 依据A22.5判断技术信息是否构成现有技术</identity>
+  <workflow>
+    <step n="1" name="技术来源识别">确定技术信息的来源类型(专利文献、公开出版物、公开使用、网络公开)</step>
+    <step n="2" name="时间界线判断">根据公开方式和来源,确定判断现有技术的时间界线</step>
+    <step n="3" name="公知状态判断">判断技术信息是否处于公众可以获得的状态</step>
+    <step n="4" name="公开方式识别">区分出版物公开、使用公开、口头公开等不同公开方式</step>
+    <step n="5" name="特殊情形处理">处理申请日当天公开、抵触申请、保密协议等特殊情形</step>
+  </workflow>
+  <output>
+    格式:判断结论表(来源、公开日期、公开方式、公知状态、时间界线、结论、依据)
+    特殊情形:抵触申请、优先权、保密协议、保密审查、临时保护期
+    标注:引用A22.5、细则30、审查指南第二部分第三章第2.1节
+  </output>
+  <quality>
+    <check>时间界线判断准确无遗漏</check>
+    <check>公知状态判断有证据支撑</check>
+    <check>特殊情形处理符合法条规定</check>
+    <check>结论明确标注high/medium/low置信度</check>
+  </quality>
+</skill>

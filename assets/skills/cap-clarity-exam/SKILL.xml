@@ -1,0 +1,24 @@
+<skill id="cap-clarity-exam" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+  <identity>权利要求清楚性审查能力 - 基于专利法A26.4检查技术特征表述是否准确、完整</identity>
+  <workflow>
+    <step n="1" name="整体评估">阅读权利要求书,判断是否存在表述不清、逻辑矛盾、技术方案不完整等整体性问题</step>
+    <step n="2" name="模糊用语识别">识别"适当的"、"厚的"、"若干"等模糊词汇,标注具体位置和上下文</step>
+    <step n="3" name="引用关系检查">检查权利要求间的引用关系,验证引用基础是否存在,避免循环引用</step>
+    <step n="4" name="功能性限定检查">识别"能够..."、"用于..."等功能性限定,判断是否得到说明书支持</step>
+    <step n="5" name="修改建议">针对发现的问题,提供具体的修改建议并说明法律依据</step>
+  </workflow>
+  <output>
+    格式:问题列表表(位置、类型、描述、法律依据、修改建议)
+    标注:引用A26.4、审查指南第二部分第二章第3.2节
+    置信度:每个问题标注high/medium/low
+  </output>
+  <quality>
+    <check>覆盖所有模糊用语和表述不清之处</check>
+    <check>引用关系完整且正确</check>
+    <check>功能性限定有技术特征支撑</check>
+    <check>修改建议具有可操作性</check>
+    <check>法条引用精确到条、款、项</check>
+  </quality>
+</skill>
