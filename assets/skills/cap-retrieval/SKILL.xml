@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<skill id="cap-retrieval" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+
+  <identity>法律检索能力：从向量库和知识图谱中精准检索相关法律条文、案例、审查指南，并调用法条智能画像信息。</identity>
+
+  <workflow>
+    <step n="1" name="识别关键词">提取法条编号、法律概念、技术领域、争议焦点、程序类型等关键信息</step>
+    <step n="2" name="多源检索">并行检索 patent_rules_complete、patent_decisions、laws_articles、patent_guidelines 集合</step>
+    <step n="3" name="图谱补全">查询法条的上位法依据、关联法条、配套规定、引用案例</step>
+    <step n="4" name="法条画像">调用基础画像（条文内容、效力层级）、应用画像（引用频次、趋势）、关系画像（关联法条）、实务画像（典型案例）</step>
+    <step n="5" name="综合排序">按相似度>0.75、引用频次、时效性（近3年优先）、权威性（法律>法规>规章）排序</step>
+  </workflow>
+
+  <output>按优先级输出法条类（含完整画像）和案例类，标注相似度、来源、引用频次</output>
+
+  <error_handling>
+    <case type="空结果">尝试简化或泛化关键词，使用相似概念检索，建议用户调整查询</case>
+    <case type="低相关性">检查相似度是否>0.75，说明情况并建议使用不同角度查询</case>
+    <case type="法条缺失">尝试从其他集合检索，说明数据情况并建议查询官方渠道</case>
+  </error_handling>
+
+  <quality>
+    <check>相似度>0.75</check>
+    <check>覆盖≥2个向量集合</check>
+    <check>法条包含完整条文内容</check>
+    <check>已调用法条应用画像和实务画像</check>
+    <check>标注明确来源</check>
+    <check>已利用知识图谱查询关联关系</check>
+  </quality>
+</skill>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<skill id="cap-disclosure-exam" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+
+  <identity>说明书充分公开审查能力：判断说明书是否满足A26.3要求的清楚、完整、能够实现三标准，识别问题并提供改进建议。</identity>
+
+  <workflow>
+    <step n="1" name="整体评估">评估清楚性（主题明确、用词准确、技术方案清晰）、完整性（技术特征完整、技术问题明确、技术效果充分、实施方式具体）、能够实现性（技术人员能够实现、不需创造性劳动）</step>
+    <step n="2" name="问题识别">识别清楚性问题（主题不明确、用词不准确、技术方案描述混乱、前后矛盾）、完整性问题（缺少必要技术特征、技术问题不明确、技术效果不充分、实施方式不具体）、能够实现性问题（技术人员无法实现、缺少实施细节、缺少实验证据、技术手段不完整）</step>
+    <step n="3" name="特殊领域审查">化学/医药领域（实验证据要求、实施例要求、效果验证要求）、生物/基因领域（生物材料公开要求、序列公开要求、功能验证要求）</step>
+    <step n="4" name="改进建议">针对每个问题提供具体修改位置、修改内容和预期效果</step>
+  </workflow>
+
+  <output>说明书充分公开审查报告：整体评估（清楚性、完整性、能够实现性评分）、问题清单、改进建议、参考案例、后续建议</output>
+
+  <error_handling>
+    <case type="公开不充分">判断是否属于缺少必要技术特征、缺少实施细节、缺少实验证据等问题</case>
+    <case type="技术领域差异">不同技术领域对公开程度的要求不同，化学/医药/生物等领域需要实验证据</case>
+  </error_handling>
+
+  <quality>
+    <check>检索了A26.3相关法条</check>
+    <check>检索了审查指南相关章节</check>
+    <check>检索了相关复审无效案例</check>
+    <check>考虑了技术领域的特殊性</check>
+    <check>提供了具体的改进建议</check>
+    <check>清楚：主题明确、用词准确、技术方案清晰</check>
+    <check>完整：包含理解发明所需的所有技术特征</check>
+    <check>能够实现：所属领域技术人员根据说明书能够实现，不需要创造性劳动</check>
+  </quality>
+</skill>

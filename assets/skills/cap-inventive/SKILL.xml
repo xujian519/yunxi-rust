@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<skill id="cap-inventive" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+
+  <identity>创造性分析能力：基于三步法（确定最接近现有技术→区别特征→技术启示）评估发明的显而易见性，判断显著技术进步和预料不到的技术效果。</identity>
+
+  <workflow>
+    <step n="1" name="确定最接近现有技术">从对比文件中找到技术领域相同、技术问题相同、技术效果相似的最接近现有技术</step>
+    <step n="2" name="识别区别特征">确定目标专利与最接近现有技术的区别技术特征，分析区别特征要解决的技术问题</step>
+    <step n="3" name="技术启示判断">评估现有技术是否明确教导或暗示采用这些区别特征，判断是否是公知常识，是否带来预料不到的技术效果，是否存在反向教导</step>
+    <step n="4" name="技术进步分析">评估技术进步类型（性能提升、成本降低、功能扩展、工艺改进、环保节能、用户体验）和程度（显著、中等、微小、无）</step>
+    <step n="5" name="综合评估">判断创造性等级（高创造性：显著进步+非显而易见+预料不到的效果、中等创造性：明显进步+非显而易见、低创造性：一定进步+一定非显而易见性、无创造性：无显著进步或显而易见）</step>
+  </workflow>
+
+  <output>JSON格式评估结果：包含is_obvious、confidence、reasoning、key_factors、closest_prior_art、distinguishing_features、technical_problem、obviousness_conclusion、has_inventive_step、step_magnitude、has_advancement、advancement_type、improvement_degree、unexpected_effects、creativity_conclusion、creativity_level等字段</output>
+
+  <error_handling>
+    <case type="LLM不可用">使用降级规则：区别特征数量>2通常非显而易见，检查是否包含预料不到的关键词，检查现有技术是否存在教导away</case>
+    <case type="创造性步骤降级">区别特征数量>2→显著创造性步骤，1-2→中等创造性步骤，0→无创造性步骤</case>
+    <case type="技术进步降级">有益效果描述长度>200字→显著进步，包含显著/大幅等关键词，有益效果数量>3→中等以上进步</case>
+  </error_handling>
+
+  <quality>
+    <check>JSON格式必须正确</check>
+    <check>必需字段不能缺失</check>
+    <check>数值类型字段在合理范围内（如confidence: 0-1）</check>
+    <check>枚举类型字段是预定义的值之一</check>
+    <check>基于三步法分析</check>
+    <check>判断标准明确（显而易见vs非显而易见）</check>
+    <check>考虑预料不到的技术效果</check>
+    <check>考虑技术进步的类型和程度</check>
+  </quality>
+</skill>

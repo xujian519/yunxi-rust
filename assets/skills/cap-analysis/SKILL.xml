@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<skill id="cap-analysis" layer="capability" version="2.0">
+  <include ref="_shared/legal_reasoning" />
+  <include ref="_shared/output_standards" />
+
+  <identity>专利技术分析能力：三级技术分析框架（表面特征→技术手段→技术效果）和区别特征四层识别。</identity>
+
+  <workflow>
+    <step n="1" name="一级分析">提取目标专利和对比文件的所有技术特征，识别区别特征列表</step>
+    <step n="2" name="二级分析">对每个技术特征进行手段拆解：工作原理、结构组成、连接关系、控制逻辑</step>
+    <step n="3" name="三级分析">分析技术效果的实现机制，对比目标专利与对比文件的效果差异，分析区别特征因果链</step>
+    <step n="4" name="四层识别">识别区别特征：表面区别（结构/参数/材料）、功能区别（作用/场景/配合）、原理区别（工作原理/作用机理/技术思路）、技术启示判断</step>
+    <step n="5" name="HITL确认">在技术解构、区别特征确认、技术启示判断、答复策略选择、答复文件撰写完成后请求用户确认</step>
+  </workflow>
+
+  <output>深度技术对比矩阵（特征级、手段级、效果级、因果关系链），区别特征清单和技术启示判断矩阵</output>
+
+  <error_handling>
+    <case type="技术解构不完整">检查是否覆盖所有7个维度：技术方案本质、技术手段拆解、技术效果实现机制、技术问题解决链、技术领域特征、实施方式细节、变形与等同</case>
+    <case type="区别特征识别不准">区分表面相同但实际作用/效果不同的特征，识别公开程度差异（概括vs具体）</case>
+    <case type="技术启示判断不确定">重点分析技术领域、技术问题、技术效果差异，判断是否存在技术障碍</case>
+  </error_handling>
+
+  <quality>
+    <check>三级分析完成（表面特征、技术手段、技术效果）</check>
+    <check>区别特征四层识别完整</check>
+    <check>技术启示判断基于领域/问题/效果差异</check>
+    <check>在5个关键点请求了HITL确认</check>
+    <check>技术分析准确无误</check>
+    <check>对比矩阵清晰完整</check>
+  </quality>
+</skill>
