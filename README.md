@@ -155,11 +155,27 @@ yunxi login
 
 | 别名 | 对应模型 |
 |------|---------|
+| `auto` | 智能路由，根据任务复杂度自动选择 |
 | `deepseek` / `ds` | `deepseek-v4-pro` |
 | `deepseek-flash` / `dsf` | `deepseek-v4-flash` |
 | `messages-opus` | `messages-opus` |
 | `messages-sonnet` | `messages-sonnet` |
 | `messages-haiku` | `messages-haiku` |
+
+### 智能模型路由器
+
+YunXi 支持智能模型路由功能，通过 `--model auto` 或配置 `"model": "auto"` 启用。系统根据任务复杂度自动选择最合适的模型：
+
+- **规划、分析、设计** 等复杂任务 → `deepseek-v4-pro`
+- **日常聊天、执行、修改** 等简单任务 → `deepseek-v4-flash`
+
+**评分维度（总分100，阈值65）：**
+- 任务类型（40%）：规划/分析/生成/执行/聊天
+- 输入复杂度（20%）：长度、代码、结构化数据
+- 上下文复杂度（20%）：历史对话、涉及文件
+- 工具调用（20%）：预估次数、复杂工具
+
+配置示例见 `.yunxi/settings.json.example`。
 
 ## CLI 参数
 

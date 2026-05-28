@@ -1,0 +1,19 @@
+{
+  "semantic": {
+    "enabled": true,
+    "backend": "http",
+    "http": {
+      "baseUrl": "http://127.0.0.1:8009",
+      "embedPath": "/v1/embeddings",
+      "apiStyle": "openai",
+      "model": "bge-m3-mlx-8bit",
+      "apiKey": "YOUR_OMLX_API_KEY"
+    }
+  },
+  "vision": {
+    "enabled": true,
+    "http": {
+      "model": "gemma-4-e2b-it-4bit"
+    }
+  }
+}

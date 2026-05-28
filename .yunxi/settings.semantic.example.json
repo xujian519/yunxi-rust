@@ -1,0 +1,18 @@
+{
+  "semantic": {
+    "enabled": true,
+    "backend": "http",
+    "http": {
+      "baseUrl": "http://127.0.0.1:8009",
+      "embedPath": "/v1/embeddings",
+      "apiStyle": "openai",
+      "model": "bge-m3-mlx-8bit",
+      "apiKey": "YOUR_OMLX_API_KEY",
+      "timeoutSecs": 120
+    },
+    "defaults": {
+      "knowledgeSearchMode": "hybrid",
+      "semanticCompareAuto": true
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "model": "deepseek-v4-pro",
+  "permissions": {
+    "defaultMode": "dontAsk"
+  }
+}

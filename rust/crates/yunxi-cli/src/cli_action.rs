@@ -220,6 +220,8 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
 
 pub(crate) fn resolve_model_alias(model: &str) -> &str {
     match model {
+        // Auto mode
+        "auto" => "auto",
         // Anthropic Claude 系列
         "opus" => "claude-opus-4-6",
         "sonnet" => "claude-sonnet-4-6",
@@ -615,5 +617,10 @@ mod tests {
             Some("danger-full-access")
         );
         assert_eq!(normalize_permission_mode("unknown"), None);
+    }
+
+    #[test]
+    fn test_auto_mode_alias() {
+        assert_eq!(resolve_model_alias("auto"), "auto");
     }
 }
