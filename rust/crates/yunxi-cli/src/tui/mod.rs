@@ -21,3 +21,5 @@ pub(crate) mod overlays;
 pub(crate) mod runner;
 
 pub(crate) mod terminal;
+
+pub(crate) mod widgets;
