@@ -38,29 +38,66 @@ impl ToolPanel {
     }
 
     /// 向下滚动。
-    pub(crate) fn scroll_down(&mut self, visible_lines: usize) {
-        let max = self.total_lines().saturating_sub(visible_lines);
-        if self.scroll_offset < max {
-            self.scroll_offset += 1;
-        }
+    pub(crate) fn scroll_down(&mut self, visible_lines: usize, wrap_width: usize) {
+        self.scroll_down_by(1, visible_lines, wrap_width);
     }
 
     /// 向上滚动。
     pub(crate) fn scroll_up(&mut self) {
-        self.scroll_offset = self.scroll_offset.saturating_sub(1);
+        self.scroll_up_by(1);
+    }
+
+    /// 向下滚动多行。
+    pub(crate) fn scroll_down_by(
+        &mut self,
+        amount: usize,
+        visible_lines: usize,
+        wrap_width: usize,
+    ) {
+        let max = self.total_lines(wrap_width).saturating_sub(visible_lines);
+        self.scroll_offset = (self.scroll_offset + amount).min(max);
+    }
+
+    /// 向上滚动多行。
+    pub(crate) fn scroll_up_by(&mut self, amount: usize) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(amount);
+    }
+
+    /// 根据渲染行号定位工具条目（含 scroll 偏移后的绝对行号）。
+    pub(crate) fn entry_at_rendered_line(&self, line: usize, wrap_width: usize) -> Option<usize> {
+        let mut offset = 0;
+        for (idx, entry) in self.entries.iter().enumerate() {
+            let lines = self.entry_line_count(entry, wrap_width);
+            if line < offset + lines {
+                return Some(idx);
+            }
+            offset += lines;
+        }
+        None
+    }
+
+    fn entry_line_count(&self, entry: &ToolEntry, wrap_width: usize) -> usize {
+        let mut count = 1;
+        if entry.collapsed {
+            count += 1;
+        } else {
+            let inner_width = wrap_width.saturating_sub(2);
+            for line in entry.detail.lines() {
+                let wrapped = crate::tui::components::chat_view::wrap_line(line, inner_width);
+                count += wrapped.len().max(1);
+            }
+            if entry.detail.is_empty() {
+                count += 0;
+            }
+        }
+        count
     }
 
     /// 估算总行数。
-    fn total_lines(&self) -> usize {
+    fn total_lines(&self, wrap_width: usize) -> usize {
         self.entries
             .iter()
-            .map(|e| {
-                if e.collapsed {
-                    1
-                } else {
-                    e.detail.lines().count().max(1) + 1
-                }
-            })
+            .map(|e| self.entry_line_count(e, wrap_width))
             .sum()
     }
 
@@ -115,6 +152,11 @@ impl ToolPanel {
         self.entries.len()
     }
 
+    #[must_use]
+    pub(crate) fn scroll_offset(&self) -> usize {
+        self.scroll_offset
+    }
+
     /// 是否为空。
     pub(crate) fn is_empty(&self) -> bool {
         self.entries.is_empty()
@@ -124,6 +166,11 @@ impl ToolPanel {
     pub(crate) fn clear(&mut self) {
         self.entries.clear();
         self.scroll_offset = 0;
+    }
+
+    /// 获取工具条目列表。
+    pub(crate) fn entries(&self) -> &[ToolEntry] {
+        &self.entries
     }
 }
 
@@ -199,5 +246,24 @@ mod tests {
     fn truncate_str_works() {
         assert_eq!(truncate_str("hello world", 5), "hello…");
         assert_eq!(truncate_str("hi", 10), "hi");
+    }
+
+    #[test]
+    fn entry_at_rendered_line_finds_entry() {
+        let mut panel = ToolPanel::new();
+        panel.push(ToolEntry {
+            name: "a".to_string(),
+            detail: "one".to_string(),
+            is_error: false,
+            collapsed: false,
+        });
+        panel.push(ToolEntry {
+            name: "b".to_string(),
+            detail: "two".to_string(),
+            is_error: false,
+            collapsed: true,
+        });
+        assert_eq!(panel.entry_at_rendered_line(0, 40), Some(0));
+        assert_eq!(panel.entry_at_rendered_line(2, 40), Some(1));
     }
 }
