@@ -159,19 +159,25 @@
   </div>
 
   <script>
-    const { invoke } = window.__TAURI__.core;
+    const __TAURI__ = window.__TAURI__ || window.__TAURI_INTERNALS__;
+    const invoke = __TAURI__ ? (__TAURI__.core ? __TAURI__.core.invoke : __TAURI__.invoke) : null;
 
     async function init() {
+      if (!invoke) {
+        document.getElementById("backend-status").textContent = "后端: Tauri API 未就绪";
+        return;
+      }
       try {
         const v = await invoke("get_version");
         document.getElementById("version").textContent = "v" + v;
         document.getElementById("backend-status").textContent = "后端: 已连接";
       } catch (e) {
-        document.getElementById("backend-status").textContent = "后端: 错误";
+        document.getElementById("backend-status").textContent = "后端: " + e;
       }
     }
 
     async function sendMsg() {
+      if (!invoke) return;
       const input = document.getElementById("msg");
       const name = input.value.trim() || "云熙";
       try {

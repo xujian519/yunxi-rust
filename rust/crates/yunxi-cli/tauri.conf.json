@@ -1,15 +1,14 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicknisi/tauri-config-schema/main/tauri.schema.json",
   "productName": "云熙智能体",
   "version": "0.1.0",
   "identifier": "ai.yunxi.desktop",
   "build": {
     "frontendDist": "./dist",
-    "devUrl": "http://localhost:1420",
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
   "app": {
+    "withGlobalTauri": true,
     "security": {
       "csp": null
     },
