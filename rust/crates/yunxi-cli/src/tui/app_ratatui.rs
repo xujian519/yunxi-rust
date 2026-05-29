@@ -64,7 +64,7 @@ impl TuiApp {
             StatusBarWidget {
                 model: &self.model,
                 permission_mode: "default",
-                session_id: "0000",
+                session_id: "",
                 input_tokens: 0,
                 output_tokens: self.turn_output_tokens,
                 cost_usd: 0.0,

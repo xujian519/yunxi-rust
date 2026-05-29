@@ -596,7 +596,6 @@ pub(crate) fn run_tui_ratatui(
     use crate::tui::app::TuiApp;
     use crate::tui::terminal::{restore_terminal, setup_terminal};
     use crossterm::event::{self, Event, KeyCode};
-    use ratatui::crossterm;
 
     let mut app = TuiApp::new(model, crate::VERSION.to_string(), ui_mode);
 

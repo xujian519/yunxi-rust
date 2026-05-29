@@ -79,8 +79,16 @@ impl PatentScreenWidget<'_> {
             .borders(Borders::LEFT)
             .border_style(Style::default().fg(Color::Indexed(245)));
 
+        let content = if !self.patent.prior_art_lines.is_empty() {
+            self.patent.prior_art_lines.join("\n")
+        } else if !self.patent.search_hits.is_empty() {
+            self.patent.search_hits.join("\n")
+        } else {
+            "尚无证据内容。\n在对话中使用检索、对比工具后，\n相关证据将自动显示于此面板。".to_string()
+        };
+
         Paragraph::new(Line::from(Span::styled(
-            "（证据面板 - 暂未实现）",
+            content,
             Style::default().fg(Color::Indexed(252)),
         )))
         .block(block)
