@@ -45,17 +45,17 @@ pub(crate) struct TuiApp {
     pub(crate) version: String,
     ui_mode: UiMode,
     pub patent: PatentWorkspace,
-    status: StatusBarSnapshot,
-    pager: Option<Pager>,
-    session_picker: Option<SessionPicker>,
+    pub(crate) status: StatusBarSnapshot,
+    pub(crate) pager: Option<Pager>,
+    pub(crate) session_picker: Option<SessionPicker>,
     pub active_tool: Option<String>,
     pub(crate) turn_output_tokens: u32,
     turn_output_max: u32,
-    pending_flow_hitl: Option<SuspendedFlowRecord>,
+    pub(crate) pending_flow_hitl: Option<SuspendedFlowRecord>,
     /// 人机引导迷你面板（Ctrl+G）。
-    show_guide: bool,
+    pub(crate) show_guide: bool,
     /// 等待用户确认的工具权限。
-    pending_permission: Option<PermissionRequest>,
+    pub(crate) pending_permission: Option<PermissionRequest>,
     pub(crate) spinner_frame: usize,
     pub(crate) slash_completion: Option<SlashCompletion>,
     /// 当前轮次是否正在向对话区流式写入。

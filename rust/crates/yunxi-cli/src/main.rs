@@ -94,9 +94,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             permission_mode,
             ui_mode,
         } => {
-            if std::env::var("YUNXI_RATATUI").is_ok() {
-                return crate::tui::runner::run_tui_ratatui(model, allowed_tools, permission_mode, ui_mode);
-            }
             crate::tui::runner::run_tui_repl(model, allowed_tools, permission_mode, ui_mode)?
         }
         CliAction::Repl {

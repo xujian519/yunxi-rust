@@ -1,18 +1,11 @@
 //! TUI 全屏 REPL（通用 + 专利专屏）。
 
-use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crossterm::cursor::Show;
 use crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent as CrosstermKey,
-    KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-};
-use crossterm::execute;
-use crossterm::style::Print;
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    self, Event, KeyCode, KeyEvent as CrosstermKey, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind,
 };
 
 use crate::cli_action::AllowedToolSet;
@@ -120,14 +113,11 @@ pub(crate) fn run_tui_repl(
 
     refresh_status(&mut app, &state);
 
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let mut terminal = crate::tui::terminal::TuiTerminal::setup()?;
 
-    let result = run_event_loop(&mut app, &mut state, &mut stdout);
+    let result = run_event_loop(&mut app, &mut state, &mut terminal.terminal);
 
-    execute!(stdout, LeaveAlternateScreen, DisableMouseCapture, Show)?;
-    disable_raw_mode()?;
+    terminal.restore()?;
 
     state.persist_session(&app)?;
 
@@ -192,7 +182,7 @@ impl TuiState {
 fn run_event_loop(
     app: &mut TuiApp,
     state: &mut TuiState,
-    stdout: &mut io::Stdout,
+    terminal: &mut ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stdout>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut active_turn: Option<ActiveTurn> = None;
     let mut needs_render = true;
@@ -256,10 +246,7 @@ fn run_event_loop(
         }
 
         if needs_render || state_changed {
-            let (width, height) = crossterm::terminal::size()?;
-            let rendered = app.render_with_cursor(width, height);
-            execute!(stdout, Print(&rendered))?;
-            stdout.flush()?;
+            terminal.draw(|frame| app.render_frame(frame))?;
             needs_render = false;
         }
 
@@ -586,35 +573,3 @@ fn convert_key(key: CrosstermKey) -> KeyEvent {
     }
 }
 
-/// ratatui 版本的 TUI 运行函数（通过 YUNXI_RATATUI=1 触发）。
-pub(crate) fn run_tui_ratatui(
-    model: String,
-    _allowed_tools: Option<AllowedToolSet>,
-    _permission_mode: PermissionMode,
-    ui_mode: UiMode,
-) -> Result<(), Box<dyn std::error::Error>> {
-    use crate::tui::app::TuiApp;
-    use crate::tui::terminal::{restore_terminal, setup_terminal};
-    use crossterm::event::{self, Event, KeyCode};
-
-    let mut app = TuiApp::new(model, crate::VERSION.to_string(), ui_mode);
-
-    let mut terminal = setup_terminal()?;
-
-    app.render_ratatui(&mut terminal);
-
-    loop {
-        if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
-                    break;
-                }
-            }
-        }
-        app.spinner_frame = app.spinner_frame.wrapping_add(1);
-        app.render_ratatui(&mut terminal);
-    }
-
-    restore_terminal(terminal)?;
-    Ok(())
-}
