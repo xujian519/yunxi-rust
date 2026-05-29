@@ -64,7 +64,7 @@ fn parse_colorfgbg() -> Option<TerminalBackground> {
 }
 
 fn query_terminal_background() -> Option<TerminalBackground> {
-    let (width, height) = terminal::size().ok()?;
+    let (_width, _height) = terminal::size().ok()?;
 
     // 保存光标位置，查询背景色，读取响应，恢复光标
     let query = "\x1b7\x1b]11;?\x1b\\\x1b8";
