@@ -1,14 +1,23 @@
 mod cli_action;
+mod config;
+mod doctor;
 mod format_report;
 mod format_tool;
 mod help_text;
 mod init;
 mod input;
+mod kb_index;
 mod live_cli;
+mod model_routing;
 mod permission_ui;
 mod render;
+mod routing;
 mod runtime_bridge;
+mod self_update;
+mod session_meta;
 mod session_mgr;
+mod slash_complete_shared;
+mod slash_sync;
 mod tui;
 
 use std::env;
@@ -21,8 +30,7 @@ use std::process::Command;
 use api::{AnthropicClient, AuthSource};
 
 use cli_action::{default_permission_mode, parse_args, CliAction};
-use commands::SlashCommand;
-use compat_harness::{extract_manifest, UpstreamPaths};
+use commands::{slash_command_specs, SlashCommand};
 use format_report::{
     format_compact_report, format_cost_report, format_status_report, init_claude_md,
     render_config_report, render_diff_report, render_export_text, render_memory_report,
@@ -34,8 +42,9 @@ use runtime::{
     parse_oauth_callback_request_target, save_oauth_credentials, CompactionConfig, ConfigLoader,
     OAuthAuthorizationRequest, OAuthConfig, OAuthTokenExchangeRequest, Session, UsageTracker,
 };
+use tools::mvp_tool_specs;
 
-const DEFAULT_MODEL: &str = "claude-opus-4-6";
+const DEFAULT_MODEL: &str = "deepseek-v4-pro";
 const DEFAULT_DATE: &str = "2026-03-31";
 const DEFAULT_OAUTH_CALLBACK_PORT: u16 = 4545;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -75,35 +84,45 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         CliAction::Login => run_login()?,
         CliAction::Logout => run_logout()?,
         CliAction::Init => run_init()?,
+        CliAction::Doctor => doctor::run_doctor()?,
+        CliAction::Config { action } => config::run_config(action)?,
+        CliAction::Server { host, port } => run_server(&host, port)?,
+        CliAction::SelfUpdate => self_update::run_self_update()?,
         CliAction::Tui {
             model,
             allowed_tools,
             permission_mode,
-        } => crate::tui::runner::run_tui_repl(model, allowed_tools, permission_mode)?,
+            ui_mode,
+        } => {
+            if std::env::var("YUNXI_RATATUI").is_ok() {
+                return crate::tui::runner::run_tui_ratatui(model, allowed_tools, permission_mode, ui_mode);
+            }
+            crate::tui::runner::run_tui_repl(model, allowed_tools, permission_mode, ui_mode)?
+        }
         CliAction::Repl {
             model,
             allowed_tools,
             permission_mode,
-        } => live_cli::run_repl(model, allowed_tools, permission_mode)?,
+            ui_mode,
+        } => {
+            if ui_mode == crate::tui::ui_mode::UiMode::Patent {
+                crate::tui::runner::run_tui_repl(model, allowed_tools, permission_mode, ui_mode)?;
+            } else {
+                live_cli::run_repl(model, allowed_tools, permission_mode)?;
+            }
+        }
         CliAction::Help => help_text::print_help(),
     }
     Ok(())
 }
 
 fn dump_manifests() {
-    let workspace_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let paths = UpstreamPaths::from_workspace_dir(&workspace_dir);
-    match extract_manifest(&paths) {
-        Ok(manifest) => {
-            println!("commands: {}", manifest.commands.entries().len());
-            println!("tools: {}", manifest.tools.entries().len());
-            println!("bootstrap phases: {}", manifest.bootstrap.phases().len());
-        }
-        Err(error) => {
-            eprintln!("failed to extract manifests: {error}");
-            std::process::exit(1);
-        }
-    }
+    println!("commands: {}", slash_command_specs().len());
+    println!("tools: {}", mvp_tool_specs().len());
+    println!(
+        "bootstrap phases: {}",
+        runtime::BootstrapPlan::yunxi_default().phases().len()
+    );
 }
 
 fn print_bootstrap_plan() {
@@ -187,6 +206,23 @@ fn run_logout() -> Result<(), Box<dyn std::error::Error>> {
 
 fn run_init() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", init_claude_md()?);
+    Ok(())
+}
+
+fn run_server(host: &str, port: u16) -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+    let rt = tokio::runtime::Runtime::new()?;
+    println!("云熙智能体 HTTP 服务启动于 http://{host}:{port}");
+    rt.block_on(server::start(server::ServerConfig {
+        host: host.to_string(),
+        port,
+        ..Default::default()
+    }))?;
     Ok(())
 }
 
@@ -418,6 +454,9 @@ fn run_resume_command(
         | SlashCommand::Session { .. }
         | SlashCommand::Search { .. }
         | SlashCommand::Undo
+        | SlashCommand::Connect
+        | SlashCommand::ThinkingToggle
+        | SlashCommand::Custom { .. }
         | SlashCommand::Unknown(_) => Err("unsupported resumed slash command".into()),
     }
 }
@@ -551,9 +590,12 @@ mod tests {
     fn model_report_uses_sectioned_layout() {
         let report = format_model_report("claude-sonnet", 12, 4);
         assert!(report.contains("Model"));
-        assert!(report.contains("Current model    claude-sonnet"));
-        assert!(report.contains("Session messages 12"));
+        assert!(report.contains("claude-sonnet"));
+        assert!(report.contains("Session messages  12"));
         assert!(report.contains("Switch models with /model <name>"));
+        assert!(report.contains("auto"));
+        assert!(report.contains("deepseek-v4-flash"));
+        assert!(report.contains("deepseek-v4-pro"));
     }
 
     #[test]
@@ -648,7 +690,7 @@ mod tests {
     fn status_context_reads_real_workspace_metadata() {
         let context = status_context(None).expect("status context should load");
         assert!(context.cwd.is_absolute());
-        assert_eq!(context.discovered_config_files, 5);
+        assert_eq!(context.discovered_config_files, 8);
         assert!(context.loaded_config_files <= context.discovered_config_files);
     }
 
