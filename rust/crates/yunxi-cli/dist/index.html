@@ -3,182 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>云熙智能体-专利代理人的智能助手</title>
+  <title>云熙智能体</title>
   <style>
     :root {
-      --bg: #0f0f1a;
-      --surface: #1a1a2e;
-      --border: #2a2a44;
-      --text: #c8c8d4;
-      --dim: #666680;
-      --brand: #b388ff;
-      --brand2: #7c4dff;
-      --accent: #ff80ab;
-      --heading: #e8e0ff;
+      --bg: #0f0f1a; --surface: #1a1a2e; --border: #2a2a44;
+      --text: #c8c8d4; --dim: #666680; --brand: #b388ff; --brand2: #7c4dff;
+      --accent: #ff80ab; --heading: #e8e0ff;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; flex-direction: column; height: 100vh; overflow: hidden;
     }
     .titlebar {
-      background: linear-gradient(135deg, #1a1a2e 0%, #1e1630 100%);
-      padding: 10px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      border-bottom: 1px solid var(--border);
-      user-select: none;
-      -webkit-app-region: drag;
+      background: linear-gradient(135deg, #1a1a2e, #1e1630);
+      padding: 10px 24px; display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--border); user-select: none;
     }
-    .titlebar .logo { font-size: 20px; }
-    .titlebar h1 {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--heading);
-      letter-spacing: 0.5px;
-      flex: 1;
-    }
-    .titlebar .ver {
-      font-size: 11px;
-      color: var(--dim);
-      font-family: "SF Mono", "Fira Code", monospace;
-    }
-    .main {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
+    .titlebar h1 { font-size: 15px; font-weight: 600; color: var(--heading); flex: 1; }
+    .titlebar .ver { font-size: 11px; color: var(--dim); font-family: "SF Mono", monospace; }
+    .main { display: flex; flex: 1; overflow: hidden; }
     .sidebar {
-      width: 220px;
-      background: var(--surface);
-      padding: 8px 0;
+      width: 220px; background: var(--surface); padding: 8px 0;
       border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
     }
-    .sidebar .nav-item {
-      padding: 10px 20px;
-      cursor: pointer;
-      color: var(--dim);
-      font-size: 13px;
-      transition: all 0.15s;
-      border-left: 2px solid transparent;
-      margin: 1px 0;
+    .nav-item {
+      padding: 10px 20px; cursor: pointer; color: var(--dim); font-size: 13px;
+      border-left: 2px solid transparent; transition: all 0.15s;
     }
-    .sidebar .nav-item:hover {
-      color: var(--text);
-      background: rgba(179,136,255,0.06);
+    .nav-item:hover { color: var(--text); background: rgba(179,136,255,0.06); }
+    .nav-item.active { color: var(--brand); border-left-color: var(--brand2); font-weight: 500; }
+    .content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .panel {
+      flex: 1; overflow-y: auto; padding: 24px; display: flex;
+      flex-direction: column; align-items: center; justify-content: center;
     }
-    .sidebar .nav-item.active {
-      color: var(--brand);
-      background: rgba(179,136,255,0.1);
-      border-left-color: var(--brand2);
-      font-weight: 500;
-    }
-    .content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-    }
-    .chat-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 24px;
-    }
-    .welcome {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      text-align: center;
-    }
-    .welcome .emoji { font-size: 48px; margin-bottom: 16px; }
-    .welcome h2 {
-      font-size: 26px;
-      color: var(--heading);
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .welcome p {
-      color: var(--dim);
-      font-size: 14px;
-      max-width: 400px;
-      line-height: 1.6;
-    }
+    .panel h2 { font-size: 26px; color: var(--heading); margin-bottom: 8px; }
+    .panel p { color: var(--dim); font-size: 14px; }
     .input-area {
-      display: flex;
-      gap: 10px;
-      padding: 16px 24px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
+      display: flex; gap: 10px; padding: 16px 24px;
+      background: var(--surface); border-top: 1px solid var(--border);
     }
     .input-area input {
-      flex: 1;
-      padding: 10px 16px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
+      flex: 1; padding: 10px 16px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-size: 14px; outline: none;
     }
     .input-area input:focus { border-color: var(--brand2); }
-    .input-area input::placeholder { color: var(--dim); }
     .input-area button {
-      padding: 10px 28px;
-      background: linear-gradient(135deg, var(--brand), var(--brand2));
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s;
+      padding: 10px 28px; background: linear-gradient(135deg, var(--brand), var(--brand2));
+      color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
     }
     .input-area button:hover { opacity: 0.9; }
     .status-bar {
-      padding: 6px 24px;
-      background: #0a0a14;
-      font-size: 11px;
-      color: var(--dim);
-      display: flex;
-      gap: 24px;
-      border-top: 1px solid var(--border);
+      padding: 6px 24px; background: #0a0a14; font-size: 11px;
+      color: var(--dim); display: flex; gap: 24px; border-top: 1px solid var(--border);
     }
-    .response {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      margin-top: 16px;
-      color: var(--brand);
-      font-size: 15px;
-    }
-    .error-box {
-      background: rgba(255,128,171,0.08);
-      border: 1px solid rgba(255,128,171,0.2);
-      border-radius: 10px;
-      padding: 16px;
-      margin-top: 12px;
-      color: var(--accent);
-      font-size: 13px;
-      font-family: "SF Mono", monospace;
-      white-space: pre-wrap;
-    }
+    .diag { margin-top: 16px; padding: 16px; background: var(--surface); border-radius: 8px; }
+    .diag h3 { font-size: 13px; color: var(--heading); margin-bottom: 8px; }
+    .diag pre { font-size: 12px; font-family: "SF Mono", monospace; color: var(--text); white-space: pre-wrap; }
   </style>
 </head>
 <body>
   <div class="titlebar">
-    <span class="logo">🌸</span>
+    <span style="font-size:20px">🌸</span>
     <h1>云熙智能体-专利代理人的智能助手</h1>
     <span class="ver" id="version">v---</span>
   </div>
@@ -190,14 +79,11 @@
       <div class="nav-item">⚖ 对比报告</div>
     </div>
     <div class="content">
-      <div class="chat-area" id="chat">
-        <div class="welcome" id="welcome">
-          <div class="emoji">🌸</div>
-          <h2>云熙智能体</h2>
-          <p>专业专利智能工具 — 撰写 · 检索 · 分析 · 答复</p>
-        </div>
-        <div class="response" id="response" style="display:none;"></div>
-        <div class="error-box" id="error" style="display:none;"></div>
+      <div class="panel" id="welcome">
+        <span style="font-size:48px;margin-bottom:16px">🌸</span>
+        <h2>云熙智能体</h2>
+        <p>专业专利智能工具 — 撰写 · 检索 · 分析 · 答复</p>
+        <div class="diag" id="diag" style="width:100%;max-width:500px"></div>
       </div>
       <div class="input-area">
         <input type="text" id="msg" placeholder="输入消息后按 Enter 发送…" />
@@ -207,73 +93,121 @@
   </div>
   <div class="status-bar">
     <span>模型: deepseek-v4-pro</span>
-    <span>引擎: Tauri + Ratatui</span>
-    <span id="backend-status">⏳ 连接中…</span>
+    <span>引擎: Tauri 2.x</span>
+    <span id="backend-status">⏳ 检测中…</span>
   </div>
 
   <script>
-    function getInvoke() {
-      var t = window.__TAURI__;
-      if (t && t.core && t.core.invoke) return t.core.invoke;
-      if (t && t.invoke) return t.invoke;
-      var i = window.__TAURI_INTERNALS__;
-      if (i && i.core && i.core.invoke) return i.core.invoke;
-      if (i && i.invoke) return i.invoke;
-      return null;
-    }
-
-    var invoke = null;
+    var invokeFn = null;
     var ready = false;
 
-    async function init() {
-      invoke = getInvoke();
-      if (!invoke) {
-        showStatus("⚠️ Tauri API 不可用");
-        showError("Tauri API 未检测到。\n请确认应用已通过 Tauri 打包运行。");
+    function diag(title, text) {
+      var d = document.getElementById("diag");
+      d.innerHTML = "<h3>" + title + "</h3><pre>" + text + "</pre>";
+    }
+
+    function showStatus(s) {
+      document.getElementById("backend-status").textContent = s;
+    }
+
+    function init() {
+      // 尝试所有可能的 Tauri API 路径
+      var candidates = [
+        ["__TAURI__", function() {
+          var t = window.__TAURI__;
+          if (!t) return null;
+          if (typeof t.invoke === "function") return t.invoke.bind(t);
+          if (t.core && typeof t.core.invoke === "function") return t.core.invoke.bind(t.core);
+          return null;
+        }],
+        ["__TAURI_INTERNALS__", function() {
+          var t = window.__TAURI_INTERNALS__;
+          if (!t) return null;
+          if (typeof t.invoke === "function") return t.invoke.bind(t);
+          if (t.core && typeof t.core.invoke === "function") return t.core.invoke.bind(t.core);
+          return null;
+        }],
+        ["window.ipc", function() {
+          var w = window;
+          for (var k in w) {
+            if (k.toLowerCase().indexOf("invoke") >= 0 && typeof w[k] === "function") {
+              return w[k].bind(window);
+            }
+          }
+          return null;
+        }]
+      ];
+
+      var found = [];
+      for (var i = 0; i < candidates.length; i++) {
+        try {
+          var fn = candidates[i][1]();
+          if (fn) {
+            invokeFn = fn;
+            found.push(candidates[i][0] + " ✅");
+            break;
+          } else {
+            found.push(candidates[i][0] + " ❌");
+          }
+        } catch(e) {
+          found.push(candidates[i][0] + " err: " + String(e));
+        }
+      }
+
+      if (!invokeFn) {
+        // 列出 window 上所有可能的 API
+        var keys = [];
+        for (var k in window) {
+          try {
+            var v = window[k];
+            var t = typeof v;
+            if (t === "string" && k.length < 30) keys.push(k + "='" + v + "'");
+            else if (t === "function" && k.length < 40) keys.push(k + "():fn");
+            else if (t === "object" && v && k.length < 30) keys.push(k + ":obj");
+          } catch(e) {}
+        }
+        found.push("");
+        found.push("window keys: " + keys.join(", "));
+        diag("Tauri API 未检测到", found.join("\n"));
+        showStatus("⚠️ API 不可用");
         return;
       }
-      try {
-        var v = await invoke("get_version");
+
+      diag("API 路径", found.join("\n"));
+      showStatus("🔄 连接中…");
+
+      invokeFn("get_version").then(function(v) {
         document.getElementById("version").textContent = "v" + v;
         showStatus("✅ 已连接");
         ready = true;
-      } catch (e) {
+        diag("连接成功", "版本: " + v + "\nIPC 路径: " + found[0]);
+      }).catch(function(e) {
         showStatus("❌ " + String(e));
-        showError("IPC 调用失败: " + String(e));
-      }
+        diag("IPC 调用失败", String(e));
+        // 也尝试 greet 命令
+        invokeFn("greet", { name: "test" }).then(function(m) {
+          showStatus("✅ greet 可用");
+          diag("连通测试", "greet: " + m);
+          ready = true;
+        }).catch(function(e2) {
+          diag("所有命令失败", "get_version: " + String(e) + "\ngreet: " + String(e2));
+        });
+      });
     }
 
-    async function sendMsg() {
-      if (!ready || !invoke) {
-        showError("后端未就绪，请等待连接完成。");
+    function sendMsg() {
+      if (!ready || !invokeFn) {
+        diag("未就绪", "请等待后端连接完成。");
         return;
       }
       var input = document.getElementById("msg");
       var name = input.value.trim() || "用户";
-      try {
-        var msg = await invoke("greet", { name: name });
-        var resp = document.getElementById("response");
-        resp.style.display = "block";
-        resp.textContent = msg;
-        hideError();
+      invokeFn("greet", { name: name }).then(function(msg) {
+        diag("响应", msg);
         input.value = "";
-      } catch (e) {
-        showError("调用失败: " + String(e));
-      }
-    }
-
-    function showStatus(text) {
-      document.getElementById("backend-status").textContent = text;
-    }
-
-    function showError(text) {
-      var el = document.getElementById("error");
-      el.style.display = "block";
-      el.textContent = text;
-    }
-
-    function hideError() {
-      document.getElementById("error").style.display = "none";
+      }).catch(function(e) {
+        diag("调用失败", String(e));
+      });
     }
 
     document.getElementById("msg").addEventListener("keydown", function(e) {
@@ -282,18 +216,16 @@
 
     document.querySelectorAll(".nav-item").forEach(function(item) {
       item.addEventListener("click", function() {
-        document.querySelectorAll(".nav-item").forEach(function(i) {
-          i.classList.remove("active");
-        });
+        document.querySelectorAll(".nav-item").forEach(function(i) { i.classList.remove("active"); });
         this.classList.add("active");
       });
     });
 
     window.onerror = function(msg, url, line) {
-      showError("JS 错误: " + String(msg) + "\n位置: " + url + ":" + line);
+      diag("JS 错误", String(msg) + "\n位置: " + (url||"?") + ":" + (line||"?"));
     };
 
-    setTimeout(init, 200);
+    setTimeout(init, 300);
   </script>
 </body>
 </html>
