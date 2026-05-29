@@ -1,6 +1,7 @@
 pub(crate) mod app;
 pub(crate) mod app_ratatui;
 pub(crate) mod banner;
+pub(crate) mod color;
 pub(crate) mod diff;
 pub(crate) mod frame;
 pub(crate) mod init_dispatch;
