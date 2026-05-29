@@ -1,9 +1,10 @@
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
 use crate::tui::components::chat_view::{ChatRole, ChatView};
+use crate::tui::markdown;
 
 pub(crate) struct ChatViewWidget<'a> {
     pub(crate) chat: &'a ChatView,
@@ -13,8 +14,6 @@ pub(crate) struct ChatViewWidget<'a> {
 
 impl Widget for ChatViewWidget<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
-        let block = Block::default().style(Style::default());
-
         let mut lines: Vec<Line> = Vec::new();
 
         for entry in self.chat.entries() {
@@ -38,12 +37,30 @@ impl Widget for ChatViewWidget<'_> {
             };
 
             let colon = Span::styled(": ", Style::default());
-            let body = Span::styled(
-                &entry.text,
-                Style::default().fg(Color::Indexed(252)),
-            );
 
-            lines.push(Line::from(vec![role_label, colon, body]));
+            let body = match entry.role {
+                ChatRole::Assistant | ChatRole::System => {
+                    markdown::markdown_to_text(&entry.text)
+                }
+                ChatRole::User => Text::from(Line::from(Span::styled(
+                    entry.text.clone(),
+                    Style::default().fg(Color::Indexed(252)),
+                ))),
+            };
+
+            if body.lines.len() == 1 {
+                let mut spans = vec![role_label, colon];
+                spans.extend(body.lines.into_iter().flat_map(|l| l.spans));
+                lines.push(Line::from(spans));
+            } else {
+                lines.push(Line::from(vec![role_label, colon]));
+                for line in body.lines {
+                    let indent = Span::styled("  ", Style::default());
+                    let mut spans = vec![indent];
+                    spans.extend(line.spans);
+                    lines.push(Line::from(spans));
+                }
+            }
             lines.push(Line::from(""));
         }
 
@@ -58,9 +75,7 @@ impl Widget for ChatViewWidget<'_> {
             )));
         }
 
-        let text = Text::from(lines);
-        Paragraph::new(text)
-            .block(block)
+        Paragraph::new(Text::from(lines))
             .scroll((self.chat.scroll_offset() as u16, 0))
             .render(area, buf);
     }

@@ -4,6 +4,7 @@ pub(crate) mod banner;
 pub(crate) mod frame;
 pub(crate) mod init_dispatch;
 pub(crate) mod layout;
+pub(crate) mod markdown;
 pub(crate) mod overlays;
 pub(crate) mod pager;
 pub(crate) mod patent;
