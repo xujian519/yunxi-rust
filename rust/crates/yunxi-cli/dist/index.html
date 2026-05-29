@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>云熙智能体</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .titlebar {
+      background: #16213e;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #2a2a4a;
+      user-select: none;
+    }
+    .titlebar h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #b388ff;
+      flex: 1;
+    }
+    .titlebar .version {
+      font-size: 12px;
+      color: #666;
+    }
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 240px;
+      background: #16213e;
+      padding: 16px 0;
+      border-right: 1px solid #2a2a4a;
+    }
+    .sidebar .nav-item {
+      padding: 10px 20px;
+      cursor: pointer;
+      color: #999;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .sidebar .nav-item:hover { color: #ccc; background: #1a1a3e; }
+    .sidebar .nav-item.active { color: #b388ff; background: #1e1e3e; font-weight: 600; }
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .welcome {
+      text-align: center;
+      margin-top: 120px;
+    }
+    .welcome h2 {
+      font-size: 28px;
+      color: #b388ff;
+      margin-bottom: 8px;
+    }
+    .welcome p {
+      color: #666;
+      font-size: 14px;
+    }
+    .input-area {
+      display: flex;
+      gap: 10px;
+      padding: 12px;
+      background: #16213e;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 10px 16px;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+    }
+    .input-area input:focus { border-color: #b388ff; }
+    .input-area button {
+      padding: 10px 24px;
+      background: #7c4dff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .input-area button:hover { background: #651fff; }
+    .status-bar {
+      padding: 6px 20px;
+      background: #111;
+      font-size: 11px;
+      color: #555;
+      display: flex;
+      gap: 20px;
+    }
+    .response {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 12px;
+      color: #b388ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <h1>🌸 云熙智能体</h1>
+    <span class="version" id="version">v---</span>
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div class="nav-item active">🤖 AI 对话</div>
+      <div class="nav-item">📋 专利撰写</div>
+      <div class="nav-item">🔍 检索分析</div>
+      <div class="nav-item">📊 对比报告</div>
+      <div class="nav-item">⚙️ 设置</div>
+    </div>
+    <div class="content">
+      <div class="chat-area" id="chat">
+        <div class="welcome">
+          <h2>云熙智能体</h2>
+          <p>专业专利智能工具 — 撰写 · 检索 · 分析 · 答复</p>
+        </div>
+        <div class="response" id="response" style="display:none;"></div>
+      </div>
+      <div class="input-area">
+        <input type="text" id="msg" placeholder="输入消息..." />
+        <button onclick="sendMsg()">发送</button>
+      </div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <span>模型: deepseek-v4-pro</span>
+    <span>权限: default</span>
+    <span id="backend-status">后端: 连接中...</span>
+  </div>
+
+  <script>
+    const { invoke } = window.__TAURI__.core;
+
+    async function init() {
+      try {
+        const v = await invoke("get_version");
+        document.getElementById("version").textContent = "v" + v;
+        document.getElementById("backend-status").textContent = "后端: 已连接";
+      } catch (e) {
+        document.getElementById("backend-status").textContent = "后端: 错误";
+      }
+    }
+
+    async function sendMsg() {
+      const input = document.getElementById("msg");
+      const name = input.value.trim() || "云熙";
+      try {
+        const msg = await invoke("greet", { name });
+        document.getElementById("response").style.display = "block";
+        document.getElementById("response").textContent = msg;
+        input.value = "";
+      } catch (e) {
+        document.getElementById("response").style.display = "block";
+        document.getElementById("response").textContent = "IPC 调用失败: " + e;
+      }
+    }
+
+    document.getElementById("msg").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendMsg();
+    });
+
+    init();
+  </script>
+</body>
+</html>

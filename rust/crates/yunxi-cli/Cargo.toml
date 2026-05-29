@@ -10,6 +10,11 @@ publish.workspace = true
 name = "yunxi"
 path = "src/main.rs"
 
+[[bin]]
+name = "yunxi-desktop"
+path = "src/desktop/main.rs"
+required-features = ["desktop"]
+
 [dependencies]
 api = { path = "../api" }
 commands = { path = "../commands" }
@@ -27,9 +32,17 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 server = { path = "../server" }
 syntect = "5"
+tauri = { version = "2", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "time"] }
 tools = { path = "../tools", features = ["browser-fallback"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+default = []
+desktop = ["tauri"]
 
 [lints]
 workspace = true

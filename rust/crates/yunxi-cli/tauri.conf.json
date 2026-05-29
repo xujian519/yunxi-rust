@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicknisi/tauri-config-schema/main/tauri.schema.json",
+  "productName": "云熙智能体",
+  "version": "0.1.0",
+  "identifier": "ai.yunxi.desktop",
+  "build": {
+    "frontendDist": "./dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "title": "云熙智能体 - 专业专利智能工具",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}
