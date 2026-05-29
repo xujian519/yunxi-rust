@@ -589,8 +589,8 @@ fn convert_key(key: CrosstermKey) -> KeyEvent {
 /// ratatui 版本的 TUI 运行函数（通过 YUNXI_RATATUI=1 触发）。
 pub(crate) fn run_tui_ratatui(
     model: String,
-    allowed_tools: Option<AllowedToolSet>,
-    permission_mode: PermissionMode,
+    _allowed_tools: Option<AllowedToolSet>,
+    _permission_mode: PermissionMode,
     ui_mode: UiMode,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use crate::tui::app::TuiApp;

@@ -3,7 +3,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
-use crate::tui::components::tool_panel::{ToolEntry, ToolPanel};
+use crate::tui::components::tool_panel::ToolPanel;
 
 pub(crate) struct ToolPanelWidget<'a> {
     pub(crate) tools: &'a ToolPanel,

@@ -52,7 +52,7 @@ impl TuiApp {
 
             let content = self.input.content();
             InputBarWidget {
-                content: &content,
+                content,
                 slash_completion_count: self
                     .slash_completion
                     .as_ref()
