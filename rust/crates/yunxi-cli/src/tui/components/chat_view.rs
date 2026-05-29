@@ -1,6 +1,23 @@
 #![allow(dead_code)]
 
+use crate::render::TerminalRenderer;
+use crate::tui::frame::{truncate_ansi_to_width, visible_width, wrap_ansi_to_width};
 use crate::tui::layout::Rect;
+
+fn text_contains_ansi(text: &str) -> bool {
+    text.contains("\x1b[")
+}
+
+/// 将条目正文转为可显示的 ANSI 文本（专利 plain 模式或已含 ANSI 时保持原样）。
+fn display_body(role: ChatRole, text: &str, plain: bool, renderer: &TerminalRenderer) -> String {
+    if plain || text_contains_ansi(text) {
+        return text.to_string();
+    }
+    match role {
+        ChatRole::Assistant | ChatRole::System => renderer.markdown_to_ansi(text),
+        ChatRole::User => text.to_string(),
+    }
+}
 
 /// 对话消息条目。
 #[derive(Debug, Clone)]
@@ -50,21 +67,47 @@ impl ChatView {
     /// 追加纯文本到最新 assistant 条目末尾（用于流式增量）。
     pub(crate) fn append_to_last(&mut self, text: &str) {
         if let Some(last) = self.entries.last_mut() {
-            last.text.push_str(text);
+            if last.role == ChatRole::Assistant {
+                last.text.push_str(text);
+            }
+        }
+    }
+
+    #[must_use]
+    pub(crate) fn last_assistant_has_content(&self) -> bool {
+        self.entries
+            .last()
+            .filter(|entry| entry.role == ChatRole::Assistant)
+            .is_some_and(|entry| !entry.text.is_empty())
+    }
+
+    pub(crate) fn set_last_assistant_text(&mut self, text: String) {
+        if let Some(last) = self.entries.last_mut() {
+            if last.role == ChatRole::Assistant {
+                last.text = text;
+            }
         }
     }
 
     /// 向下滚动一行。
     pub(crate) fn scroll_down(&mut self, visible_lines: usize) {
-        let max = self.total_lines().saturating_sub(visible_lines);
-        if self.scroll_offset < max {
-            self.scroll_offset += 1;
-        }
+        self.scroll_down_by(1, visible_lines);
     }
 
     /// 向上滚动一行。
     pub(crate) fn scroll_up(&mut self) {
-        self.scroll_offset = self.scroll_offset.saturating_sub(1);
+        self.scroll_up_by(1);
+    }
+
+    /// 向下滚动多行。
+    pub(crate) fn scroll_down_by(&mut self, amount: usize, visible_lines: usize) {
+        let max = self.total_lines().saturating_sub(visible_lines);
+        self.scroll_offset = (self.scroll_offset + amount).min(max);
+    }
+
+    /// 向上滚动多行。
+    pub(crate) fn scroll_up_by(&mut self, amount: usize) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(amount);
     }
 
     /// 滚动到顶部。
@@ -92,28 +135,42 @@ impl ChatView {
 
     /// 渲染为 ANSI 字符串。
     pub(crate) fn render(&self, area: Rect) -> String {
+        self.render_styled(area, false)
+    }
+
+    /// 专利专屏等场景：纯文本，不套品牌色。
+    pub(crate) fn render_plain(&self, area: Rect) -> String {
+        self.render_styled(area, true)
+    }
+
+    fn render_styled(&self, area: Rect, plain: bool) -> String {
         if !area.is_valid() {
             return String::new();
         }
 
         let width = area.width as usize;
         let mut lines: Vec<String> = Vec::new();
+        let renderer = TerminalRenderer::new();
 
         for entry in &self.entries {
-            let label_color = match entry.role {
-                ChatRole::User => "\x1b[38;5;183m",
-                ChatRole::Assistant => "\x1b[38;5;213m",
-                ChatRole::System => "\x1b[38;5;246m",
+            let body = display_body(entry.role, &entry.text, plain, &renderer);
+            let prefix = if plain {
+                format!("{}: ", entry.role.label())
+            } else {
+                let label_color = match entry.role {
+                    ChatRole::User => "\x1b[38;5;183m",
+                    ChatRole::Assistant => "\x1b[38;5;213m",
+                    ChatRole::System => "\x1b[38;5;246m",
+                };
+                format!("{label_color}{}\x1b[0m: ", entry.role.label())
             };
-            lines.push(format!(
-                "{label_color}{}\x1b[0m: {}",
-                entry.role.label(),
-                entry.text.lines().next().unwrap_or("")
-            ));
-            for line in entry.text.lines().skip(1) {
-                // 缩进对齐
+            let prefix_w = usize::from(visible_width(&prefix));
+            let first = body.lines().next().unwrap_or("");
+            let first_clipped = truncate_ansi_to_width(first, width.saturating_sub(prefix_w));
+            lines.push(format!("{prefix}{first_clipped}"));
+            for line in body.lines().skip(1) {
                 let indent = "  ";
-                let wrapped = wrap_line(line, width.saturating_sub(2));
+                let wrapped = wrap_ansi_to_width(line, width.saturating_sub(indent.len()));
                 for wl in wrapped {
                     lines.push(format!("{indent}{wl}"));
                 }
@@ -140,10 +197,32 @@ impl ChatView {
         self.entries.is_empty()
     }
 
+    /// 格式化为可读对话全文（用于 /panel 与视图 6）。
+    pub(crate) fn transcript_text(&self) -> String {
+        if self.entries.is_empty() {
+            return "（尚无对话，请在底栏输入消息。）".to_string();
+        }
+        self.entries
+            .iter()
+            .map(|entry| format!("{}: {}", entry.role.label(), entry.text))
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    }
+
+    #[must_use]
+    pub(crate) fn scroll_offset(&self) -> usize {
+        self.scroll_offset
+    }
+
     /// 清空所有条目。
     pub(crate) fn clear(&mut self) {
         self.entries.clear();
         self.scroll_offset = 0;
+    }
+
+    #[must_use]
+    pub(crate) fn entries(&self) -> &[ChatEntry] {
+        &self.entries
     }
 }
 
@@ -198,6 +277,22 @@ mod tests {
     }
 
     #[test]
+    fn chat_view_transcript_text() {
+        let mut view = ChatView::new();
+        view.push(ChatEntry {
+            role: ChatRole::User,
+            text: "你好".to_string(),
+        });
+        view.push(ChatEntry {
+            role: ChatRole::Assistant,
+            text: "你好！".to_string(),
+        });
+        let text = view.transcript_text();
+        assert!(text.contains("你: 你好"));
+        assert!(text.contains("云熙: 你好！"));
+    }
+
+    #[test]
     fn chat_view_scroll() {
         let mut view = ChatView::new();
         for i in 0..50 {
@@ -235,5 +330,40 @@ mod tests {
     fn wrap_line_handles_empty() {
         let wrapped = wrap_line("", 10);
         assert_eq!(wrapped, vec![""]);
+    }
+
+    #[test]
+    fn chat_view_renders_markdown_for_assistant() {
+        let mut view = ChatView::new();
+        view.push(ChatEntry {
+            role: ChatRole::Assistant,
+            text: "# Title\n\n**bold** text".to_string(),
+        });
+        let rendered = view.render(Rect::new(0, 0, 80, 20));
+        assert!(rendered.contains('\u{1b}'), "expected ANSI styling");
+        assert!(
+            !rendered.contains("**bold**"),
+            "raw markdown should be rendered"
+        );
+        assert!(rendered.contains("bold"));
+    }
+
+    #[test]
+    fn chat_view_wrap_preserves_ansi_on_banner_like_text() {
+        let mut view = ChatView::new();
+        let banner = format!(
+            "{}\n{}",
+            "\x1b[38;5;183m  │  \x1b[1m云\x1b[0m \x1b[1m熙\x1b[0m │\x1b[0m",
+            "\x1b[2m模型 test\x1b[0m"
+        );
+        view.push(ChatEntry {
+            role: ChatRole::Assistant,
+            text: banner,
+        });
+        let rendered = view.render(Rect::new(0, 0, 20, 10));
+        assert!(
+            !rendered.contains("[0m 熙"),
+            "broken ansi leak: {rendered:?}"
+        );
     }
 }
