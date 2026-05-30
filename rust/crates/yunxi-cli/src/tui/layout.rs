@@ -47,6 +47,15 @@ impl Rect {
     pub(crate) fn is_valid(self) -> bool {
         self.width > 0 && self.height > 0
     }
+
+    /// 坐标是否落在本区域内（半开区间）。
+    pub(crate) fn contains(self, col: u16, row: u16) -> bool {
+        self.is_valid()
+            && col >= self.x
+            && col < self.x.saturating_add(self.width)
+            && row >= self.y
+            && row < self.y.saturating_add(self.height)
+    }
 }
 
 /// 全屏 TUI 布局计算。
@@ -71,50 +80,63 @@ pub(crate) struct Layout {
 }
 
 impl Layout {
-    /// 按终端尺寸计算各区域位置。
+    /// 按终端尺寸计算各区域位置（默认 4 行输入区）。
     pub(crate) fn compute(terminal_width: u16, terminal_height: u16) -> Self {
-        let title_h = 1;
-        let input_h = 3;
-        let status_h = 1;
-
-        // 剩余空间分配给 chat_view + tool_panel
-        let remaining = terminal_height
-            .saturating_sub(title_h)
-            .saturating_sub(input_h)
-            .saturating_sub(status_h);
-
-        // 工具面板占 35%，最少 20 列
-        let tool_w = std::cmp::max(20, terminal_width * 35 / 100);
-        let chat_w = terminal_width.saturating_sub(tool_w);
-
-        Self {
-            title_bar: Rect::new(0, 0, terminal_width, title_h),
-            chat_view: Rect::new(0, title_h, chat_w, remaining),
-            tool_panel: Rect::new(chat_w, title_h, tool_w, remaining),
-            input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
-            status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
-        }
+        Self::compute_with_input_rows(terminal_width, terminal_height, 2, true)
     }
 
     /// 不显示工具面板时的布局（全宽对话）。
     pub(crate) fn compute_no_panel(terminal_width: u16, terminal_height: u16) -> Self {
-        let title_h = 1;
-        let input_h = 3;
-        let status_h = 1;
+        Self::compute_with_input_rows(terminal_width, terminal_height, 2, false)
+    }
+
+    /// 按内容行数动态计算输入区高度（含补全菜单占位）。
+    pub(crate) fn compute_with_input_rows(
+        terminal_width: u16,
+        terminal_height: u16,
+        input_content_rows: u16,
+        with_tool_panel: bool,
+    ) -> Self {
+        let terminal_width = terminal_width.max(MIN_WIDTH);
+        let terminal_height = terminal_height.max(MIN_HEIGHT);
+        let title_h = 1u16;
+        let input_h = input_block_height(input_content_rows);
+        let status_h = 1u16;
 
         let remaining = terminal_height
             .saturating_sub(title_h)
             .saturating_sub(input_h)
             .saturating_sub(status_h);
 
-        Self {
-            title_bar: Rect::new(0, 0, terminal_width, title_h),
-            chat_view: Rect::new(0, title_h, terminal_width, remaining),
-            tool_panel: Rect::ZERO,
-            input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
-            status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
+        if with_tool_panel && terminal_width >= 40 {
+            let tool_w = std::cmp::max(20, terminal_width * 35 / 100);
+            let chat_w = terminal_width.saturating_sub(tool_w);
+            Self {
+                title_bar: Rect::new(0, 0, terminal_width, title_h),
+                chat_view: Rect::new(0, title_h, chat_w, remaining),
+                tool_panel: Rect::new(chat_w, title_h, tool_w, remaining),
+                input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
+                status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
+            }
+        } else {
+            Self {
+                title_bar: Rect::new(0, 0, terminal_width, title_h),
+                chat_view: Rect::new(0, title_h, terminal_width, remaining),
+                tool_panel: Rect::ZERO,
+                input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
+                status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
+            }
         }
     }
+}
+
+const MIN_WIDTH: u16 = 20;
+const MIN_HEIGHT: u16 = 8;
+
+/// 输入区高度：内容行数 + 提示行 + 边框。
+#[must_use]
+pub(crate) fn input_block_height(content_rows: u16) -> u16 {
+    content_rows.saturating_add(2).clamp(4, 12)
 }
 
 #[cfg(test)]
@@ -141,7 +163,7 @@ mod tests {
         let layout = Layout::compute(80, 24);
         assert_eq!(layout.title_bar.height, 1);
         assert_eq!(layout.title_bar.y, 0);
-        assert_eq!(layout.input_bar.height, 3);
+        assert_eq!(layout.input_bar.height, 4);
         assert_eq!(layout.status_bar.height, 1);
         assert!(layout.chat_view.is_valid());
         assert!(layout.tool_panel.is_valid());
@@ -157,9 +179,38 @@ mod tests {
     }
 
     #[test]
+    fn rect_contains_point() {
+        let r = Rect::new(10, 5, 20, 8);
+        assert!(r.contains(10, 5));
+        assert!(r.contains(29, 12));
+        assert!(!r.contains(9, 5));
+        assert!(!r.contains(30, 5));
+    }
+
+    #[test]
     fn layout_handles_tiny_terminal() {
         let layout = Layout::compute(20, 8);
         // 即使很小也应该有有效区域
+        assert!(layout.title_bar.is_valid());
+    }
+
+    #[test]
+    fn layout_clamps_to_minimum_size() {
+        let layout = Layout::compute(5, 3);
+        assert!(layout.chat_view.is_valid() || layout.chat_view.height == 0);
+        assert!(layout.title_bar.is_valid());
+    }
+
+    #[test]
+    fn layout_disables_tool_panel_on_narrow_width() {
+        let layout = Layout::compute_with_input_rows(30, 20, 2, true);
+        assert!(!layout.tool_panel.is_valid());
+    }
+
+    #[test]
+    fn layout_survives_zero_size() {
+        let layout = Layout::compute(0, 0);
+        assert_eq!(layout.title_bar.width, MIN_WIDTH);
         assert!(layout.title_bar.is_valid());
     }
 }

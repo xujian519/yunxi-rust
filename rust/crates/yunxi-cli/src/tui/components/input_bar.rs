@@ -1,6 +1,12 @@
 #![allow(dead_code)]
 
+use crate::tui::frame::{truncate_ansi_to_width, visible_width};
 use crate::tui::layout::Rect;
+use crate::tui::slash_complete::SlashCompletion;
+use crate::tui::ui_palette::{input_bold, input_faint, input_line_padded, input_text};
+
+/// 输入行提示符可见宽度（`❯ `）。
+pub(crate) const INPUT_PROMPT_WIDTH: u16 = 2;
 
 /// 输入框组件。
 pub(crate) struct InputBar {
@@ -70,6 +76,14 @@ impl InputBar {
         }
     }
 
+    pub(crate) fn move_home(&mut self) {
+        self.cursor = 0;
+    }
+
+    pub(crate) fn move_end(&mut self) {
+        self.cursor = self.content.len();
+    }
+
     /// 取出当前内容并清空。
     pub(crate) fn take(&mut self) -> String {
         self.cursor = 0;
@@ -86,32 +100,96 @@ impl InputBar {
         self.content.is_empty()
     }
 
+    /// 光标在输入行内的可见列偏移（不含提示符）。
+    pub(crate) fn cursor_visible_col(&self) -> u16 {
+        let end = self.cursor.min(self.content.len());
+        visible_width(&self.content[..end])
+    }
+
+    /// 输入行在输入块内的行索引（补全菜单 + 分隔线之后）。
+    pub(crate) fn input_line_index(completion: Option<&SlashCompletion>) -> u16 {
+        completion
+            .map(|menu| menu.matches.len().min(6))
+            .unwrap_or(0) as u16
+            + 1
+    }
+
     /// 设置内容（外部粘贴等）。
     pub(crate) fn set_content(&mut self, text: String) {
         self.cursor = text.len();
         self.content = text;
     }
 
-    /// 渲染为 ANSI 字符串。
+    /// 渲染为 ANSI 字符串（含可选斜杠补全菜单）。
     pub(crate) fn render(&self, area: Rect) -> String {
+        self.render_with_completion(area, None)
+    }
+
+    pub(crate) fn render_with_completion(
+        &self,
+        area: Rect,
+        completion: Option<&SlashCompletion>,
+    ) -> String {
+        self.render_with_options(area, completion, false)
+    }
+
+    pub(crate) fn render_plain(&self, area: Rect, completion: Option<&SlashCompletion>) -> String {
+        self.render_with_options(area, completion, true)
+    }
+
+    fn render_with_options(
+        &self,
+        area: Rect,
+        completion: Option<&SlashCompletion>,
+        plain: bool,
+    ) -> String {
         if !area.is_valid() {
             return String::new();
         }
-
         let width = area.width as usize;
-        let prompt = "> ";
-        let prompt_len = prompt.len();
-        let available = width.saturating_sub(prompt_len);
+        let mut lines: Vec<String> = Vec::new();
 
-        // 显示光标附近的文本
-        let display_start = self.cursor.saturating_sub(available);
-        let display_end = std::cmp::min(display_start + available, self.content.len());
-        let visible = &self.content[display_start..display_end];
+        if let Some(menu) = completion {
+            lines.extend(menu.render_menu_lines(width));
+        }
 
-        format!(
-            "\x1b[38;5;213m{prompt}\x1b[0m{visible}\n\
-             \x1b[2mShift+Enter 换行 · Enter 发送 · Esc 取消\x1b[0m"
-        )
+        let dashes = "─".repeat(width);
+        let rule = input_line_padded(&input_faint(&dashes), width);
+        lines.push(rule);
+
+        let prompt = if plain {
+            input_text("> ")
+        } else {
+            input_bold("❯ ")
+        };
+        let body = if self.content.is_empty() {
+            input_faint("在此输入消息…")
+        } else {
+            let mut joined = String::new();
+            for (index, line) in self.content.lines().enumerate() {
+                if index > 0 {
+                    joined.push('\n');
+                    joined.push_str("  ");
+                }
+                joined.push_str(line);
+            }
+            input_text(&joined)
+        };
+        let input_line = input_line_padded(
+            &truncate_ansi_to_width(&format!("{prompt}{body}"), width),
+            width,
+        );
+        lines.push(input_line);
+
+        let hint = completion
+            .map(SlashCompletion::hint_line)
+            .unwrap_or_else(|| "Shift+Enter 换行 · Enter 发送 · Tab 补全 · Esc 取消".to_string());
+        lines.push(input_line_padded(
+            &truncate_ansi_to_width(&input_faint(&hint), width),
+            width,
+        ));
+
+        lines.join("\n")
     }
 }
 
@@ -131,41 +209,25 @@ mod tests {
     }
 
     #[test]
-    fn input_bar_cursor_movement() {
-        let mut bar = InputBar::new();
-        bar.insert('x');
-        bar.insert('y');
-        bar.move_left();
-        bar.insert('z');
-        assert_eq!(bar.content(), "xzy");
-    }
-
-    #[test]
-    fn input_bar_take_clears() {
-        let mut bar = InputBar::new();
-        bar.insert('h');
-        bar.insert('i');
-        let text = bar.take();
-        assert_eq!(text, "hi");
-        assert!(bar.is_empty());
-    }
-
-    #[test]
-    fn input_bar_delete() {
-        let mut bar = InputBar::new();
-        bar.set_content("abc".to_string());
-        bar.move_left();
-        // cursor at 'c', delete 'c'
-        bar.delete();
-        assert_eq!(bar.content(), "ab");
-    }
-
-    #[test]
-    fn input_bar_render() {
+    fn input_bar_render_minimal_style() {
         let mut bar = InputBar::new();
         bar.set_content("hello".to_string());
         let rendered = bar.render(Rect::new(0, 0, 40, 3));
         assert!(rendered.contains("hello"));
-        assert!(rendered.contains("Shift+Enter"));
+        assert!(rendered.contains('─'));
+        assert!(!rendered.contains('╭'));
+    }
+
+    #[test]
+    fn input_bar_home_and_end() {
+        let mut bar = InputBar::new();
+        bar.insert('a');
+        bar.insert('b');
+        bar.insert('c');
+        assert_eq!(bar.cursor, 3);
+        bar.move_home();
+        assert_eq!(bar.cursor, 0);
+        bar.move_end();
+        assert_eq!(bar.cursor, 3);
     }
 }

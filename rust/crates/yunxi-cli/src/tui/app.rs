@@ -126,8 +126,8 @@ impl TuiApp {
         u16::try_from(rows).unwrap_or(2)
     }
 
-    /// 布局用输入区行数（专利专屏固定高度，通用模式动态计算）。
-    fn layout_input_rows(&self) -> u16 {
+    /// 布局用输入区行数（含补全菜单、输入行与快捷键提示行）。
+    pub(crate) fn layout_input_rows(&self) -> u16 {
         let menu = self
             .slash_completion
             .as_ref()
@@ -235,6 +235,35 @@ impl TuiApp {
         self.show_help = true;
     }
 
+    /// 将当前可见对话或分页器内容写入系统剪贴板。
+    pub(crate) fn copy_visible_text_to_clipboard(&mut self) {
+        use crate::tui::clipboard::{copy_text_to_clipboard, strip_ansi};
+
+        let text = if let Some(pager) = &self.pager {
+            pager.plain_text()
+        } else {
+            self.chat.export_plain_conversation()
+        };
+
+        if text.trim().is_empty() {
+            self.push_system_message("\x1b[2m当前没有可复制的内容\x1b[0m");
+            return;
+        }
+
+        let plain = strip_ansi(&text);
+        match copy_text_to_clipboard(&plain) {
+            Ok(()) => {
+                let chars = plain.chars().count();
+                self.push_system_message(&format!(
+                    "\x1b[2m已复制 {chars} 个字符到剪贴板（也可用鼠标拖选后 Cmd/Ctrl+C）\x1b[0m"
+                ));
+            }
+            Err(error) => {
+                self.push_system_message(&format!("\x1b[31m复制失败:\x1b[0m {error}"));
+            }
+        }
+    }
+
     pub(crate) fn open_session_picker(
         &mut self,
         sessions: Vec<crate::session_mgr::ManagedSessionSummary>,
@@ -320,6 +349,11 @@ impl TuiApp {
 
         if self.show_guide && matches!(key, KeyEvent::Esc) {
             self.show_guide = false;
+            return None;
+        }
+
+        if matches!(key, KeyEvent::CtrlShift('c')) {
+            self.copy_visible_text_to_clipboard();
             return None;
         }
 
@@ -455,12 +489,20 @@ impl TuiApp {
                 self.refresh_slash_completion();
                 None
             }
+            KeyEvent::Home => {
+                self.input.move_home();
+                None
+            }
             KeyEvent::Left => {
                 self.input.move_left();
                 None
             }
             KeyEvent::Right => {
                 self.input.move_right();
+                None
+            }
+            KeyEvent::End => {
+                self.input.move_end();
                 None
             }
             _ => None,
@@ -793,20 +835,21 @@ impl TuiApp {
             pending_flow_hitl: self.pending_flow_hitl.as_ref(),
             pending_permission: self.pending_permission.as_ref(),
         };
-        let mut frame = render_patent_screen(&layout, &ctx, width, height);
+        let mut frame_buf = Frame::new(width, height);
+        let patent_ansi = render_patent_screen(&layout, &ctx, width, height);
+        for (i, line) in patent_ansi.lines().enumerate() {
+            if i >= height as usize {
+                break;
+            }
+            frame_buf.set_row(i as u16, line);
+        }
         if let Some(pager) = &self.pager {
             let overlay = Rect::new(width / 8, height / 6, width * 3 / 4, height * 2 / 3);
-            let lines: Vec<String> = pager
-                .render(overlay.height as usize)
-                .lines()
-                .map(String::from)
-                .collect();
-            // pager overlay via second pass would need Frame API — append hint in title bar for v1
-            let _ = overlay;
-            let _ = lines;
-            frame.push_str("\n\x1b[2m[分页器打开 — Esc 关闭]\x1b[0m");
+            let body = pager.render(overlay.height as usize);
+            let lines: Vec<String> = body.lines().map(String::from).collect();
+            frame_buf.overlay_lines(overlay, &lines);
         }
-        frame
+        frame_buf.as_ansi()
     }
 
     /// 渲染标题栏。
@@ -1012,10 +1055,13 @@ pub(crate) enum KeyEvent {
     Up,
     Down,
     Ctrl(char),
+    CtrlShift(char),
     ShiftEnter,
     Esc,
     F(u8),
     Tab,
+    Home,
+    End,
 }
 
 /// TUI 动作（按键处理后返回的结果）。
@@ -1237,5 +1283,17 @@ mod tests {
         assert!(app.tools.scroll_offset() > 0);
         app.handle_key(&KeyEvent::Char('['));
         assert_eq!(app.tools.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn app_render_patent_with_pager_overlay() {
+        let mut app = TuiApp::new(
+            "deepseek-v4-pro".to_string(),
+            "0.1.0".to_string(),
+            UiMode::Patent,
+        );
+        app.push_output("Test Pager", "line 1\nline 2\nline 3", 80, 24);
+        let rendered = app.render(80, 24);
+        assert!(rendered.contains("Test Pager") || rendered.contains("分页器"));
     }
 }

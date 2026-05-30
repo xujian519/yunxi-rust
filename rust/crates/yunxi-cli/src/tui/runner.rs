@@ -26,6 +26,7 @@ use crate::tui::turn::{spawn_turn, ActiveTurn, TurnEvent};
 use crate::tui::ui_mode::UiMode;
 use crate::VERSION;
 
+use crate::llm_auth::{format_llm_error, missing_api_key_message};
 use crate::routing::RoutingSnapshot;
 use runtime::{PermissionMode, Session};
 
@@ -105,10 +106,8 @@ pub(crate) fn run_tui_repl(
             &cwd,
             &state.session_handle.id,
         );
-        app.push_assistant_message(&banner);
-        app.push_system_message(
-            "\x1b[2m人机协作：Ctrl+G 引导 · Ctrl+I 中断轮次 · Flow 挂起时 y 继续 / n 稍后\x1b[0m",
-        );
+        app.push_system_message(&banner);
+        app.push_system_message("\x1b[2mCtrl+G 引导 · Ctrl+I 中断 · Flow 挂起 y/n\x1b[0m");
     }
 
     refresh_status(&mut app, &state);
@@ -212,12 +211,14 @@ fn run_event_loop(
                                     ingest_turn_summary(app, state, &summary, streamed);
                                 }
                                 Err(error) => {
-                                    let msg = error.to_string();
-                                    app.push_assistant_message(&format!(
-                                        "\x1b[31m请求失败:\x1b[0m\n{msg}\n\n\
-                                         \x1b[2m提示: 默认模型 deepseek-v4-pro 会映射为 deepseek-chat；\
-                                         请确认 DEEPSEEK_API_KEY 有效，或用 /model 切换模型。\x1b[0m"
-                                    ));
+                                    let effective_model =
+                                        state.active_model.as_deref().unwrap_or(app.model());
+                                    let msg = format_llm_error(effective_model, &error);
+                                    if app.last_assistant_text_is_empty() {
+                                        app.set_last_assistant_text(msg);
+                                    } else {
+                                        app.push_assistant_message(&msg);
+                                    }
                                 }
                             }
                         } else {
@@ -399,6 +400,8 @@ fn start_turn(
     active_turn: &mut Option<ActiveTurn>,
     text: &str,
 ) {
+    let mut effective_model = app.model().to_string();
+
     if app.model() == "auto" {
         let history_rounds = state
             .runtime
@@ -441,8 +444,17 @@ fn start_turn(
             state.last_auto_decision = Some(format!("auto→{}", resolved));
         }
         state.active_model = Some(resolved);
+        effective_model = state.active_model.clone().unwrap_or(effective_model);
     } else if state.active_model.is_none() {
         state.active_model = Some(app.model().to_string());
+        effective_model = state.active_model.clone().unwrap_or(effective_model);
+    } else {
+        effective_model = state.active_model.clone().unwrap_or(effective_model);
+    }
+
+    if let Some(msg) = missing_api_key_message(&effective_model) {
+        app.push_assistant_message(&msg);
+        return;
     }
 
     app.set_thinking(true);
@@ -548,6 +560,12 @@ fn convert_mouse(event: MouseEvent) -> Option<(u16, u16, MouseAction)> {
 }
 
 fn convert_key(key: CrosstermKey) -> KeyEvent {
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.modifiers.contains(KeyModifiers::SHIFT)
+    {
+        if let KeyCode::Char(c) = key.code {
+            return KeyEvent::CtrlShift(c.to_ascii_lowercase());
+        }
+    }
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         if let KeyCode::Char(c) = key.code {
             return KeyEvent::Ctrl(c);
@@ -566,10 +584,11 @@ fn convert_key(key: CrosstermKey) -> KeyEvent {
         KeyCode::Right => KeyEvent::Right,
         KeyCode::Up => KeyEvent::Up,
         KeyCode::Down => KeyEvent::Down,
+        KeyCode::Home => KeyEvent::Home,
+        KeyCode::End => KeyEvent::End,
         KeyCode::Esc => KeyEvent::Esc,
         KeyCode::F(n) => KeyEvent::F(n),
         KeyCode::Char(c) => KeyEvent::Char(c),
         _ => KeyEvent::Char('\0'),
     }
 }
-
