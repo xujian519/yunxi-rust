@@ -3,6 +3,8 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Widget};
 
+use crate::tui::ui_palette::{content_color, highlight, user_role_color};
+
 const HELP_TEXT: &[(&str, &str)] = &[
     ("Enter", "发送消息"),
     ("Shift+Enter", "换行"),
@@ -12,7 +14,8 @@ const HELP_TEXT: &[(&str, &str)] = &[
     ("Ctrl+I", "中断当前轮次"),
     ("Ctrl+U", "导入预填"),
     ("Ctrl+F", "搜索预填"),
-    ("Tab", "斜杠命令补全"),
+    ("Ctrl+Shift+C", "复制对话到剪贴板"),
+    ("鼠标拖选", "选中界面文字后 Cmd/Ctrl+C 复制"),
     ("F2", "切换工具面板"),
     ("F3", "专利导航循环"),
     ("1-6", "专利导航快捷键"),
@@ -34,26 +37,22 @@ impl Widget for HelpOverlay {
         let block = Block::default()
             .title(" 快捷键 ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Indexed(183)));
+            .border_style(Style::default().fg(Color::Indexed(user_role_color())));
 
         let mut lines = Vec::new();
         for (key, desc) in HELP_TEXT {
             let key_span = Span::styled(
                 format!(" {:<16}", key),
                 Style::default()
-                    .fg(Color::Indexed(214))
+                    .fg(Color::Indexed(highlight()))
                     .add_modifier(Modifier::BOLD),
             );
-            let desc_span = Span::styled(
-                *desc,
-                Style::default().fg(Color::Indexed(252)),
-            );
+            let desc_span =
+                Span::styled(*desc, Style::default().fg(Color::Indexed(content_color())));
             lines.push(Line::from(vec![key_span, desc_span]));
         }
 
-        Paragraph::new(lines)
-            .block(block)
-            .render(popup_area, buf);
+        Paragraph::new(lines).block(block).render(popup_area, buf);
     }
 }
 

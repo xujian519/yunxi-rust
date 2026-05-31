@@ -5,6 +5,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
+# Tauri bundle 需要 default-run 指向桌面二进制；CLI 请用: cargo run --bin yunxi -p yunxi-cli
+default-run = "yunxi-desktop"
+
+[lib]
+name = "yunxi_cli"
+path = "src/lib.rs"
 
 [[bin]]
 name = "yunxi"
@@ -24,6 +30,7 @@ router = { path = "../router" }
 llm = { path = "../llm" }
 model-router = { path = "../model-router" }
 crossterm = "0.28"
+arboard = "3"
 pulldown-cmark = "0.13"
 ratatui = "0.29"
 rustyline = "15"
@@ -32,8 +39,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 server = { path = "../server" }
 syntect = "5"
-tauri = { version = "2", optional = true }
-tokio = { version = "1", features = ["rt-multi-thread", "time"] }
+tauri = { version = "2", optional = true, features = ["devtools", "custom-protocol"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "process"] }
+rfd = { version = "0.15", optional = true }
+portable-pty = { version = "0.8", optional = true }
+notify = { version = "6.1", optional = true }
 tools = { path = "../tools", features = ["browser-fallback"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
@@ -42,7 +52,7 @@ tauri-build = { version = "2", features = [] }
 
 [features]
 default = []
-desktop = ["tauri"]
+desktop = ["tauri", "rfd", "portable-pty", "notify"]
 
 [lints]
 workspace = true

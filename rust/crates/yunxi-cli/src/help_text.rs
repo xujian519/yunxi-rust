@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use commands::{render_slash_command_help, resume_supported_slash_commands};
+use commands::{render_full_slash_help, resume_supported_slash_commands};
 
 use crate::VERSION;
 
@@ -37,6 +37,28 @@ pub(crate) fn print_help_to(out: &mut impl Write) -> io::Result<()> {
     writeln!(out, "  yunxi login")?;
     writeln!(out, "  yunxi logout")?;
     writeln!(out, "  yunxi init")?;
+    writeln!(out, "  yunxi doctor")?;
+    writeln!(out, "  yunxi config")?;
+    writeln!(out, "      查看配置状态与推荐下一步")?;
+    writeln!(out, "  yunxi config init [--user|--project] [-i]")?;
+    writeln!(
+        out,
+        "      从模板创建 settings.local.json（-i 交互写入 API 密钥）"
+    )?;
+    writeln!(out, "  yunxi config show [env|hooks|model]")?;
+    writeln!(out, "      查看合并后的配置详情")?;
+    writeln!(out, "  yunxi server [--host HOST] [--port PORT]")?;
+    writeln!(
+        out,
+        "      启动本地 HTTP/WebSocket API（默认 127.0.0.1:8765）"
+    )?;
+    writeln!(out, "  yunxi self-update")?;
+    writeln!(out, "      在仓库内重新编译并更新当前 yunxi 二进制")?;
+    writeln!(out, "  yunxi-desktop")?;
+    writeln!(
+        out,
+        "      专利案件桌面客户端（Tauri + React，检索/对比/审查/撰写）"
+    )?;
     writeln!(out)?;
     writeln!(out, "参数：")?;
     writeln!(out, "  --model MODEL              覆盖当前模型")?;
@@ -54,9 +76,13 @@ pub(crate) fn print_help_to(out: &mut impl Write) -> io::Result<()> {
         "  --allowedTools TOOLS       限制启用的工具（可重复；支持逗号分隔的别名）"
     )?;
     writeln!(out, "  --version, -V              显示版本和构建信息")?;
+    writeln!(
+        out,
+        "  --profile NAME             保留参数（patent 专屏已移除，请用 yunxi-desktop）"
+    )?;
     writeln!(out)?;
     writeln!(out, "交互式斜杠命令：")?;
-    writeln!(out, "{}", render_slash_command_help())?;
+    writeln!(out, "{}", render_full_slash_help())?;
     writeln!(out)?;
     let resume_commands = resume_supported_slash_commands()
         .into_iter()
@@ -80,6 +106,8 @@ pub(crate) fn print_help_to(out: &mut impl Write) -> io::Result<()> {
     )?;
     writeln!(out, "  yunxi login")?;
     writeln!(out, "  yunxi init")?;
+    writeln!(out, "  yunxi doctor")?;
+    writeln!(out, "  yunxi config init -i")?;
     Ok(())
 }
 

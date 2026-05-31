@@ -10,9 +10,8 @@ const QUOTE_COLOR: Color = Color::Indexed(245);
 const TABLE_BORDER_COLOR: Color = Color::Indexed(240);
 
 pub(crate) fn markdown_to_text(input: &str) -> Text<'static> {
-    let options = Options::ENABLE_TABLES
-        | Options::ENABLE_STRIKETHROUGH
-        | Options::ENABLE_TASKLISTS;
+    let options =
+        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
 
     let mut expanded = String::with_capacity(input.len());
     let body = unwrap_markdown_fence(input, &mut expanded);
@@ -70,9 +69,7 @@ pub(crate) fn markdown_to_text(input: &str) -> Text<'static> {
                     current_style = current_style.add_modifier(Modifier::ITALIC);
                 }
                 Tag::Strong => {
-                    current_style = current_style
-                        .add_modifier(Modifier::BOLD)
-                        .fg(STRONG_COLOR);
+                    current_style = current_style.add_modifier(Modifier::BOLD).fg(STRONG_COLOR);
                 }
                 Tag::Strikethrough => {
                     current_style = current_style.add_modifier(Modifier::CROSSED_OUT);
@@ -104,18 +101,13 @@ pub(crate) fn markdown_to_text(input: &str) -> Text<'static> {
             Event::Text(text) | Event::Code(text) => {
                 let is_code = matches!(events[i], Event::Code(_));
                 let style = if is_code {
-                    Style::default()
-                        .fg(Color::Indexed(214))
-                        .bg(CODE_BG)
+                    Style::default().fg(Color::Indexed(214)).bg(CODE_BG)
                 } else {
                     current_style
                 };
                 let prefix = if is_code { "`" } else { "" };
                 let suffix = if is_code { "`" } else { "" };
-                current_line.push(Span::styled(
-                    format!("{prefix}{text}{suffix}"),
-                    style,
-                ));
+                current_line.push(Span::styled(format!("{prefix}{text}{suffix}"), style));
             }
             Event::InlineMath(_) => {}
             Event::InlineHtml(_) => {}
@@ -207,8 +199,14 @@ fn skip_to_end(events: &[Event], start: usize, end_tag: &TagEnd) -> usize {
 
 fn code_block_to_lines(code: &str, lang: &str) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
-    let top = format!("┌─ {} ─────────────", if lang.is_empty() { "code" } else { lang });
-    lines.push(Line::from(Span::styled(top, Style::default().fg(Color::Indexed(240)))));
+    let top = format!(
+        "┌─ {} ─────────────",
+        if lang.is_empty() { "code" } else { lang }
+    );
+    lines.push(Line::from(Span::styled(
+        top,
+        Style::default().fg(Color::Indexed(240)),
+    )));
     for line in code.lines() {
         lines.push(Line::from(Span::styled(
             format!("│ {line}"),
@@ -222,10 +220,7 @@ fn code_block_to_lines(code: &str, lang: &str) -> Vec<Line<'static>> {
     lines
 }
 
-fn collect_table(
-    events: &[Event],
-    start: usize,
-) -> (Vec<String>, Vec<Vec<String>>) {
+fn collect_table(events: &[Event], start: usize) -> (Vec<String>, Vec<Vec<String>>) {
     let mut header = Vec::new();
     let mut rows = Vec::new();
     let mut current_row = Vec::new();
@@ -268,9 +263,7 @@ fn collect_table(
 }
 
 fn render_table(header: Vec<String>, rows: Vec<Vec<String>>) -> Vec<Line<'static>> {
-    let col_count = header.len().max(
-        rows.first().map_or(0, |r| r.len()),
-    );
+    let col_count = header.len().max(rows.first().map_or(0, |r| r.len()));
 
     let mut col_widths = vec![0usize; col_count];
     for (i, cell) in header.iter().enumerate() {
@@ -288,10 +281,7 @@ fn render_table(header: Vec<String>, rows: Vec<Vec<String>>) -> Vec<Line<'static
 
     if !header.is_empty() {
         lines.push(table_row(&header, &col_widths, true));
-        let sep: Vec<String> = col_widths
-            .iter()
-            .map(|w| "─".repeat(*w))
-            .collect();
+        let sep: Vec<String> = col_widths.iter().map(|w| "─".repeat(*w)).collect();
         lines.push(table_separator(&sep, &col_widths));
     }
 
@@ -311,7 +301,12 @@ fn table_row(cells: &[String], widths: &[usize], is_header: bool) -> Line<'stati
         let w = widths.get(i).copied().unwrap_or(0);
         let text = format!("{:<w$}", cell, w = w);
         if is_header {
-            spans.push(Span::styled(text, Style::default().fg(HEADING_COLOR).add_modifier(Modifier::BOLD)));
+            spans.push(Span::styled(
+                text,
+                Style::default()
+                    .fg(HEADING_COLOR)
+                    .add_modifier(Modifier::BOLD),
+            ));
         } else {
             spans.push(Span::styled(text, Style::default()));
         }

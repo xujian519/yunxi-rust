@@ -23,12 +23,14 @@ pub fn convert_to_openai_messages(messages: &[ConversationMessage]) -> Vec<ChatM
 
     for message in messages {
         let mut text_parts = Vec::new();
+        let mut reasoning_parts = Vec::new();
         let mut tool_calls = Vec::new();
         let mut tool_results = Vec::new();
 
         for block in &message.blocks {
             match block {
                 ContentBlock::Text { text } => text_parts.push(text.clone()),
+                ContentBlock::Reasoning { text } => reasoning_parts.push(text.clone()),
                 ContentBlock::ToolUse { id, name, input } => {
                     tool_calls.push(OpenAIToolCall {
                         id: id.clone(),
@@ -68,7 +70,16 @@ pub fn convert_to_openai_messages(messages: &[ConversationMessage]) -> Vec<ChatM
                 } else {
                     Some(text_parts.join(""))
                 };
-                result.push(ChatMessage::assistant_with_tools(text, tool_calls));
+                let reasoning_content = if reasoning_parts.is_empty() {
+                    None
+                } else {
+                    Some(reasoning_parts.join(""))
+                };
+                result.push(ChatMessage::assistant_with_tools(
+                    text,
+                    tool_calls,
+                    reasoning_content,
+                ));
             }
             MessageRole::Tool => {
                 result.extend(tool_results);
@@ -116,9 +127,98 @@ pub fn build_openai_request(
                 .collect()
         }),
         tool_choice: tools.map(|_| types::OpenAIToolChoice::Auto),
-        stream_options: Some(StreamOptions {
-            include_usage: true,
-        }),
+        // DeepSeek 等兼容端点不接受 OpenAI 的 stream_options，否则会 400
+        stream_options: if model.to_ascii_lowercase().contains("deepseek") {
+            None
+        } else {
+            Some(StreamOptions {
+                include_usage: true,
+            })
+        },
+    }
+}
+
+/// 增量处理 OpenAI SSE chunk，供流式回调与最终汇总复用。
+#[derive(Default)]
+pub struct OpenAiStreamState {
+    pending_tools: BTreeSet<u32>,
+    tool_id: std::collections::HashMap<u32, String>,
+    tool_name: std::collections::HashMap<u32, String>,
+    tool_input: std::collections::HashMap<u32, String>,
+}
+
+impl OpenAiStreamState {
+    /// 处理单个 chunk，返回本 chunk 产生的事件。
+    pub fn push_chunk(
+        &mut self,
+        chunk: ChatCompletionChunk,
+        out: &mut (impl Write + ?Sized),
+    ) -> Result<Vec<AssistantEvent>, RuntimeError> {
+        let mut events = Vec::new();
+        for choice in chunk.choices {
+            if let Some(content) = &choice.delta.content {
+                if !content.is_empty() {
+                    events.push(AssistantEvent::TextDelta(content.clone()));
+                }
+            }
+
+            if let Some(reasoning_delta) = &choice.delta.reasoning_content {
+                if !reasoning_delta.is_empty() {
+                    events.push(AssistantEvent::ReasoningDelta(reasoning_delta.clone()));
+                }
+            }
+
+            if let Some(tool_call_deltas) = &choice.delta.tool_calls {
+                for tc in tool_call_deltas {
+                    let idx = tc.index;
+                    if tc.id.is_some() {
+                        self.pending_tools.insert(idx);
+                    }
+                    if let Some(id) = &tc.id {
+                        self.tool_id.insert(idx, id.clone());
+                    }
+                    if let Some(func) = &tc.function {
+                        if let Some(name) = &func.name {
+                            self.tool_name.insert(idx, name.clone());
+                        }
+                        if let Some(args) = &func.arguments {
+                            self.tool_input.entry(idx).or_default().push_str(args);
+                        }
+                    }
+                }
+            }
+
+            if let Some(finish_reason) = &choice.finish_reason {
+                let completed_indices: Vec<u32> = self.pending_tools.iter().copied().collect();
+                for idx in completed_indices {
+                    if let (Some(id), Some(name)) =
+                        (self.tool_id.remove(&idx), self.tool_name.remove(&idx))
+                    {
+                        let input = self.tool_input.remove(&idx).unwrap_or_default();
+                        writeln!(out, "\n  tool: {name}")
+                            .and_then(|()| out.flush())
+                            .map_err(|e| RuntimeError::new(e.to_string()))?;
+                        events.push(AssistantEvent::ToolUse { id, name, input });
+                    }
+                    self.pending_tools.remove(&idx);
+                }
+
+                if finish_reason == "stop" || finish_reason == "tool_calls" {
+                    events.push(AssistantEvent::MessageStop);
+                }
+            }
+        }
+
+        if let Some(usage) = chunk.usage {
+            events.push(AssistantEvent::Usage(TokenUsage {
+                input_tokens: usage.prompt_tokens,
+                output_tokens: usage.completion_tokens,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+            }));
+        }
+
+        Ok(events)
     }
 }
 
@@ -131,76 +231,11 @@ pub fn stream_chunks_to_events(
     chunks: Vec<ChatCompletionChunk>,
     out: &mut (impl Write + ?Sized),
 ) -> Result<Vec<AssistantEvent>, RuntimeError> {
+    let mut state = OpenAiStreamState::default();
     let mut events = Vec::new();
-    let mut pending_tools: BTreeSet<u32> = BTreeSet::new();
-    let mut tool_id: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
-    let mut tool_name: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
-    let mut tool_input: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
-
     for chunk in chunks {
-        for choice in chunk.choices {
-            // 处理文本内容
-            if let Some(content) = &choice.delta.content {
-                if !content.is_empty() {
-                    events.push(AssistantEvent::TextDelta(content.clone()));
-                }
-            }
-
-            // 处理工具调用增量
-            if let Some(tool_call_deltas) = &choice.delta.tool_calls {
-                for tc in tool_call_deltas {
-                    let idx = tc.index;
-
-                    if tc.id.is_some() {
-                        pending_tools.insert(idx);
-                    }
-
-                    if let Some(id) = &tc.id {
-                        tool_id.insert(idx, id.clone());
-                    }
-                    if let Some(func) = &tc.function {
-                        if let Some(name) = &func.name {
-                            tool_name.insert(idx, name.clone());
-                        }
-                        if let Some(args) = &func.arguments {
-                            tool_input.entry(idx).or_default().push_str(args);
-                        }
-                    }
-                }
-            }
-
-            // 处理完成
-            if let Some(finish_reason) = &choice.finish_reason {
-                // 输出所有已累积的 tool calls
-                let completed_indices: Vec<u32> = pending_tools.iter().copied().collect();
-                for idx in completed_indices {
-                    if let (Some(id), Some(name)) = (tool_id.remove(&idx), tool_name.remove(&idx)) {
-                        let input = tool_input.remove(&idx).unwrap_or_default();
-                        writeln!(out, "\n  tool: {name}")
-                            .and_then(|()| out.flush())
-                            .map_err(|e| RuntimeError::new(e.to_string()))?;
-                        events.push(AssistantEvent::ToolUse { id, name, input });
-                    }
-                    pending_tools.remove(&idx);
-                }
-
-                if finish_reason == "stop" || finish_reason == "tool_calls" {
-                    events.push(AssistantEvent::MessageStop);
-                }
-            }
-        }
-
-        // 处理 usage
-        if let Some(usage) = chunk.usage {
-            events.push(AssistantEvent::Usage(TokenUsage {
-                input_tokens: usage.prompt_tokens,
-                output_tokens: usage.completion_tokens,
-                cache_creation_input_tokens: 0,
-                cache_read_input_tokens: 0,
-            }));
-        }
+        events.extend(state.push_chunk(chunk, out)?);
     }
-
     Ok(events)
 }
 
@@ -326,6 +361,7 @@ mod tests {
                         role: Some("assistant".to_string()),
                         content: Some("Hello".to_string()),
                         tool_calls: None,
+                        reasoning_content: None,
                     },
                     finish_reason: None,
                 }],
@@ -338,6 +374,7 @@ mod tests {
                         role: None,
                         content: Some(" world".to_string()),
                         tool_calls: None,
+                        reasoning_content: None,
                     },
                     finish_reason: Some("stop".to_string()),
                 }],

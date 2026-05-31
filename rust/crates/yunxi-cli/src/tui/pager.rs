@@ -73,6 +73,18 @@ impl Pager {
         self.scroll_offset
     }
 
+    /// 分页器全文（去 ANSI），供剪贴板使用。
+    #[must_use]
+    pub(crate) fn plain_text(&self) -> String {
+        use crate::tui::clipboard::strip_ansi;
+
+        self.lines
+            .iter()
+            .map(|line| strip_ansi(line))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     pub(crate) fn render(&self, visible_lines: usize) -> String {
         let visible_lines = visible_lines.max(1);
         let start = self

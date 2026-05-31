@@ -46,12 +46,12 @@ class QueryEnginePort:
     transcript_store: TranscriptStore = field(default_factory=TranscriptStore)
 
     @classmethod
-    def from_workspace(cls) -> 'QueryEnginePort':
+    def from_workspace(cls) -> QueryEnginePort:
         """Create an engine using the workspace port manifest."""
         return cls(manifest=build_port_manifest())
 
     @classmethod
-    def from_saved_session(cls, session_id: str) -> 'QueryEnginePort':
+    def from_saved_session(cls, session_id: str) -> QueryEnginePort:
         """Restore an engine from a previously saved session."""
         stored = load_session(session_id)
         transcript = TranscriptStore(entries=list(stored.messages), flushed=True)
@@ -166,10 +166,10 @@ class QueryEnginePort:
                 'summary': summary_lines,
                 'session_id': self.session_id,
             }
-            return self._render_structured_output(payload)
+            return self._render_structured_output(payload)  # type: ignore[arg-type]
         return '\n'.join(summary_lines)
 
-    def _render_structured_output(self, payload: dict[str, object]) -> str:
+    def _render_structured_output(self, payload: dict[str, object]) -> str:  # type: ignore[type-arg]
         last_error: Exception | None = None
         for _ in range(self.config.structured_retry_limit):
             try:

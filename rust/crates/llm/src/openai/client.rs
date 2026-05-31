@@ -20,8 +20,13 @@ pub struct OpenAiClient {
 
 impl OpenAiClient {
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
+        let http = reqwest::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .connect_timeout(Duration::from_secs(30))
+            .build()
+            .expect("reqwest client build should not fail with standard timeouts");
         Self {
-            http: reqwest::Client::new(),
+            http,
             base_url: base_url.into(),
             api_key: api_key.into(),
             max_retries: DEFAULT_MAX_RETRIES,

@@ -1,15 +1,15 @@
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::prelude::Widget;
-use ratatui::text::{Line, Span, Text};
 use ratatui::style::{Color, Style};
-use ratatui::widgets::{Paragraph, Clear};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{Clear, Paragraph};
 use ratatui::Frame;
 
 use crate::tui::app::TuiApp;
+use crate::tui::ui_palette::{highlight, user_role_color};
 use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
 use crate::tui::widgets::help_overlay_ratatui::HelpOverlay;
 use crate::tui::widgets::input_bar_ratatui::InputBarWidget;
-use crate::tui::widgets::patent_screen_ratatui::PatentScreenWidget;
 use crate::tui::widgets::status_bar_ratatui::StatusBarWidget;
 use crate::tui::widgets::title_bar::TitleBar;
 use crate::tui::widgets::tool_panel_ratatui::ToolPanelWidget;
@@ -23,25 +23,21 @@ impl TuiApp {
             return;
         }
 
+        let input_rows = self.layout_input_rows();
+
         let vertical = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1),
                 Constraint::Min(0),
-                Constraint::Length(4),
+                Constraint::Length(input_rows),
                 Constraint::Length(1),
             ])
             .split(area);
 
-        TitleBar::new(&self.model, &self.version, self.is_patent_mode())
-            .render(vertical[0], frame.buffer_mut());
+        TitleBar::new(&self.model, &self.version).render(vertical[0], frame.buffer_mut());
 
-        if self.is_patent_mode() {
-            PatentScreenWidget { patent: &self.patent }
-                .render(vertical[1], frame.buffer_mut());
-        } else {
-            self.render_general_main(frame, vertical[1]);
-        }
+        self.render_general_main(frame, vertical[1]);
 
         let content = self.input.content();
         InputBarWidget {
@@ -51,6 +47,7 @@ impl TuiApp {
                 .as_ref()
                 .map(|s| s.matches.len())
                 .unwrap_or(0),
+            slash_completion: self.slash_completion.as_ref(),
         }
         .render(vertical[2], frame.buffer_mut());
 
@@ -87,8 +84,7 @@ impl TuiApp {
         .render(horizontal[0], frame.buffer_mut());
 
         if show_panel {
-            ToolPanelWidget { tools: &self.tools }
-                .render(horizontal[1], frame.buffer_mut());
+            ToolPanelWidget { tools: &self.tools }.render(horizontal[1], frame.buffer_mut());
         }
     }
 
@@ -103,7 +99,7 @@ impl TuiApp {
             Clear.render(popup, frame.buffer_mut());
             Paragraph::new(Line::from(Span::styled(
                 "工具需要授权执行，按 y 允许 / n 拒绝",
-                Style::default().fg(Color::Indexed(183)),
+                Style::default().fg(Color::Indexed(user_role_color())),
             )))
             .render(popup, frame.buffer_mut());
             return;
@@ -114,7 +110,7 @@ impl TuiApp {
             Clear.render(popup, frame.buffer_mut());
             Paragraph::new(Line::from(Span::styled(
                 "工作流挂起，按 y 继续 / n 稍后",
-                Style::default().fg(Color::Indexed(183)),
+                Style::default().fg(Color::Indexed(user_role_color())),
             )))
             .render(popup, frame.buffer_mut());
             return;
@@ -125,7 +121,7 @@ impl TuiApp {
             Clear.render(popup, frame.buffer_mut());
             Paragraph::new(Line::from(Span::styled(
                 "引导模式：在底栏编辑指引内容后按 Enter 发送",
-                Style::default().fg(Color::Indexed(214)),
+                Style::default().fg(Color::Indexed(highlight())),
             )))
             .render(popup, frame.buffer_mut());
         }
@@ -139,7 +135,18 @@ impl TuiApp {
             .iter()
             .skip(pager.scroll_offset())
             .take(end.saturating_sub(pager.scroll_offset()))
-            .map(|l: &String| Line::from(Span::styled(l.as_str(), Style::default().fg(Color::Indexed(252)))))
+            .map(|l: &String| {
+                Line::from(Span::styled(
+                    l.as_str(),
+                    Style::default().fg(Color::Indexed(
+                        if crate::tui::ui_palette::terminal_light_background() {
+                            235
+                        } else {
+                            252
+                        },
+                    )),
+                ))
+            })
             .collect();
 
         let popup_width = (area.width * 3 / 4).min(100);
@@ -147,8 +154,7 @@ impl TuiApp {
         let popup = centered_rect(popup_width, popup_height, area);
 
         Clear.render(popup, frame.buffer_mut());
-        Paragraph::new(Text::from(visible))
-            .render(popup, frame.buffer_mut());
+        Paragraph::new(Text::from(visible)).render(popup, frame.buffer_mut());
     }
 }
 

@@ -1,0 +1,23 @@
+<module id="quality_gate">
+  <thresholds>
+    <scene id="oa_response" name="审查意见答复">
+      <metric dimension="completeness" min="80" weight="0.25">完整性：答复覆盖所有审查意见要点</metric>
+      <metric dimension="persuasion" min="75" weight="0.30">说服力：论点有法条和证据支撑</metric>
+      <metric dimension="technical_depth" min="70" weight="0.25">技术深度：技术特征对比充分</metric>
+      <metric dimension="logic_consistency" min="75" weight="0.20">逻辑一致性：论点之间无矛盾</metric>
+    </scene>
+    <scene id="patent_drafting" name="专利撰写">
+      <metric dimension="overall_quality" min="70" weight="1.0">综合质量：QualityScorer 评分</metric>
+    </scene>
+    <scene id="innovation_eval" name="创新度评估">
+      <metric dimension="novelty" min="60" weight="0.30">新颖性：相对现有技术的新技术特征</metric>
+      <metric dimension="inventiveness" min="60" weight="0.30">创造性：非显而易见性</metric>
+    </scene>
+  </thresholds>
+
+  <actions>
+    <level n="1" condition="all dimensions pass">通过 — 输出可交付</level>
+    <level n="2" condition="1-2 dimensions fail by &lt;15 pts">自动改进 — 调用反思循环，针对性修改后重新评估（最多2轮）</level>
+    <level n="3" condition="any dimension fails by &gt;15 pts or 2轮改进后仍未达标">人工确认 — 输出当前结果并标注未达标项，请求用户决策</level>
+  </actions>
+</module>

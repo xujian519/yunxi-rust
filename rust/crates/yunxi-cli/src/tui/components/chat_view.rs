@@ -224,6 +224,18 @@ impl ChatView {
     pub(crate) fn entries(&self) -> &[ChatEntry] {
         &self.entries
     }
+
+    /// 导出对话纯文本（去 ANSI），供剪贴板使用。
+    pub(crate) fn export_plain_conversation(&self) -> String {
+        use crate::tui::clipboard::strip_ansi;
+
+        self.entries
+            .iter()
+            .filter(|entry| !entry.text.is_empty())
+            .map(|entry| format!("{}: {}", entry.role.label(), strip_ansi(&entry.text)))
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    }
 }
 
 /// 简易文本折行。

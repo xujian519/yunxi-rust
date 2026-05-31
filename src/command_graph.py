@@ -28,7 +28,16 @@ class CommandGraph:
 
 def build_command_graph() -> CommandGraph:
     commands = get_commands()
-    builtins = tuple(module for module in commands if 'plugin' not in module.source_hint.lower() and 'skills' not in module.source_hint.lower())
-    plugin_like = tuple(module for module in commands if 'plugin' in module.source_hint.lower())
-    skill_like = tuple(module for module in commands if 'skills' in module.source_hint.lower())
+    builtins = tuple(
+        module
+        for module in commands
+        if "plugin" not in module.source_hint.lower()
+        and "skills" not in module.source_hint.lower()
+    )
+    plugin_like = tuple(
+        module for module in commands if "plugin" in module.source_hint.lower()
+    )
+    skill_like = tuple(
+        module for module in commands if "skills" in module.source_hint.lower()
+    )
     return CommandGraph(builtins=builtins, plugin_like=plugin_like, skill_like=skill_like)

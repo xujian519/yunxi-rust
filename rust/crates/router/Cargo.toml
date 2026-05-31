@@ -1,0 +1,16 @@
+[package]
+name = "router"
+description = "云熙智能体 - 专业领域路由引擎 (YunXi Router)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+embedding = { path = "../embedding" }
+intent = { path = "../intent" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lints]
+workspace = true

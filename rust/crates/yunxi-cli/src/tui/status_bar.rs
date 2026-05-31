@@ -11,6 +11,7 @@ use crossterm::terminal::{Clear, ClearType};
 #[derive(Debug, Clone)]
 pub(crate) struct StatusBarSnapshot {
     pub model: String,
+    pub auto_decision: Option<String>,
     pub permission_mode: String,
     pub session_id: String,
     pub cumulative_input_tokens: u64,
@@ -18,12 +19,21 @@ pub(crate) struct StatusBarSnapshot {
     pub estimated_cost_usd: f64,
     pub git_branch: Option<String>,
     pub thinking: bool,
+    pub turn_elapsed_secs: Option<f64>,
+    pub active_tool: Option<String>,
+    pub turn_output_tokens: u32,
+    pub turn_output_max: u32,
+    pub route_hint: Option<String>,
+    pub semantic_on: bool,
+    pub patent_case_hint: Option<String>,
+    pub flow_hitl_hint: Option<String>,
 }
 
 impl Default for StatusBarSnapshot {
     fn default() -> Self {
         Self {
             model: String::new(),
+            auto_decision: None,
             permission_mode: String::new(),
             session_id: String::new(),
             cumulative_input_tokens: 0,
@@ -31,6 +41,14 @@ impl Default for StatusBarSnapshot {
             estimated_cost_usd: 0.0,
             git_branch: None,
             thinking: false,
+            turn_elapsed_secs: None,
+            active_tool: None,
+            turn_output_tokens: 0,
+            turn_output_max: 0,
+            route_hint: None,
+            semantic_on: false,
+            patent_case_hint: None,
+            flow_hitl_hint: None,
         }
     }
 }
@@ -44,6 +62,13 @@ impl StatusBar {
     pub(crate) fn new() -> Self {
         let terminal_width = crossterm::terminal::size().map_or(80, |(w, _)| w);
         Self { terminal_width }
+    }
+
+    #[must_use]
+    pub(crate) fn with_width(width: u16) -> Self {
+        Self {
+            terminal_width: width.max(20),
+        }
     }
 
     /// 刷新终端宽度（窗口大小可能变化）。
@@ -101,23 +126,26 @@ impl StatusBar {
     fn build_segments(&self, snapshot: &StatusBarSnapshot) -> Vec<StatusBarSegment> {
         let mut segments = Vec::new();
 
+        let neutral = Color::Reset;
+
         // 模型
         if !snapshot.model.is_empty() {
+            let display = snapshot.auto_decision.as_deref().unwrap_or(&snapshot.model);
             segments.push(StatusBarSegment {
                 text: if snapshot.thinking {
-                    format!("⏳ {}", snapshot.model)
+                    format!("⏳ {}", display)
                 } else {
-                    snapshot.model.clone()
+                    display.to_string()
                 },
-                color: Color::Cyan,
+                color: neutral,
             });
         }
 
-        // 权限
+        // 权限（仅 danger-full-access 保留警示色）
         if !snapshot.permission_mode.is_empty() {
             segments.push(StatusBarSegment {
                 text: snapshot.permission_mode.clone(),
-                color: Color::Yellow,
+                color: permission_mode_color(&snapshot.permission_mode),
             });
         }
 
@@ -130,7 +158,7 @@ impl StatusBar {
             };
             segments.push(StatusBarSegment {
                 text: id_preview.to_string(),
-                color: Color::DarkGrey,
+                color: neutral,
             });
         }
 
@@ -142,7 +170,7 @@ impl StatusBar {
                     format_tokens(snapshot.cumulative_input_tokens),
                     format_tokens(snapshot.cumulative_output_tokens)
                 ),
-                color: Color::Green,
+                color: neutral,
             });
         }
 
@@ -150,15 +178,50 @@ impl StatusBar {
         if snapshot.estimated_cost_usd > 0.0 {
             segments.push(StatusBarSegment {
                 text: format!("${:.2}", snapshot.estimated_cost_usd),
-                color: Color::Magenta,
+                color: neutral,
             });
         }
 
         // Git 分支
         if let Some(branch) = &snapshot.git_branch {
             segments.push(StatusBarSegment {
-                text: format!("\u{1f33f} {branch}"),
-                color: Color::DarkCyan,
+                text: branch.clone(),
+                color: neutral,
+            });
+        }
+
+        if let Some(hint) = &snapshot.route_hint {
+            segments.push(StatusBarSegment {
+                text: hint.clone(),
+                color: neutral,
+            });
+        }
+
+        if snapshot.semantic_on {
+            segments.push(StatusBarSegment {
+                text: "semantic".to_string(),
+                color: neutral,
+            });
+        }
+
+        if let Some(hint) = &snapshot.patent_case_hint {
+            segments.push(StatusBarSegment {
+                text: hint.clone(),
+                color: neutral,
+            });
+        }
+
+        if let Some(hint) = &snapshot.flow_hitl_hint {
+            segments.push(StatusBarSegment {
+                text: hint.clone(),
+                color: neutral,
+            });
+        }
+
+        if let Some(tool) = &snapshot.active_tool {
+            segments.push(StatusBarSegment {
+                text: format!("tool:{tool}"),
+                color: neutral,
             });
         }
 
@@ -182,6 +245,15 @@ impl StatusBarSegment {
             }
         }
         w
+    }
+}
+
+/// 权限模式对应的状态栏颜色（仅危险模式着色）。
+fn permission_mode_color(mode: &str) -> Color {
+    if mode == "danger-full-access" {
+        Color::Red
+    } else {
+        Color::Reset
     }
 }
 
@@ -243,6 +315,7 @@ mod tests {
             estimated_cost_usd: 0.42,
             git_branch: Some("main".to_string()),
             thinking: false,
+            ..StatusBarSnapshot::default()
         };
         let rendered = bar.render(&snapshot);
         assert!(rendered.contains("claude-opus-4-6"));
@@ -266,6 +339,7 @@ mod tests {
             estimated_cost_usd: 0.0,
             git_branch: Some("feature/very-long-branch-name".to_string()),
             thinking: false,
+            ..StatusBarSnapshot::default()
         };
         let rendered = bar.render(&snapshot);
         assert!(!rendered.contains("very-long-branch"));
@@ -294,6 +368,59 @@ mod tests {
         assert_eq!(format_tokens(1_000), "1.0k");
         assert_eq!(format_tokens(12_500), "12.5k");
         assert_eq!(format_tokens(1_500_000), "1.5m");
+    }
+
+    #[test]
+    fn danger_full_access_renders_red() {
+        let bar = StatusBar {
+            terminal_width: 200,
+        };
+        let snapshot = StatusBarSnapshot {
+            model: "deepseek-v4-pro".to_string(),
+            permission_mode: "danger-full-access".to_string(),
+            ..StatusBarSnapshot::default()
+        };
+        let rendered = bar.render(&snapshot);
+        assert!(rendered.contains("\x1b[91m"));
+        assert!(rendered.contains("danger-full-access"));
+    }
+
+    #[test]
+    fn non_warning_segments_use_neutral_color() {
+        let bar = StatusBar {
+            terminal_width: 200,
+        };
+        let snapshot = StatusBarSnapshot {
+            model: "deepseek-v4-pro".to_string(),
+            permission_mode: "read-only".to_string(),
+            semantic_on: true,
+            ..StatusBarSnapshot::default()
+        };
+        let rendered = bar.render(&snapshot);
+        assert!(!rendered.contains("\x1b[96m"), "model should not be cyan");
+        assert!(
+            !rendered.contains("\x1b[92m"),
+            "semantic should not be green"
+        );
+        assert!(
+            !rendered.contains("\x1b[91m"),
+            "read-only should not be red"
+        );
+    }
+
+    #[test]
+    fn git_branch_renders_without_leaf_emoji() {
+        let bar = StatusBar {
+            terminal_width: 200,
+        };
+        let snapshot = StatusBarSnapshot {
+            model: "m".to_string(),
+            git_branch: Some("main".to_string()),
+            ..StatusBarSnapshot::default()
+        };
+        let rendered = bar.render(&snapshot);
+        assert!(rendered.contains("main"));
+        assert!(!rendered.contains('\u{1f33f}'));
     }
 
     #[test]

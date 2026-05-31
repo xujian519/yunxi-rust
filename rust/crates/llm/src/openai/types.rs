@@ -31,6 +31,8 @@ pub struct ChatMessage {
     pub tool_calls: Option<Vec<OpenAIToolCall>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 impl ChatMessage {
@@ -40,6 +42,7 @@ impl ChatMessage {
             content: Some(Value::String(text.into())),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 
@@ -49,6 +52,7 @@ impl ChatMessage {
             content: Some(Value::String(text.into())),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 
@@ -58,10 +62,15 @@ impl ChatMessage {
             content: Some(Value::String(text.into())),
             tool_calls: None,
             tool_call_id: None,
+            reasoning_content: None,
         }
     }
 
-    pub fn assistant_with_tools(text: Option<String>, tool_calls: Vec<OpenAIToolCall>) -> Self {
+    pub fn assistant_with_tools(
+        text: Option<String>,
+        tool_calls: Vec<OpenAIToolCall>,
+        reasoning_content: Option<String>,
+    ) -> Self {
         Self {
             role: "assistant".to_string(),
             content: text.map(Value::String),
@@ -71,6 +80,7 @@ impl ChatMessage {
                 Some(tool_calls)
             },
             tool_call_id: None,
+            reasoning_content,
         }
     }
 
@@ -80,6 +90,7 @@ impl ChatMessage {
             content: Some(Value::String(content.into())),
             tool_calls: None,
             tool_call_id: Some(tool_call_id.into()),
+            reasoning_content: None,
         }
     }
 }
@@ -146,6 +157,8 @@ pub struct ChunkDelta {
     pub role: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<DeltaToolCall>>,
 }

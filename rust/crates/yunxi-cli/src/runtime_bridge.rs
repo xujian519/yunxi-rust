@@ -16,9 +16,9 @@ use tools::{execute_tool, mvp_tool_specs, ToolSpec};
 use crate::format_tool::format_tool_result;
 use crate::DEFAULT_DATE;
 
-pub(crate) fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(runtime::load_system_prompt(
-        env::current_dir()?,
+        crate::session_mgr::workspace_root()?,
         DEFAULT_DATE,
         env::consts::OS,
         "unknown",
@@ -27,8 +27,8 @@ pub(crate) fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::E
 
 pub(crate) fn build_runtime_feature_config(
 ) -> Result<runtime::RuntimeFeatureConfig, Box<dyn std::error::Error>> {
-    let cwd = env::current_dir()?;
-    Ok(runtime::ConfigLoader::default_for(cwd)
+    let root = crate::session_mgr::workspace_root()?;
+    Ok(runtime::ConfigLoader::default_for(root)
         .load()?
         .feature_config()
         .clone())
@@ -36,7 +36,7 @@ pub(crate) fn build_runtime_feature_config(
 
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::needless_pass_by_value)]
-pub(crate) fn build_runtime(
+pub fn build_runtime(
     session: Session,
     model: String,
     system_prompt: Vec<String>,
@@ -169,7 +169,7 @@ pub(crate) fn response_to_events(
     Ok(events)
 }
 
-pub(crate) struct CliToolExecutor {
+pub struct CliToolExecutor {
     renderer: TerminalRenderer,
     emit_output: bool,
     allowed_tools: Option<AllowedToolSet>,
@@ -249,6 +249,9 @@ pub(crate) fn convert_messages(messages: &[ConversationMessage]) -> Vec<InputMes
                 .iter()
                 .map(|block| match block {
                     ContentBlock::Text { text } => InputContentBlock::Text { text: text.clone() },
+                    ContentBlock::Reasoning { .. } => InputContentBlock::Text {
+                        text: String::new(),
+                    },
                     ContentBlock::ToolUse { id, name, input } => InputContentBlock::ToolUse {
                         id: id.clone(),
                         name: name.clone(),

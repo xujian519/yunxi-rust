@@ -3,6 +3,7 @@ mod bootstrap;
 mod compact;
 mod config;
 mod conversation;
+mod env_compat;
 mod file_ops;
 mod hooks;
 mod json;
@@ -34,6 +35,7 @@ pub use conversation::{
     auto_compaction_threshold_from_env, ApiClient, ApiRequest, AssistantEvent, AutoCompactionEvent,
     ConversationRuntime, RuntimeError, StaticToolExecutor, ToolError, ToolExecutor, TurnSummary,
 };
+pub use env_compat::env_var;
 pub use file_ops::{
     edit_file, glob_search, grep_search, read_file, write_file, EditFileOutput, GlobSearchOutput,
     GrepSearchInput, GrepSearchOutput, ReadFileOutput, StructuredPatchHunk, TextFilePayload,

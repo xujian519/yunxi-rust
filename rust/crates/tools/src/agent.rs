@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use api::{
-    read_base_url, ContentBlockDelta, InputContentBlock, InputMessage, MessageRequest,
-    MessageResponse, MessagesClient, OutputContentBlock, StreamEvent as ApiStreamEvent, ToolChoice,
-    ToolDefinition, ToolResultContentBlock,
+    AnthropicClient, ContentBlockDelta, InputContentBlock, InputMessage, MessageRequest,
+    MessageResponse, OutputContentBlock, StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition,
+    ToolResultContentBlock,
 };
 use runtime::{
     load_system_prompt, ApiClient, ApiRequest, AssistantEvent, ContentBlock, ConversationMessage,
@@ -365,8 +365,8 @@ fn build_agent_system_prompt(subagent_type: &str) -> Result<Vec<String>, String>
         // 如果 XML 角色定义中包含 <include> 标签，尝试展开
         let cargo_manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let skills_dir = cargo_manifest.join("../../../assets/skills");
-        let resolved = crate::skill::resolve_includes(&role_prompt, &skills_dir)
-            .unwrap_or(role_prompt);
+        let resolved =
+            crate::skill::resolve_includes(&role_prompt, &skills_dir).unwrap_or(role_prompt);
         prompt.push(resolved);
     } else {
         prompt.push(format!(
@@ -419,23 +419,31 @@ fn format_agent_terminal_output(status: &str, result: Option<&str>, error: Optio
 // --- Runtime client ---
 
 struct MessagesRuntimeClient {
-    runtime: tokio::runtime::Runtime,
-    client: MessagesClient,
+    client: AnthropicClient,
     model: String,
     allowed_tools: BTreeSet<String>,
 }
 
 impl MessagesRuntimeClient {
     fn new(model: String, allowed_tools: BTreeSet<String>) -> Result<Self, String> {
-        let client = MessagesClient::from_env()
-            .map_err(|error| error.to_string())?
-            .with_base_url(read_base_url());
+        let client = AnthropicClient::from_env().map_err(|error| error.to_string())?;
         Ok(Self {
-            runtime: tokio::runtime::Runtime::new().map_err(|error| error.to_string())?,
             client,
             model,
             allowed_tools,
         })
+    }
+
+    fn block_on<F, T>(&self, future: F) -> T
+    where
+        F: std::future::Future<Output = T>,
+    {
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            tokio::task::block_in_place(|| handle.block_on(future))
+        } else {
+            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+            rt.block_on(future)
+        }
     }
 }
 
@@ -443,7 +451,7 @@ impl ApiClient for MessagesRuntimeClient {
     fn stream(
         &mut self,
         request: ApiRequest,
-        _observer: &mut Option<&mut dyn runtime::TurnObserver>,
+        mut on_event: Option<&mut dyn FnMut(AssistantEvent)>,
     ) -> Result<Vec<AssistantEvent>, RuntimeError> {
         let tools = tool_specs_for_allowed_tools(Some(&self.allowed_tools))
             .into_iter()
@@ -463,7 +471,7 @@ impl ApiClient for MessagesRuntimeClient {
             stream: true,
         };
 
-        self.runtime.block_on(async {
+        self.block_on(async {
             let mut stream = self
                 .client
                 .stream_message(&message_request)
@@ -495,7 +503,11 @@ impl ApiClient for MessagesRuntimeClient {
                     ApiStreamEvent::ContentBlockDelta(delta) => match delta.delta {
                         ContentBlockDelta::TextDelta { text } => {
                             if !text.is_empty() {
-                                events.push(AssistantEvent::TextDelta(text));
+                                let event = AssistantEvent::TextDelta(text);
+                                if let Some(cb) = on_event.as_deref_mut() {
+                                    cb(event.clone());
+                                }
+                                events.push(event);
                             }
                         }
                         ContentBlockDelta::InputJsonDelta { partial_json } => {
@@ -506,20 +518,32 @@ impl ApiClient for MessagesRuntimeClient {
                     },
                     ApiStreamEvent::ContentBlockStop(_) => {
                         if let Some((id, name, input)) = pending_tool.take() {
-                            events.push(AssistantEvent::ToolUse { id, name, input });
+                            let event = AssistantEvent::ToolUse { id, name, input };
+                            if let Some(cb) = on_event.as_deref_mut() {
+                                cb(event.clone());
+                            }
+                            events.push(event);
                         }
                     }
                     ApiStreamEvent::MessageDelta(delta) => {
-                        events.push(AssistantEvent::Usage(TokenUsage {
+                        let event = AssistantEvent::Usage(TokenUsage {
                             input_tokens: delta.usage.input_tokens,
                             output_tokens: delta.usage.output_tokens,
                             cache_creation_input_tokens: 0,
                             cache_read_input_tokens: 0,
-                        }));
+                        });
+                        if let Some(cb) = on_event.as_deref_mut() {
+                            cb(event.clone());
+                        }
+                        events.push(event);
                     }
                     ApiStreamEvent::MessageStop(_) => {
                         saw_stop = true;
-                        events.push(AssistantEvent::MessageStop);
+                        let event = AssistantEvent::MessageStop;
+                        if let Some(cb) = on_event.as_deref_mut() {
+                            cb(event.clone());
+                        }
+                        events.push(event);
                     }
                 }
             }
@@ -530,7 +554,11 @@ impl ApiClient for MessagesRuntimeClient {
                         || matches!(event, AssistantEvent::ToolUse { .. })
                 })
             {
-                events.push(AssistantEvent::MessageStop);
+                let event = AssistantEvent::MessageStop;
+                if let Some(cb) = on_event.as_deref_mut() {
+                    cb(event.clone());
+                }
+                events.push(event);
             }
 
             if events
@@ -594,6 +622,9 @@ fn convert_messages(messages: &[ConversationMessage]) -> Vec<InputMessage> {
                 .iter()
                 .map(|block| match block {
                     ContentBlock::Text { text } => InputContentBlock::Text { text: text.clone() },
+                    ContentBlock::Reasoning { .. } => InputContentBlock::Text {
+                        text: String::new(),
+                    },
                     ContentBlock::ToolUse { id, name, input } => InputContentBlock::ToolUse {
                         id: id.clone(),
                         name: name.clone(),

@@ -188,9 +188,15 @@ impl AgentRole {
             "analyzer" => Some(Self::Analyzer),
             "writer" => Some(Self::Writer),
             "novelty" | "novelty_checker" | "noveltychecker" => Some(Self::NoveltyChecker),
-            "creativity" | "creativity_checker" | "creativitychecker" => Some(Self::CreativityChecker),
-            "infringement" | "infringement_checker" | "infringementchecker" => Some(Self::InfringementChecker),
-            "invalidity" | "invalidity_checker" | "invaliditychecker" => Some(Self::InvalidityChecker),
+            "creativity" | "creativity_checker" | "creativitychecker" => {
+                Some(Self::CreativityChecker)
+            }
+            "infringement" | "infringement_checker" | "infringementchecker" => {
+                Some(Self::InfringementChecker)
+            }
+            "invalidity" | "invalidity_checker" | "invaliditychecker" => {
+                Some(Self::InvalidityChecker)
+            }
             "reviewer" => Some(Self::Reviewer),
             "quality" | "quality_checker" | "qualitychecker" => Some(Self::QualityChecker),
             _ => None,

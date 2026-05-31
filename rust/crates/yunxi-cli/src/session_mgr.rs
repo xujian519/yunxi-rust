@@ -6,27 +6,32 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use runtime::Session;
 
 #[derive(Debug, Clone)]
-pub(crate) struct SessionHandle {
-    pub(crate) id: String,
-    pub(crate) path: PathBuf,
+pub struct SessionHandle {
+    pub id: String,
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ManagedSessionSummary {
-    pub(crate) id: String,
-    pub(crate) path: PathBuf,
-    pub(crate) modified_epoch_secs: u64,
-    pub(crate) message_count: usize,
+pub struct ManagedSessionSummary {
+    pub id: String,
+    pub path: PathBuf,
+    pub modified_epoch_secs: u64,
+    pub message_count: usize,
+}
+
+pub fn workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
+    Ok(runtime::ConfigLoader::resolve_project_cwd(
+        env::current_dir()?,
+    ))
 }
 
 pub(crate) fn sessions_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let cwd = env::current_dir()?;
-    let path = cwd.join(".claude").join("sessions");
+    let path = workspace_root()?.join(".yunxi").join("sessions");
     fs::create_dir_all(&path)?;
     Ok(path)
 }
 
-pub(crate) fn create_managed_session_handle() -> Result<SessionHandle, Box<dyn std::error::Error>> {
+pub fn create_managed_session_handle() -> Result<SessionHandle, Box<dyn std::error::Error>> {
     let id = generate_session_id();
     let path = sessions_dir()?.join(format!("{id}.json"));
     Ok(SessionHandle { id, path })
@@ -40,7 +45,7 @@ pub(crate) fn generate_session_id() -> String {
     format!("session-{millis}")
 }
 
-pub(crate) fn resolve_session_reference(
+pub fn resolve_session_reference(
     reference: &str,
 ) -> Result<SessionHandle, Box<dyn std::error::Error>> {
     let direct = PathBuf::from(reference);
@@ -60,8 +65,7 @@ pub(crate) fn resolve_session_reference(
     Ok(SessionHandle { id, path })
 }
 
-pub(crate) fn list_managed_sessions(
-) -> Result<Vec<ManagedSessionSummary>, Box<dyn std::error::Error>> {
+pub fn list_managed_sessions() -> Result<Vec<ManagedSessionSummary>, Box<dyn std::error::Error>> {
     let mut sessions = Vec::new();
     for entry in fs::read_dir(sessions_dir()?)? {
         let entry = entry?;

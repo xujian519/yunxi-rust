@@ -5,6 +5,9 @@ use ratatui::widgets::{Paragraph, Widget};
 
 use crate::tui::components::chat_view::{ChatRole, ChatView};
 use crate::tui::markdown;
+use crate::tui::ui_palette::{
+    assistant_role_color, content_color, highlight, system_role_color, user_role_color,
+};
 
 pub(crate) struct ChatViewWidget<'a> {
     pub(crate) chat: &'a ChatView,
@@ -17,34 +20,35 @@ impl Widget for ChatViewWidget<'_> {
         let mut lines: Vec<Line> = Vec::new();
 
         for entry in self.chat.entries() {
+            if entry.text.is_empty() && matches!(entry.role, ChatRole::Assistant) {
+                continue;
+            }
             let role_label = match entry.role {
                 ChatRole::User => Span::styled(
                     "你",
                     Style::default()
-                        .fg(Color::Indexed(214))
+                        .fg(Color::Indexed(highlight()))
                         .add_modifier(Modifier::BOLD),
                 ),
                 ChatRole::Assistant => Span::styled(
                     "云熙",
                     Style::default()
-                        .fg(Color::Indexed(183))
+                        .fg(Color::Indexed(user_role_color()))
                         .add_modifier(Modifier::BOLD),
                 ),
                 ChatRole::System => Span::styled(
                     "系统",
-                    Style::default().fg(Color::Indexed(245)),
+                    Style::default().fg(Color::Indexed(system_role_color())),
                 ),
             };
 
             let colon = Span::styled(": ", Style::default());
 
             let body = match entry.role {
-                ChatRole::Assistant | ChatRole::System => {
-                    markdown::markdown_to_text(&entry.text)
-                }
+                ChatRole::Assistant | ChatRole::System => markdown::markdown_to_text(&entry.text),
                 ChatRole::User => Text::from(Line::from(Span::styled(
                     entry.text.clone(),
-                    Style::default().fg(Color::Indexed(252)),
+                    Style::default().fg(Color::Indexed(content_color())),
                 ))),
             };
 
@@ -70,7 +74,7 @@ impl Widget for ChatViewWidget<'_> {
             lines.push(Line::from(Span::styled(
                 format!("{spinner_char} 思考中..."),
                 Style::default()
-                    .fg(Color::Indexed(183))
+                    .fg(Color::Indexed(assistant_role_color()))
                     .add_modifier(Modifier::ITALIC),
             )));
         }

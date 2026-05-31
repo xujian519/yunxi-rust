@@ -34,7 +34,7 @@ class UsageSummary:
     input_tokens: int = 0
     output_tokens: int = 0
 
-    def add_turn(self, prompt: str, output: str) -> 'UsageSummary':
+    def add_turn(self, prompt: str, output: str) -> UsageSummary:
         """Return a new summary with token estimates added for the given turn."""
         return UsageSummary(
             input_tokens=self.input_tokens + len(prompt.split()),

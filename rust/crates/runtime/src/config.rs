@@ -251,15 +251,49 @@ impl ConfigLoader {
     /// - `cwd`: 当前工作目录
     ///
     /// # 说明
-    /// 配置主目录由环境变量 `CLAUDE_CONFIG_HOME` 或 `HOME/.claude` 决定
+    /// 配置主目录由 `YUNXI_CONFIG_HOME`、`CLAUDE_CONFIG_HOME` 或 `HOME/.yunxi` 决定
     #[must_use]
     pub fn default_for(cwd: impl Into<PathBuf>) -> Self {
-        let cwd = cwd.into();
-        let config_home = std::env::var_os("CLAUDE_CONFIG_HOME")
+        let cwd = Self::resolve_project_cwd(cwd.into());
+        let config_home = std::env::var_os("YUNXI_CONFIG_HOME")
+            .or_else(|| std::env::var_os("CLAUDE_CONFIG_HOME"))
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".claude")))
-            .unwrap_or_else(|| PathBuf::from(".claude"));
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".yunxi")))
+            .unwrap_or_else(|| PathBuf::from(".yunxi"));
         Self { cwd, config_home }
+    }
+
+    /// 解析项目配置根目录：优先 `YUNXI_WORKSPACE`，否则自 cwd 向上查找 `.yunxi/`。
+    #[must_use]
+    pub fn resolve_project_cwd(start: PathBuf) -> PathBuf {
+        if let Ok(ws) = std::env::var("YUNXI_WORKSPACE") {
+            let path = PathBuf::from(ws);
+            if path.is_dir() {
+                return path;
+            }
+        }
+
+        let mut current = start.clone();
+        loop {
+            let yunxi_dir = current.join(".yunxi");
+            if yunxi_dir.join("settings.json").is_file()
+                || yunxi_dir.join("settings.local.json").is_file()
+                || current.join(".yunxi.json").is_file()
+            {
+                return current;
+            }
+            let claude_dir = current.join(".claude");
+            if claude_dir.join("settings.json").is_file()
+                || claude_dir.join("settings.local.json").is_file()
+                || current.join(".claude.json").is_file()
+            {
+                return current;
+            }
+            if !current.pop() {
+                break;
+            }
+        }
+        start
     }
 
     /// 发现所有配置文件路径
@@ -282,6 +316,10 @@ impl ConfigLoader {
                 path: self.config_home.join("settings.json"),
             },
             ConfigEntry {
+                source: ConfigSource::User,
+                path: self.config_home.join("settings.local.json"),
+            },
+            ConfigEntry {
                 source: ConfigSource::Project,
                 path: self.cwd.join(".claude.json"),
             },
@@ -292,6 +330,18 @@ impl ConfigLoader {
             ConfigEntry {
                 source: ConfigSource::Local,
                 path: self.cwd.join(".claude").join("settings.local.json"),
+            },
+            ConfigEntry {
+                source: ConfigSource::Project,
+                path: self.cwd.join(".yunxi.json"),
+            },
+            ConfigEntry {
+                source: ConfigSource::Project,
+                path: self.cwd.join(".yunxi").join("settings.json"),
+            },
+            ConfigEntry {
+                source: ConfigSource::Local,
+                path: self.cwd.join(".yunxi").join("settings.local.json"),
             },
         ]
     }

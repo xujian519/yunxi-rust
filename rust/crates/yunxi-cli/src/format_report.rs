@@ -2,7 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use crate::init::initialize_repo;
-use commands::render_slash_command_help;
+use commands::render_full_slash_help;
 use runtime::{ConfigLoader, ContentBlock, MessageRole, ProjectContext, Session, TokenUsage};
 
 use crate::session_mgr::{list_managed_sessions, sessions_dir};
@@ -36,15 +36,27 @@ pub(crate) struct StatusUsage {
 }
 
 pub(crate) fn format_model_report(model: &str, message_count: usize, turns: u32) -> String {
+    let model_lines: String = crate::slash_complete_shared::MODEL_CANDIDATES
+        .iter()
+        .map(|m| {
+            let marker = if *m == model { " ◀ current" } else { "" };
+            format!("   {:<20}{}", m, marker)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
     format!(
         "Model
-  Current model    {model}
-  Session messages {message_count}
-  Session turns    {turns}
+  Current           {model}
+  Session messages  {message_count}
+  Session turns     {turns}
+
+Available models
+{model_lines}
 
 Usage
-  Inspect current model with /model
-  Switch models with /model <name>"
+  Switch models with /model <name>
+  Use 'auto' for per-turn flash/pro routing"
     )
 }
 
@@ -238,7 +250,7 @@ pub(crate) fn render_repl_help() -> String {
         "  Ctrl-C               清空输入（空行时退出）".to_string(),
         "  Shift+Enter/Ctrl+J   插入新行".to_string(),
         String::new(),
-        render_slash_command_help(),
+        render_full_slash_help(),
     ]
     .join(
         "
@@ -621,6 +633,7 @@ pub(crate) fn render_export_text(session: &Session) -> String {
         for block in &message.blocks {
             match block {
                 ContentBlock::Text { text } => lines.push(text.clone()),
+                ContentBlock::Reasoning { .. } => {}
                 ContentBlock::ToolUse { id, name, input } => {
                     lines.push(format!("[tool_use id={id} name={name}] {input}"));
                 }
@@ -702,4 +715,127 @@ pub(crate) fn truncate_for_prompt(value: &str, limit: usize) -> String {
         let truncated = value.chars().take(limit).collect::<String>();
         format!("{}\n…[truncated]", truncated.trim_end())
     }
+}
+
+pub(crate) fn recent_user_context(session: &Session, limit: usize) -> String {
+    use runtime::{ContentBlock, MessageRole};
+    let requests = session
+        .messages
+        .iter()
+        .filter(|message| message.role == MessageRole::User)
+        .filter_map(|message| {
+            message.blocks.iter().find_map(|block| match block {
+                ContentBlock::Text { text } => Some(text.trim().to_string()),
+                _ => None,
+            })
+        })
+        .rev()
+        .take(limit)
+        .collect::<Vec<_>>();
+
+    if requests.is_empty() {
+        "<no prior user messages>".to_string()
+    } else {
+        requests
+            .into_iter()
+            .rev()
+            .enumerate()
+            .map(|(index, text)| format!("{}. {}", index + 1, text))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+pub(crate) fn init_yunxi_md() -> Result<String, Box<dyn std::error::Error>> {
+    init_claude_md()
+}
+
+pub(crate) fn render_conversation_search(session: &Session, query: &str) -> String {
+    use runtime::{ContentBlock, MessageRole};
+    let needle = query.to_ascii_lowercase();
+    let mut hits = Vec::new();
+    for (index, message) in session.messages.iter().enumerate() {
+        let role = match message.role {
+            MessageRole::User => "user",
+            MessageRole::Assistant => "assistant",
+            MessageRole::Tool => "tool",
+            MessageRole::System => "system",
+        };
+        for block in &message.blocks {
+            let text = match block {
+                ContentBlock::Text { text } => text.as_str(),
+                ContentBlock::ToolResult { output, .. } => output.as_str(),
+                _ => continue,
+            };
+            if text.to_ascii_lowercase().contains(&needle) {
+                let snippet = truncate_for_prompt(text, 240);
+                hits.push(format!("#{index} [{role}] {snippet}"));
+            }
+        }
+    }
+    if hits.is_empty() {
+        format!("Search\n  Query            {query}\n  Result           no matches")
+    } else {
+        format!(
+            "Search\n  Query            {query}\n  Matches          {}\n\n{}",
+            hits.len(),
+            hits.join("\n\n")
+        )
+    }
+}
+
+pub(crate) fn undo_last_interaction(
+    session: &mut Session,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let before = session.messages.len();
+    while let Some(last) = session.messages.last() {
+        use runtime::MessageRole;
+        if last.role == MessageRole::User {
+            session.messages.pop();
+            break;
+        }
+        session.messages.pop();
+    }
+    let removed = before.saturating_sub(session.messages.len());
+    Ok(format!(
+        "Undo\n  Result           removed {removed} message(s)\n  Messages         {}\n  Note             仅撤销对话记录，不恢复工作区文件（与 OpenCode /undo 不同）",
+        session.messages.len()
+    ))
+}
+
+/// `/connect`：API 与 OAuth 配置指引。
+pub(crate) fn render_connect_report() -> Result<String, Box<dyn std::error::Error>> {
+    let cwd = env::current_dir()?;
+    let config_home = std::env::var_os("YUNXI_CONFIG_HOME")
+        .or_else(|| std::env::var_os("CLAUDE_CONFIG_HOME"))
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".yunxi")))
+        .unwrap_or_else(|| PathBuf::from(".yunxi"));
+    let user_local = config_home.join("settings.local.json");
+    let project_local = cwd.join(".yunxi/settings.local.json");
+    let user_exists = user_local.is_file();
+    let project_exists = project_local.is_file();
+
+    Ok(format!(
+        "Connect — 配置 LLM 访问\n\n\
+         OAuth\n  终端执行: yunxi login\n  完成后凭证写入配置目录。\n\n\
+         API 密钥（语义 / 部分模型）\n  用户级: {user_local} {user_mark}\n  \
+         项目级: {project_local} {project_mark}\n  配置主目录: {config_home}\n\n\
+         初始化模板\n  yunxi config init           # ~/.yunxi/settings.local.json\n  \
+         yunxi config init --project  # 项目 .yunxi/settings.local.json\n\n\
+         检查: yunxi doctor",
+        user_local = user_local.display(),
+        user_mark = if user_exists {
+            "(已存在)"
+        } else {
+            "(未找到)"
+        },
+        project_local = project_local.display(),
+        project_mark = if project_exists {
+            "(已存在)"
+        } else {
+            "(未找到)"
+        },
+        config_home = config_home.display(),
+    ))
 }

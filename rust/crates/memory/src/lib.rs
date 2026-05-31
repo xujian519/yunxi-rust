@@ -1,0 +1,27 @@
+//! 云熙智能体 - 持久化记忆系统
+//!
+//! 基于文件的持久化记忆，支持 YAML frontmatter 格式，
+//! 按类型分类存储，支持关键词检索。
+//!
+//! 新增能力：
+//! - Hebbian 关联学习（hebbian.rs）
+//! - 四层记忆分级管理（tier.rs：HOT/WARM/COLD/ETERNAL）
+//! - 统一记忆门面（unified.rs：桥接文件+分层）
+
+pub mod frontmatter;
+pub mod hebbian;
+pub mod relevance;
+pub mod store;
+pub mod tier;
+pub mod types;
+pub mod unified;
+
+pub use hebbian::{
+    ConnectionState, HebbianOptimizer, NeuralConnection, OptimizationPath, PathSuggestion, PathType,
+};
+pub use store::MemoryStore;
+pub use tier::{
+    MemoryTier, TierMigrationReport, TieredMemoryEntry, TieredMemoryFilter, TieredMemoryStore,
+};
+pub use types::{MemoryEntry, MemoryType};
+pub use unified::UnifiedMemory;

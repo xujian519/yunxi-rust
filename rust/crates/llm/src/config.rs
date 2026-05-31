@@ -3,11 +3,21 @@ use std::path::PathBuf;
 
 use crate::error::LlmError;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct LlmConfig {
     pub providers: BTreeMap<String, ProviderConfig>,
     pub aliases: BTreeMap<String, String>,
     pub pricing: BTreeMap<String, PricingConfig>,
+}
+
+impl Default for LlmConfig {
+    fn default() -> Self {
+        Self {
+            providers: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            pricing: BTreeMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -143,7 +153,19 @@ impl LlmConfig {
     pub fn resolve_alias(&self, model: &str) -> String {
         self.aliases
             .get(model)
-            .map_or_else(|| model.to_string(), ToString::to_string)
+            .cloned()
+            .or_else(|| builtin_model_alias(model).map(str::to_string))
+            .unwrap_or_else(|| model.to_string())
+    }
+}
+
+/// 将产品模型名解析为 API 可用的 model id（无配置文件时亦生效）。
+#[must_use]
+pub fn builtin_model_alias(model: &str) -> Option<&'static str> {
+    match model {
+        "deepseek-v4-pro" => Some("deepseek-chat"),
+        "deepseek-v4-flash" => Some("deepseek-chat"),
+        _ => None,
     }
 }
 
@@ -156,6 +178,14 @@ mod tests {
         let config = LlmConfig::parse("").unwrap();
         assert!(config.providers.is_empty());
         assert!(config.aliases.is_empty());
+    }
+
+    #[test]
+    fn builtin_aliases_map_deepseek_v4() {
+        let config = LlmConfig::default();
+        assert_eq!(config.resolve_alias("deepseek-v4-pro"), "deepseek-chat");
+        assert_eq!(config.resolve_alias("deepseek-v4-flash"), "deepseek-chat");
+        assert_eq!(config.resolve_alias("unknown-model"), "unknown-model");
     }
 
     #[test]

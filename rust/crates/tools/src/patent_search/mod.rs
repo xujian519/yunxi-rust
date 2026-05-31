@@ -89,16 +89,16 @@ mod tests {
     }
 
     #[test]
-    fn test_patent_search_stub() {
+    fn test_patent_search_returns_status() {
         let input = PatentSearchInput {
             query: "深度学习".to_string(),
-            source: Some("google_patents".to_string()),
+            search_type: Some("keyword".to_string()),
             limit: Some(5),
             offset: Some(0),
         };
 
         let result = patent_search(input).unwrap();
-        assert_eq!(result["status"], "stub");
+        assert!(result["status"].is_string());
         assert_eq!(result["query"], "深度学习");
     }
 

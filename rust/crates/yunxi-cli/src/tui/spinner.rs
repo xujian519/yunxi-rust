@@ -2,9 +2,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 
 const SPINNER_BRAILLE: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-const SPINNER_DOTS: [&str; 10] = [
-    "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷", "⠿", "⡿",
-];
+const SPINNER_DOTS: [&str; 10] = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷", "⠿", "⡿"];
 const SPINNER_LINE: [&str; 4] = ["|", "/", "—", "\\"];
 const SPINNER_ARROW: [&str; 8] = ["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"];
 const SPINNER_MOON: [&str; 8] = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
@@ -35,11 +33,7 @@ impl SpinnerStyle {
     }
 }
 
-pub(crate) fn spinner_span(
-    style: SpinnerStyle,
-    frame: usize,
-    label: &str,
-) -> Span<'static> {
+pub(crate) fn spinner_span(style: SpinnerStyle, frame: usize, label: &str) -> Span<'static> {
     let glyph = style.glyph(frame);
     Span::styled(
         format!("{glyph} {label}"),
@@ -56,11 +50,7 @@ pub(crate) enum ShimmerPhase {
     Failed,
 }
 
-pub(crate) fn shimmer_span(
-    phase: ShimmerPhase,
-    text: &str,
-    frame: usize,
-) -> Span<'static> {
+pub(crate) fn shimmer_span(phase: ShimmerPhase, text: &str, frame: usize) -> Span<'static> {
     let (glyph, color): (&str, Color) = match phase {
         ShimmerPhase::Active => {
             let frames = &SPINNER_BRAILLE;
@@ -70,17 +60,10 @@ pub(crate) fn shimmer_span(
         ShimmerPhase::Failed => ("✗", Color::Red),
     };
 
-    Span::styled(
-        format!("{glyph} {text}"),
-        Style::default().fg(color),
-    )
+    Span::styled(format!("{glyph} {text}"), Style::default().fg(color))
 }
 
-pub(crate) fn progress_bar(
-    label: &str,
-    current: u32,
-    total: u32,
-) -> ratatui::text::Line<'static> {
+pub(crate) fn progress_bar(label: &str, current: u32, total: u32) -> ratatui::text::Line<'static> {
     use ratatui::text::Span;
 
     let pct = if total > 0 {
@@ -97,14 +80,8 @@ pub(crate) fn progress_bar(
             format!("{label} "),
             Style::default().fg(Color::Indexed(245)),
         ),
-        Span::styled(
-            filled,
-            Style::default().fg(Color::Indexed(183)),
-        ),
-        Span::styled(
-            empty,
-            Style::default().fg(Color::Indexed(237)),
-        ),
+        Span::styled(filled, Style::default().fg(Color::Indexed(183))),
+        Span::styled(empty, Style::default().fg(Color::Indexed(237))),
         Span::styled(
             format!(" {current}/{total}"),
             Style::default().fg(Color::Indexed(245)),

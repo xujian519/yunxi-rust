@@ -130,7 +130,10 @@ pub(crate) fn parse_skill_description(contents: &str) -> Option<String> {
 
 const MAX_INCLUDE_DEPTH: usize = 3;
 
-pub(crate) fn resolve_includes(content: &str, base_dir: &std::path::Path) -> Result<String, String> {
+pub(crate) fn resolve_includes(
+    content: &str,
+    base_dir: &std::path::Path,
+) -> Result<String, String> {
     let mut resolved = content.to_string();
     for _depth in 0..MAX_INCLUDE_DEPTH {
         let mut replaced = false;
@@ -159,14 +162,18 @@ pub(crate) fn resolve_includes(content: &str, base_dir: &std::path::Path) -> Res
 }
 
 fn parse_include_tag(input: &str, base_dir: &std::path::Path) -> Result<(String, usize), String> {
-    let ref_start = input.find("ref=\"").ok_or_else(|| String::from("invalid include tag: missing ref attribute"))?;
+    let ref_start = input
+        .find("ref=\"")
+        .ok_or_else(|| String::from("invalid include tag: missing ref attribute"))?;
     let ref_val_start = ref_start + 5;
-    let ref_val_end = input[ref_val_start..].find('"')
+    let ref_val_end = input[ref_val_start..]
+        .find('"')
         .map(|p| ref_val_start + p)
         .ok_or_else(|| String::from("invalid include tag: unclosed ref attribute"))?;
     let ref_value = &input[ref_val_start..ref_val_end];
 
-    let tag_end = input[ref_val_end..].find('>')
+    let tag_end = input[ref_val_end..]
+        .find('>')
         .map(|p| ref_val_end + p)
         .ok_or_else(|| String::from("invalid include tag: missing closing bracket"))?;
 

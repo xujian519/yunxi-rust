@@ -23,9 +23,9 @@ pub enum MessageRole {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContentBlock {
     /// 文本内容
-    Text {
-        text: String,
-    },
+    Text { text: String },
+    /// DeepSeek 等模型的推理内容（需在多轮对话中回传）
+    Reasoning { text: String },
     /// 工具使用
     ToolUse {
         id: String,
@@ -316,6 +316,13 @@ impl ContentBlock {
                 object.insert("type".to_string(), JsonValue::String("text".to_string()));
                 object.insert("text".to_string(), JsonValue::String(text.clone()));
             }
+            Self::Reasoning { text } => {
+                object.insert(
+                    "type".to_string(),
+                    JsonValue::String("reasoning".to_string()),
+                );
+                object.insert("text".to_string(), JsonValue::String(text.clone()));
+            }
             Self::ToolUse { id, name, input } => {
                 object.insert(
                     "type".to_string(),
@@ -360,6 +367,9 @@ impl ContentBlock {
             .ok_or_else(|| SessionError::Format("missing block type".to_string()))?
         {
             "text" => Ok(Self::Text {
+                text: required_string(object, "text")?,
+            }),
+            "reasoning" => Ok(Self::Reasoning {
                 text: required_string(object, "text")?,
             }),
             "tool_use" => Ok(Self::ToolUse {

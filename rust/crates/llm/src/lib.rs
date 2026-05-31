@@ -34,15 +34,10 @@ pub struct LlmClient {
     enable_tools: bool,
     emit_output: bool,
     allowed_tools: Option<AllowedToolSet>,
-    runtime: tokio::runtime::Runtime,
 }
 
 impl LlmClient {
     /// 创建新的 LLM 客户端
-    ///
-    /// # Errors
-    ///
-    /// - 如果运行时创建失败,返回错误
     pub fn new(
         model: &str,
         enable_tools: bool,
@@ -63,7 +58,7 @@ impl LlmClient {
                 base_url,
                 api_key_env,
             } => {
-                let api_key = std::env::var(api_key_env).unwrap_or_else(|_| String::new());
+                let api_key = resolve_api_key(api_key_env);
                 LlmClientInner::OpenAi {
                     base_url: base_url.clone(),
                     api_key,
@@ -77,14 +72,49 @@ impl LlmClient {
             enable_tools,
             emit_output,
             allowed_tools,
-            runtime: tokio::runtime::Runtime::new()?,
         })
+    }
+
+    /// 在已有 tokio 运行时时使用 Handle，否则创建临时运行时执行 future
+    fn block_on<F, T>(&self, future: F) -> Result<T, RuntimeError>
+    where
+        F: std::future::Future<Output = Result<T, RuntimeError>>,
+    {
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            // 使用 block_in_place 在当前线程执行，避免跨线程 Send 约束
+            tokio::task::block_in_place(|| handle.block_on(future))
+        } else {
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| RuntimeError::new(format!("创建运行时失败: {e}")))?;
+            rt.block_on(future)
+        }
     }
 
     #[must_use]
     pub fn model(&self) -> &str {
         &self.model
     }
+}
+
+fn resolve_api_key(env_var: &str) -> String {
+    if let Ok(val) = std::env::var(env_var) {
+        if !val.is_empty() {
+            return val;
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        let rt_config = runtime::ConfigLoader::default_for(cwd).load().ok();
+        if let Some(cfg) = rt_config {
+            if let Some(env_obj) = cfg.get("env").and_then(|v| v.as_object()) {
+                if let Some(val) = env_obj.get(env_var).and_then(|v| v.as_str()) {
+                    if !val.is_empty() {
+                        return val.to_string();
+                    }
+                }
+            }
+        }
+    }
+    String::new()
 }
 
 fn max_tokens_for_model(model: &str) -> u32 {
@@ -100,10 +130,14 @@ fn max_tokens_for_model(model: &str) -> u32 {
 
 impl ApiClient for LlmClient {
     #[allow(clippy::too_many_lines, clippy::needless_pass_by_value)]
-    fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError> {
+    fn stream(
+        &mut self,
+        request: ApiRequest,
+        on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+    ) -> Result<Vec<AssistantEvent>, RuntimeError> {
         match &self.inner {
-            LlmClientInner::Anthropic => self.stream_anthropic(request),
-            LlmClientInner::OpenAi { .. } => self.stream_openai(request),
+            LlmClientInner::Anthropic => self.stream_anthropic(request, on_event),
+            LlmClientInner::OpenAi { .. } => self.stream_openai(request, on_event),
         }
     }
 }
@@ -113,11 +147,12 @@ impl LlmClient {
     fn stream_anthropic(
         &mut self,
         request: ApiRequest,
+        mut on_event: Option<&mut dyn FnMut(AssistantEvent)>,
     ) -> Result<Vec<AssistantEvent>, RuntimeError> {
         let anthropic_client = Self::build_anthropic_client()?;
         let message_request = self.build_anthropic_request(&request);
 
-        self.runtime.block_on(async {
+        self.block_on(async {
             let mut stream = anthropic_client
                 .stream_message(&message_request)
                 .await
@@ -165,7 +200,11 @@ impl LlmClient {
                                 write!(out, "{text}")
                                     .and_then(|()| out.flush())
                                     .map_err(|error| RuntimeError::new(error.to_string()))?;
-                                events.push(AssistantEvent::TextDelta(text));
+                                let event = AssistantEvent::TextDelta(text);
+                                if let Some(cb) = on_event.as_deref_mut() {
+                                    cb(event.clone());
+                                }
+                                events.push(event);
                             }
                         }
                         ContentBlockDelta::InputJsonDelta { partial_json } => {
@@ -179,20 +218,32 @@ impl LlmClient {
                             writeln!(out, "\n  tool: {name}")
                                 .and_then(|()| out.flush())
                                 .map_err(|error| RuntimeError::new(error.to_string()))?;
-                            events.push(AssistantEvent::ToolUse { id, name, input });
+                            let event = AssistantEvent::ToolUse { id, name, input };
+                            if let Some(cb) = on_event.as_deref_mut() {
+                                cb(event.clone());
+                            }
+                            events.push(event);
                         }
                     }
                     ApiStreamEvent::MessageDelta(delta) => {
-                        events.push(AssistantEvent::Usage(TokenUsage {
+                        let event = AssistantEvent::Usage(TokenUsage {
                             input_tokens: delta.usage.input_tokens,
                             output_tokens: delta.usage.output_tokens,
                             cache_creation_input_tokens: 0,
                             cache_read_input_tokens: 0,
-                        }));
+                        });
+                        if let Some(cb) = on_event.as_deref_mut() {
+                            cb(event.clone());
+                        }
+                        events.push(event);
                     }
                     ApiStreamEvent::MessageStop(_) => {
                         saw_stop = true;
-                        events.push(AssistantEvent::MessageStop);
+                        let event = AssistantEvent::MessageStop;
+                        if let Some(cb) = on_event.as_deref_mut() {
+                            cb(event.clone());
+                        }
+                        events.push(event);
                     }
                 }
             }
@@ -203,7 +254,11 @@ impl LlmClient {
                         || matches!(event, AssistantEvent::ToolUse { .. })
                 })
             {
-                events.push(AssistantEvent::MessageStop);
+                let event = AssistantEvent::MessageStop;
+                if let Some(cb) = on_event.as_deref_mut() {
+                    cb(event.clone());
+                }
+                events.push(event);
             }
 
             Ok(events)
@@ -211,7 +266,11 @@ impl LlmClient {
     }
 
     #[allow(clippy::needless_pass_by_value)]
-    fn stream_openai(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError> {
+    fn stream_openai(
+        &mut self,
+        request: ApiRequest,
+        mut on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+    ) -> Result<Vec<AssistantEvent>, RuntimeError> {
         let (base_url, api_key) = match &self.inner {
             LlmClientInner::OpenAi { base_url, api_key } => (base_url.clone(), api_key.clone()),
             LlmClientInner::Anthropic => return Err(RuntimeError::new("expected OpenAI provider")),
@@ -242,20 +301,11 @@ impl LlmClient {
 
         let client = OpenAiClient::new(base_url, api_key);
 
-        self.runtime.block_on(async {
+        self.block_on(async {
             let mut stream = client
                 .stream_chat(&openai_request)
                 .await
                 .map_err(|e| RuntimeError::new(e.to_string()))?;
-
-            let mut chunks = Vec::new();
-            while let Some(chunk) = stream
-                .next_chunk()
-                .await
-                .map_err(|e| RuntimeError::new(e.to_string()))?
-            {
-                chunks.push(chunk);
-            }
 
             let mut stdout = io::stdout();
             let mut sink = io::sink();
@@ -265,7 +315,23 @@ impl LlmClient {
                 &mut sink
             };
 
-            openai::stream_chunks_to_events(chunks, out)
+            let mut state = openai::OpenAiStreamState::default();
+            let mut events = Vec::new();
+            while let Some(chunk) = stream
+                .next_chunk()
+                .await
+                .map_err(|e| RuntimeError::new(e.to_string()))?
+            {
+                let chunk_events = state.push_chunk(chunk, out)?;
+                for event in chunk_events {
+                    if let Some(cb) = on_event.as_deref_mut() {
+                        cb(event.clone());
+                    }
+                    events.push(event);
+                }
+            }
+
+            Ok(events)
         })
     }
 
@@ -347,6 +413,9 @@ fn convert_messages_anthropic(messages: &[ConversationMessage]) -> Vec<InputMess
                 .iter()
                 .map(|block| match block {
                     ContentBlock::Text { text } => InputContentBlock::Text { text: text.clone() },
+                    ContentBlock::Reasoning { .. } => InputContentBlock::Text {
+                        text: String::new(),
+                    },
                     ContentBlock::ToolUse { id, name, input } => InputContentBlock::ToolUse {
                         id: id.clone(),
                         name: name.clone(),

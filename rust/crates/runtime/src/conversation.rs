@@ -27,6 +27,8 @@ pub struct ApiRequest {
 pub enum AssistantEvent {
     /// A fragment of assistant-generated text.
     TextDelta(String),
+    /// DeepSeek thinking / reasoning 增量
+    ReasoningDelta(String),
     /// The assistant requests invocation of a tool.
     ToolUse {
         id: String,
@@ -46,7 +48,11 @@ pub trait ApiClient {
     /// # Errors
     ///
     /// - 如果 API 请求失败,返回相应的运行时错误
-    fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError>;
+    fn stream(
+        &mut self,
+        request: ApiRequest,
+        on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+    ) -> Result<Vec<AssistantEvent>, RuntimeError>;
 }
 
 /// Abstraction over tool execution, dispatching tool calls by name.
@@ -242,7 +248,17 @@ where
     pub fn run_turn(
         &mut self,
         user_input: impl Into<String>,
+        prompter: Option<&mut dyn PermissionPrompter>,
+    ) -> Result<TurnSummary, RuntimeError> {
+        self.run_turn_with_stream(user_input, prompter, None)
+    }
+
+    /// 运行单个用户回合，可选地将流式事件推送给观察者（TUI 实时展示思考过程）。
+    pub fn run_turn_with_stream(
+        &mut self,
+        user_input: impl Into<String>,
         mut prompter: Option<&mut dyn PermissionPrompter>,
+        mut on_stream_event: Option<Box<dyn FnMut(AssistantEvent) + Send>>,
     ) -> Result<TurnSummary, RuntimeError> {
         self.session
             .messages
@@ -264,7 +280,12 @@ where
                 system_prompt: self.system_prompt.clone(),
                 messages: self.session.messages.clone(),
             };
-            let events = self.api_client.stream(request)?;
+            let events = self.api_client.stream(
+                request,
+                on_stream_event
+                    .as_mut()
+                    .map(|handler| handler.as_mut() as &mut dyn FnMut(AssistantEvent)),
+            )?;
             let (assistant_message, usage) = build_assistant_message(events)?;
             if let Some(usage) = usage {
                 self.usage_tracker.record(usage);
@@ -464,6 +485,7 @@ fn build_assistant_message(
     events: Vec<AssistantEvent>,
 ) -> Result<(ConversationMessage, Option<TokenUsage>), RuntimeError> {
     let mut text = String::new();
+    let mut reasoning = String::new();
     let mut blocks = Vec::new();
     let mut finished = false;
     let mut usage = None;
@@ -471,8 +493,10 @@ fn build_assistant_message(
     for event in events {
         match event {
             AssistantEvent::TextDelta(delta) => text.push_str(&delta),
+            AssistantEvent::ReasoningDelta(delta) => reasoning.push_str(&delta),
             AssistantEvent::ToolUse { id, name, input } => {
                 flush_text_block(&mut text, &mut blocks);
+                flush_reasoning_block(&mut reasoning, &mut blocks);
                 blocks.push(ContentBlock::ToolUse { id, name, input });
             }
             AssistantEvent::Usage(value) => usage = Some(value),
@@ -483,6 +507,7 @@ fn build_assistant_message(
     }
 
     flush_text_block(&mut text, &mut blocks);
+    flush_reasoning_block(&mut reasoning, &mut blocks);
 
     if !finished {
         return Err(RuntimeError::new(
@@ -503,6 +528,14 @@ fn flush_text_block(text: &mut String, blocks: &mut Vec<ContentBlock>) {
     if !text.is_empty() {
         blocks.push(ContentBlock::Text {
             text: std::mem::take(text),
+        });
+    }
+}
+
+fn flush_reasoning_block(reasoning: &mut String, blocks: &mut Vec<ContentBlock>) {
+    if !reasoning.is_empty() {
+        blocks.push(ContentBlock::Reasoning {
+            text: std::mem::take(reasoning),
         });
     }
 }
@@ -598,7 +631,11 @@ mod tests {
     }
 
     impl ApiClient for ScriptedApiClient {
-        fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError> {
+        fn stream(
+            &mut self,
+            request: ApiRequest,
+            _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+        ) -> Result<Vec<AssistantEvent>, RuntimeError> {
             self.call_count += 1;
             match self.call_count {
                 1 => {
@@ -718,7 +755,11 @@ mod tests {
 
         struct SingleCallApiClient;
         impl ApiClient for SingleCallApiClient {
-            fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError> {
+            fn stream(
+                &mut self,
+                request: ApiRequest,
+                _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+            ) -> Result<Vec<AssistantEvent>, RuntimeError> {
                 if request
                     .messages
                     .iter()
@@ -763,7 +804,11 @@ mod tests {
     fn denies_tool_use_when_pre_tool_hook_blocks() {
         struct SingleCallApiClient;
         impl ApiClient for SingleCallApiClient {
-            fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError> {
+            fn stream(
+                &mut self,
+                request: ApiRequest,
+                _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+            ) -> Result<Vec<AssistantEvent>, RuntimeError> {
                 if request
                     .messages
                     .iter()
@@ -827,7 +872,11 @@ mod tests {
         }
 
         impl ApiClient for TwoCallApiClient {
-            fn stream(&mut self, request: ApiRequest) -> Result<Vec<AssistantEvent>, RuntimeError> {
+            fn stream(
+                &mut self,
+                request: ApiRequest,
+                _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+            ) -> Result<Vec<AssistantEvent>, RuntimeError> {
                 self.calls += 1;
                 match self.calls {
                     1 => Ok(vec![
@@ -901,6 +950,7 @@ mod tests {
             fn stream(
                 &mut self,
                 _request: ApiRequest,
+                _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
             ) -> Result<Vec<AssistantEvent>, RuntimeError> {
                 Ok(vec![
                     AssistantEvent::TextDelta("done".to_string()),
@@ -943,6 +993,7 @@ mod tests {
             fn stream(
                 &mut self,
                 _request: ApiRequest,
+                _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
             ) -> Result<Vec<AssistantEvent>, RuntimeError> {
                 Ok(vec![
                     AssistantEvent::TextDelta("done".to_string()),
@@ -990,6 +1041,7 @@ mod tests {
             fn stream(
                 &mut self,
                 _request: ApiRequest,
+                _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
             ) -> Result<Vec<AssistantEvent>, RuntimeError> {
                 Ok(vec![
                     AssistantEvent::TextDelta("done".to_string()),
@@ -1047,6 +1099,7 @@ mod tests {
             fn stream(
                 &mut self,
                 _request: ApiRequest,
+                _on_event: Option<&mut dyn FnMut(AssistantEvent)>,
             ) -> Result<Vec<AssistantEvent>, RuntimeError> {
                 Ok(vec![
                     AssistantEvent::TextDelta("done".to_string()),

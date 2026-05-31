@@ -1,0 +1,16 @@
+[package]
+name = "intent"
+description = "云熙智能体 - 意图识别引擎 (YunXi Intent Recognition)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+embedding = { path = "../embedding" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[lints]
+workspace = true

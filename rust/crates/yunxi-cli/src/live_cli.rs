@@ -12,10 +12,11 @@ use crate::format_report::{
     format_auto_compaction_notice, format_compact_report, format_cost_report, format_model_report,
     format_model_switch_report, format_permissions_report, format_permissions_switch_report,
     format_resume_report, format_status_report, git_output, git_status_ok, render_config_report,
-    render_diff_report, render_export_text, render_last_tool_debug_report, render_memory_report,
-    render_repl_help, render_session_list, render_teleport_report, render_version_report,
-    resolve_export_path, status_context, truncate_for_prompt, StatusUsage,
+    render_connect_report, render_diff_report, render_export_text, render_last_tool_debug_report,
+    render_memory_report, render_repl_help, render_session_list, render_teleport_report,
+    render_version_report, resolve_export_path, status_context, truncate_for_prompt, StatusUsage,
 };
+use crate::model_routing::{load_router_config, select_model_for_request};
 use crate::permission_ui::CliPermissionPrompter;
 use crate::render::{Spinner, TerminalRenderer};
 use crate::runtime_bridge::{
@@ -24,7 +25,7 @@ use crate::runtime_bridge::{
 };
 use crate::session_mgr::{create_managed_session_handle, resolve_session_reference, SessionHandle};
 use crate::tui::status_bar::{StatusBar, StatusBarSnapshot};
-use commands::{slash_command_specs, SlashCommand};
+use commands::{all_slash_command_names, resolve_custom_prompt, SlashCommand};
 use runtime::{CompactionConfig, ConversationRuntime, PermissionMode, Session};
 use serde_json::json;
 
@@ -70,6 +71,7 @@ pub(crate) fn run_repl(
 
 pub(crate) struct LiveCli {
     model: String,
+    active_model: String,
     allowed_tools: Option<AllowedToolSet>,
     permission_mode: PermissionMode,
     system_prompt: Vec<String>,
@@ -86,9 +88,10 @@ impl LiveCli {
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let system_prompt = build_system_prompt()?;
         let session = create_managed_session_handle()?;
+        let active_model = Self::resolve_active_model(&model, "", 0)?;
         let runtime = build_runtime(
             Session::new(),
-            model.clone(),
+            active_model.clone(),
             system_prompt.clone(),
             enable_tools,
             true,
@@ -97,6 +100,7 @@ impl LiveCli {
         )?;
         let cli = Self {
             model,
+            active_model,
             allowed_tools,
             permission_mode,
             system_prompt,
@@ -120,7 +124,38 @@ impl LiveCli {
         )
     }
 
+    fn resolve_active_model(
+        configured_model: &str,
+        user_input: &str,
+        history_rounds: usize,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let router_config = load_router_config();
+        Ok(select_model_for_request(
+            configured_model,
+            user_input,
+            history_rounds,
+            0,
+            &router_config,
+        ))
+    }
+
     pub(crate) fn run_turn(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let history_rounds = self.runtime.session().messages.len();
+        let effective = Self::resolve_active_model(&self.model, input, history_rounds)?;
+        if effective != self.active_model {
+            let session = self.runtime.session().clone();
+            self.runtime = build_runtime(
+                session,
+                effective.clone(),
+                self.system_prompt.clone(),
+                true,
+                true,
+                self.allowed_tools.clone(),
+                self.permission_mode,
+            )?;
+            self.active_model = effective;
+        }
+
         let mut spinner = Spinner::new();
         let mut stdout = io::stdout();
         spinner.tick(
@@ -290,6 +325,22 @@ impl LiveCli {
             }
             SlashCommand::Search { query } => self.handle_search(query.as_deref()),
             SlashCommand::Undo => self.handle_undo()?,
+            SlashCommand::Connect => {
+                println!("{}", render_connect_report()?);
+                false
+            }
+            SlashCommand::ThinkingToggle => {
+                eprintln!("推理显示开关仅在 TUI 模式可用（/thinking）");
+                false
+            }
+            SlashCommand::Custom { name, arguments } => {
+                let Some(prompt) = resolve_custom_prompt(&name, arguments.as_deref()) else {
+                    eprintln!("custom slash command /{name} not found");
+                    return Ok(false);
+                };
+                self.run_turn(&prompt)?;
+                true
+            }
             SlashCommand::Unknown(name) => {
                 eprintln!("unknown slash command: /{name}");
                 false
@@ -341,6 +392,7 @@ impl LiveCli {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty()),
             thinking: false,
+            ..StatusBarSnapshot::default()
         };
         println!("\x1b[2m{}\x1b[0m", bar.render(&snapshot));
     }
@@ -436,9 +488,7 @@ impl LiveCli {
 
     fn clear_session(&mut self, confirm: bool) -> Result<bool, Box<dyn std::error::Error>> {
         if !confirm {
-            println!(
-                "clear: confirmation required; run /clear --confirm to start a fresh session."
-            );
+            println!("clear: 使用 /new 或 /clear --confirm 开始新会话。");
             return Ok(false);
         }
 
@@ -858,8 +908,8 @@ impl LiveCli {
 }
 
 pub(crate) fn slash_command_completion_candidates() -> Vec<String> {
-    slash_command_specs()
-        .iter()
-        .map(|spec| format!("/{}", spec.name))
+    all_slash_command_names()
+        .into_iter()
+        .map(|name| format!("/{name}"))
         .collect()
 }

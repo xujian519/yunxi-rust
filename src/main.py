@@ -198,13 +198,13 @@ def main(argv: list[str] | None = None) -> int:
         print('\n'.join([module.name, module.source_hint, module.responsibility]))
         return 0
     if args.command == 'exec-command':
-        result = execute_command(args.name, args.prompt)
-        print(result.message)
-        return 0 if result.handled else 1
+        cmd_result = execute_command(args.name, args.prompt)
+        print(cmd_result.message)
+        return 0 if cmd_result.handled else 1
     if args.command == 'exec-tool':
-        result = execute_tool(args.name, args.payload)
-        print(result.message)
-        return 0 if result.handled else 1
+        tool_result = execute_tool(args.name, args.payload)
+        print(tool_result.message)
+        return 0 if tool_result.handled else 1
     parser.error(f'unknown command: {args.command}')
     return 2
 

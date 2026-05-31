@@ -77,6 +77,11 @@
 - `tests/` 包含验证测试。
 - `assets/` 包含品牌素材（Logo 等）。
 
+## 专利查询工具
+
+涉及专利法律状态、专利实务性查询等意图时，使用 **cnipa-query** skill（自动触发）。
+详见 `.agents/skills/cnipa-query/SKILL.md`。
+
 ## 工作约定
 - 优先提交小粒度、可审查的变更，保持引导文件与实际工作流一致。
 - 共享默认配置放在 `.claude.json`；机器本地覆盖放在 `.claude/settings.local.json`。

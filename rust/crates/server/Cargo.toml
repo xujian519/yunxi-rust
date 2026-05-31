@@ -1,0 +1,27 @@
+[package]
+name = "server"
+description = "云熙智能体 - HTTP/WebSocket 服务器 (YunXi Server)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+knowledge = { path = "../knowledge" }
+patent-domain = { path = "../patent-domain" }
+router = { path = "../router" }
+tools = { path = "../tools" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+[lints]
+workspace = true

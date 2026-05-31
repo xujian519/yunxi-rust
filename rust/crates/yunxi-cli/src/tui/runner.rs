@@ -1,4 +1,4 @@
-//! TUI 全屏 REPL（通用 + 专利专屏）。
+//! TUI 全屏 REPL（通用对话布局）。
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -18,12 +18,8 @@ use crate::tui::hitl::{
     close_human_guide, ingest_flow_tool_result, open_human_guide, sync_pending_flow_overlay,
     wrap_human_intervention,
 };
-use crate::tui::patent::default_tools::resolve_patent_allowed_tools;
-use crate::tui::patent::session_store::hydrate_workspace;
-use crate::tui::patent::yunxi_md::{is_patent_project_yunxi_md, load_patent_working_agreement};
 use crate::tui::slash::{handle_slash_command, refresh_status, SlashDispatch};
 use crate::tui::turn::{spawn_turn, ActiveTurn, TurnEvent};
-use crate::tui::ui_mode::UiMode;
 use crate::VERSION;
 
 use crate::llm_auth::{format_llm_error, missing_api_key_message};
@@ -35,13 +31,7 @@ pub(crate) fn run_tui_repl(
     model: String,
     allowed_tools: Option<AllowedToolSet>,
     permission_mode: PermissionMode,
-    ui_mode: UiMode,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let allowed_tools = match ui_mode {
-        UiMode::Patent => resolve_patent_allowed_tools(allowed_tools),
-        UiMode::General => allowed_tools,
-    };
-
     let system_prompt = build_system_prompt()?;
     let session_handle = create_managed_session_handle()?;
     let runtime = Arc::new(Mutex::new(build_runtime(
@@ -69,46 +59,19 @@ pub(crate) fn run_tui_repl(
         turn_started_at: None,
     };
 
-    let mut app = TuiApp::new(model, VERSION.to_string(), ui_mode);
+    let mut app = TuiApp::new(model, VERSION.to_string());
     sync_pending_flow_overlay(&mut app, &mut state);
 
-    if app.is_patent_mode() {
-        let cwd = std::env::current_dir()?;
-        hydrate_workspace(
-            &mut app.patent,
-            &state.session_handle.path,
-            state
-                .runtime
-                .lock()
-                .map_err(|_| "runtime lock poisoned")?
-                .session(),
-        );
-        if is_patent_project_yunxi_md(&cwd) {
-            if let Some(agreement) = load_patent_working_agreement(&cwd) {
-                app.push_assistant_message(&format!(
-                    "专利专屏已启动。工作约定已加载。\n建议先运行 /init 扫描案件材料。\n\n{agreement}"
-                ));
-            }
-        } else {
-            app.push_assistant_message(
-                "专利专屏已启动。当前目录无案件 YUNXI.md，建议在案件文件夹内运行 /init。\n\n底栏 Enter 发送消息；按 6 或 /view chat 查看完整对话。",
-            );
-        }
-        app.push_system_message(
-            "\x1b[2m人机协作：Ctrl+G 打开引导 · Ctrl+I 中断并引导 · 工作流挂起时按 y/n\x1b[0m",
-        );
-    } else {
-        let cwd = std::env::current_dir()
-            .map_or_else(|_| "<unknown>".to_string(), |p| p.display().to_string());
-        let banner = crate::tui::banner::render_banner(
-            &app.model,
-            state.permission_mode.as_str(),
-            &cwd,
-            &state.session_handle.id,
-        );
-        app.push_system_message(&banner);
-        app.push_system_message("\x1b[2mCtrl+G 引导 · Ctrl+I 中断 · Flow 挂起 y/n\x1b[0m");
-    }
+    let cwd = std::env::current_dir()
+        .map_or_else(|_| "<unknown>".to_string(), |p| p.display().to_string());
+    let banner = crate::tui::banner::render_banner(
+        &app.model,
+        state.permission_mode.as_str(),
+        &cwd,
+        &state.session_handle.id,
+    );
+    app.push_system_message(&banner);
+    app.push_system_message("\x1b[2mCtrl+G 引导 · Ctrl+I 中断 · Flow 挂起 y/n\x1b[0m");
 
     refresh_status(&mut app, &state);
 
@@ -159,21 +122,12 @@ impl TuiState {
             .map_err(|_| "runtime lock poisoned")?
             .session()
             .clone();
-        if app.is_patent_mode() {
-            crate::tui::patent::session_store::merge_save_session(
-                &self.session_handle.path,
-                &session,
-                Some(&app.patent.case),
-                &self.athena_meta(),
-            )?;
-        } else {
-            crate::session_meta::merge_save_session(
-                &self.session_handle.path,
-                &session,
-                &self.athena_meta(),
-                None,
-            )?;
-        }
+        crate::session_meta::merge_save_session(
+            &self.session_handle.path,
+            &session,
+            &self.athena_meta(),
+        )?;
+        let _ = app;
         Ok(())
     }
 }
@@ -355,9 +309,7 @@ fn dispatch_action(
                         start_turn(app, state, active_turn, &agent_prompt);
                     }
                     None => {
-                        app.push_system_message(
-                            "未识别的斜杠命令。输入 /help 查看可用命令；专利材料扫描请用 /init。",
-                        );
+                        app.push_system_message("未识别的斜杠命令。输入 /help 查看可用命令。");
                     }
                 }
             } else {
@@ -503,9 +455,6 @@ fn ingest_turn_summary(
                 app.push_assistant_message(&text);
             }
         }
-        if app.is_patent_mode() && !text.is_empty() {
-            crate::tui::patent::ingest::ingest_assistant_text(&mut app.patent, &text);
-        }
         for block in &msg.blocks {
             if let ContentBlock::ToolUse { name, .. } = block {
                 app.push_tool_entry(crate::tui::components::tool_panel::ToolEntry {
@@ -529,15 +478,6 @@ fn ingest_turn_summary(
             {
                 ingest_flow_tool_result(app, state, tool_name, output, *is_error);
 
-                if app.is_patent_mode() {
-                    crate::tui::patent::ingest::ingest_tool_result(
-                        &mut app.patent,
-                        tool_name,
-                        output,
-                        output,
-                        *is_error,
-                    );
-                }
                 app.push_tool_entry(crate::tui::components::tool_panel::ToolEntry {
                     name: tool_name.clone(),
                     detail: output.clone(),

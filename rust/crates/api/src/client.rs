@@ -598,7 +598,7 @@ pub fn resolve_saved_oauth_token(config: &OAuthConfig) -> Result<Option<OAuthTok
 /// * `load_oauth_config` - 用于加载 OAuth 配置的函数
 ///
 /// # 返回
-    ///
+///
 /// 返回有效的认证源
 ///
 /// # Errors
@@ -682,11 +682,21 @@ fn resolve_saved_oauth_token_set(
 
 fn client_runtime_block_on<F, T>(future: F) -> Result<T, ApiError>
 where
-    F: std::future::Future<Output = Result<T, ApiError>>,
+    F: std::future::Future<Output = Result<T, ApiError>> + Send,
+    T: Send,
 {
-    tokio::runtime::Runtime::new()
-        .map_err(ApiError::from)?
-        .block_on(future)
+    // 若当前已在 tokio 运行时中，直接使用当前 Handle；否则创建临时运行时
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        std::thread::scope(|s| {
+            s.spawn(|| handle.block_on(future)).join().map_err(|e| {
+                ApiError::Io(std::io::Error::other(format!("block_on panicked: {e:?}")))
+            })?
+        })
+    } else {
+        tokio::runtime::Runtime::new()
+            .map_err(ApiError::from)?
+            .block_on(future)
+    }
 }
 
 fn load_saved_oauth_token() -> Result<Option<OAuthTokenSet>, ApiError> {

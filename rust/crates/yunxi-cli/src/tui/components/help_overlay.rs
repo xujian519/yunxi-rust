@@ -11,7 +11,11 @@ impl HelpOverlay {
         &[
             ("Enter", "发送消息"),
             ("Shift+Enter", "换行"),
-            ("Ctrl+C / Esc", "中断/取消"),
+            ("Ctrl+C / Esc", "清空输入或退出"),
+            ("Ctrl+G", "人机引导（预填模板）"),
+            ("Ctrl+I", "中断轮次并打开引导"),
+            ("Ctrl+U", "预填 /import 导入材料"),
+            ("Ctrl+F", "预填 /search 检索对话"),
             ("Ctrl+H / F1", "显示帮助"),
             ("F2", "切换工具面板"),
             ("j / ↓", "向下滚动"),
@@ -19,6 +23,8 @@ impl HelpOverlay {
             ("g", "滚动到顶部"),
             ("G", "滚动到底部"),
             ("/", "输入斜杠命令"),
+            ("鼠标拖选", "选中文字后 Cmd/Ctrl+C 复制"),
+            ("Ctrl+Shift+C", "复制对话到剪贴板"),
             ("q", "退出 TUI 模式"),
         ]
     }
@@ -47,6 +53,7 @@ impl HelpOverlay {
         }
 
         lines.push(String::new());
+        lines.push("\x1b[2m斜杠命令：输入 /help 打开完整命令列表（分页器）\x1b[0m".to_string());
         lines.push("\x1b[2m按任意键关闭帮助\x1b[0m".to_string());
 
         // 居中到可用区域
@@ -63,7 +70,7 @@ mod tests {
 
     #[test]
     fn help_overlay_renders() {
-        let rendered = HelpOverlay::render(Rect::new(0, 0, 60, 20));
+        let rendered = HelpOverlay::render(Rect::new(0, 0, 80, 40));
         assert!(rendered.contains("快捷键"));
         assert!(rendered.contains("发送消息"));
         assert!(rendered.contains("Shift+Enter"));

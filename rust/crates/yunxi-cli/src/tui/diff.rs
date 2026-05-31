@@ -7,8 +7,16 @@ const LIGHT_ADDED_BG: Color = Color::Rgb(218, 251, 225);
 const LIGHT_REMOVED_BG: Color = Color::Rgb(255, 235, 233);
 
 pub(crate) fn render_unified_diff(diff_text: &str, is_dark: bool) -> Vec<Line<'static>> {
-    let added_bg = if is_dark { DARK_ADDED_BG } else { LIGHT_ADDED_BG };
-    let removed_bg = if is_dark { DARK_REMOVED_BG } else { LIGHT_REMOVED_BG };
+    let added_bg = if is_dark {
+        DARK_ADDED_BG
+    } else {
+        LIGHT_ADDED_BG
+    };
+    let removed_bg = if is_dark {
+        DARK_REMOVED_BG
+    } else {
+        LIGHT_REMOVED_BG
+    };
 
     let mut lines = Vec::new();
 
@@ -26,7 +34,9 @@ pub(crate) fn render_unified_diff(diff_text: &str, is_dark: bool) -> Vec<Line<'s
         } else if line_text.starts_with("@@") {
             Line::from(Span::styled(
                 line_text.to_string(),
-                Style::default().fg(Color::Indexed(183)).add_modifier(ratatui::style::Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Indexed(183))
+                    .add_modifier(ratatui::style::Modifier::BOLD),
             ))
         } else {
             Line::from(Span::styled(
@@ -45,8 +55,16 @@ pub(crate) fn render_add_remove_lines(
     removed: &[String],
     is_dark: bool,
 ) -> Vec<Line<'static>> {
-    let added_bg = if is_dark { DARK_ADDED_BG } else { LIGHT_ADDED_BG };
-    let removed_bg = if is_dark { DARK_REMOVED_BG } else { LIGHT_REMOVED_BG };
+    let added_bg = if is_dark {
+        DARK_ADDED_BG
+    } else {
+        LIGHT_ADDED_BG
+    };
+    let removed_bg = if is_dark {
+        DARK_REMOVED_BG
+    } else {
+        LIGHT_REMOVED_BG
+    };
 
     let mut lines = Vec::new();
 

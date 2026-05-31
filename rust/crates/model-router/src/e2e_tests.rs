@@ -14,7 +14,7 @@ mod integration_tests {
     fn test_e2e_complex_task() {
         let selector = ModelSelector::new();
         let long_text = "设计一个完整的系统架构。".repeat(30);
-        let ctx = TaskContext::new(UserInput::new(&format!(
+        let ctx = TaskContext::new(UserInput::new(format!(
             "{long_text}\n\n关键代码: function init() {{ return {{\"mode\": \"production\"}}; }}"
         )))
         .with_history(10)
@@ -27,7 +27,7 @@ mod integration_tests {
     fn test_e2e_code_generation() {
         let selector = ModelSelector::new();
         let long_text = "规划这个项目的架构设计并评估技术风险。".repeat(30);
-        let ctx = TaskContext::new(UserInput::new(&format!(
+        let ctx = TaskContext::new(UserInput::new(format!(
             "{long_text}\n\nclass AuthService {{ init() {{}} }}"
         )))
         .with_history(10)
@@ -39,8 +39,7 @@ mod integration_tests {
     #[test]
     fn test_e2e_with_history() {
         let selector = ModelSelector::new();
-        let ctx =
-            TaskContext::new(UserInput::new("继续上面的对话")).with_history(10);
+        let ctx = TaskContext::new(UserInput::new("继续上面的对话")).with_history(10);
         let selection = selector.select_model(&ctx).unwrap();
         assert!(selection.score.context_score > 0);
     }

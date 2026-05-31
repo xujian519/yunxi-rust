@@ -4,6 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
 use crate::tui::components::tool_panel::ToolPanel;
+use crate::tui::ui_palette::{dim_color, highlight};
 
 pub(crate) struct ToolPanelWidget<'a> {
     pub(crate) tools: &'a ToolPanel,
@@ -14,7 +15,7 @@ impl Widget for ToolPanelWidget<'_> {
         let block = Block::default()
             .title(" 工具 ")
             .borders(Borders::LEFT)
-            .border_style(Style::default().fg(Color::Indexed(245)));
+            .border_style(Style::default().fg(Color::Indexed(dim_color())));
 
         let mut lines: Vec<Line> = Vec::new();
 
@@ -22,12 +23,12 @@ impl Widget for ToolPanelWidget<'_> {
             let name = Span::styled(
                 &entry.name,
                 Style::default()
-                    .fg(Color::Indexed(214))
+                    .fg(Color::Indexed(highlight()))
                     .add_modifier(Modifier::BOLD),
             );
             let desc = Span::styled(
                 format!(" - {}", entry.detail),
-                Style::default().fg(Color::Indexed(245)),
+                Style::default().fg(Color::Indexed(dim_color())),
             );
             lines.push(Line::from(vec![name, desc]));
             lines.push(Line::from(""));

@@ -25,11 +25,10 @@ pub use specification::*;
 /// 默认模型标识
 const DEFAULT_MODEL: &str = "claude-sonnet-4-20250514";
 
-static LLM_RUNTIME: std::sync::LazyLock<tokio::runtime::Runtime> = std::sync::LazyLock::new(|| {
-    tokio::runtime::Runtime::new().expect("failed to create tokio runtime")
-});
-
 /// 同步调用 LLM 的底层函数（测试中可注入 mock）
+///
+/// 注意：使用 `Handle::try_current()` 检测当前是否在 tokio 运行时中；
+/// 若不在，则在线程中创建临时运行时执行，避免全局运行时导致测试中的丢弃问题。
 fn default_llm_call(system: &str, user: &str, max_tokens: u32) -> Result<String, String> {
     let client = AnthropicClient::from_env().map_err(|e| format!("创建LLM客户端失败: {e}"))?;
 
@@ -43,9 +42,19 @@ fn default_llm_call(system: &str, user: &str, max_tokens: u32) -> Result<String,
         stream: false,
     };
 
-    let response = LLM_RUNTIME
-        .block_on(async { client.send_message(&request).await })
-        .map_err(|e| format!("LLM请求失败: {e}"))?;
+    let response = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        // 已在 tokio 运行时中，直接使用当前运行时
+        std::thread::scope(|s| {
+            s.spawn(|| handle.block_on(async { client.send_message(&request).await }))
+                .join()
+                .map_err(|e| format!("LLM线程panic: {e:?}"))?
+        })
+    } else {
+        // 不在 tokio 运行时中，创建临时运行时
+        let rt = tokio::runtime::Runtime::new().map_err(|e| format!("创建运行时失败: {e}"))?;
+        rt.block_on(async { client.send_message(&request).await })
+    }
+    .map_err(|e| format!("LLM请求失败: {e}"))?;
 
     let text = response
         .content

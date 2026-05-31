@@ -68,9 +68,7 @@ impl InputMessage {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum InputContentBlock {
     /// 文本内容
-    Text {
-        text: String,
-    },
+    Text { text: String },
     /// 工具调用
     ToolUse {
         id: String,
@@ -148,9 +146,7 @@ impl MessageResponse {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OutputContentBlock {
     /// 文本内容
-    Text {
-        text: String,
-    },
+    Text { text: String },
     /// 工具调用
     ToolUse {
         id: String,

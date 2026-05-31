@@ -118,7 +118,6 @@ fn query_terminal_background() -> Option<TerminalBackground> {
     }
 
     None
-
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -233,6 +232,8 @@ mod tests {
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
         use std::sync::{Mutex, OnceLock};
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(|e| e.into_inner())
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
     }
 }

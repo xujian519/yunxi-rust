@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background */
+    --bg-base: #F5F2EE;
+    --bg-surface: #FAF8F5;
+    --bg-elevated: #FFFFFF;
+    --bg-sidebar: rgba(245, 242, 238, 0.72);
+    --bg-sidebar-active: rgba(230, 226, 220, 0.85);
+    --bg-surface-rgb: 250, 248, 245;
+
+    /* Borders */
+    --border-primary: rgba(0, 0, 0, 0.06);
+    --border-secondary: rgba(0, 0, 0, 0.04);
+    --border-focus: rgba(0, 0, 0, 0.15);
+
+    /* Text */
+    --text-primary: #1A1814;
+    --text-secondary: #6B6560;
+    --text-tertiary: #A39E98;
+    --text-inverse: #FFFFFF;
+
+    /* Accents */
+    --accent-primary: #4A7C6F;
+    --accent-primary-hover: #3D6A5E;
+    --accent-primary-muted: rgba(74, 124, 111, 0.12);
+    --accent-secondary: #8B7355;
+    --accent-cyan: #3A8B8C;
+
+    /* Status */
+    --status-success: #4A7C6F;
+    --status-warning: #B8923A;
+    --status-error: #B85C50;
+    --status-info: #5A7D9A;
+
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --glass-backdrop: blur(24px) saturate(1.2);
+    --glass-border: 1px solid rgba(0, 0, 0, 0.06);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+
+    /* shadcn compatibility */
+    --background: 30 20% 95%;
+    --foreground: 36 14% 9%;
+    --card: 30 25% 98%;
+    --card-foreground: 36 14% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 36 14% 9%;
+    --primary: 160 25% 39%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 10% 93%;
+    --secondary-foreground: 36 14% 9%;
+    --muted: 30 10% 93%;
+    --muted-foreground: 30 5% 42%;
+    --accent: 160 25% 39%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 8 43% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 5% 90%;
+    --input: 30 5% 90%;
+    --ring: 160 25% 39%;
+    --radius: 0.625rem;
+    --sidebar-background: 30 20% 97%;
+    --sidebar-foreground: 30 5% 42%;
+    --sidebar-primary: 160 25% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 10% 93%;
+    --sidebar-accent-foreground: 36 14% 9%;
+    --sidebar-border: 30 10% 88%;
+    --sidebar-ring: 160 25% 39%;
+
+    --editor-font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  .dark {
+    /* Background - Dark */
+    --bg-base: #1C1A18;
+    --bg-surface: #242220;
+    --bg-elevated: #2C2A28;
+    --bg-sidebar: rgba(28, 26, 24, 0.78);
+    --bg-sidebar-active: rgba(60, 58, 56, 0.85);
+    --bg-surface-rgb: 36, 34, 32;
+
+    /* Borders - Dark */
+    --border-primary: rgba(255, 255, 255, 0.08);
+    --border-secondary: rgba(255, 255, 255, 0.05);
+    --border-focus: rgba(255, 255, 255, 0.2);
+
+    /* Text - Dark */
+    --text-primary: #F0EDE8;
+    --text-secondary: #9A9590;
+    --text-tertiary: #6B6560;
+    --text-inverse: #FFFFFF;
+
+    /* Accents - Dark */
+    --accent-primary: #5FA08F;
+    --accent-primary-hover: #7BB8A8;
+    --accent-primary-muted: rgba(95, 160, 143, 0.15);
+    --accent-secondary: #8B7355;
+    --accent-cyan: #3A8B8C;
+
+    /* Glassmorphism - Dark */
+    --glass-bg: rgba(44, 42, 40, 0.85);
+    --glass-backdrop: blur(24px) saturate(1.2);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.12);
+
+    /* shadcn compatibility - Dark */
+    --background: 30 6% 11%;
+    --foreground: 36 20% 93%;
+    --card: 30 5% 14%;
+    --card-foreground: 36 20% 93%;
+    --popover: 30 5% 16%;
+    --popover-foreground: 36 20% 93%;
+    --primary: 162 25% 47%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 3% 17%;
+    --secondary-foreground: 36 20% 93%;
+    --muted: 30 3% 17%;
+    --muted-foreground: 30 5% 58%;
+    --accent: 162 25% 47%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 8 43% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 3% 17%;
+    --input: 30 3% 17%;
+    --ring: 162 25% 47%;
+    --sidebar-background: 30 5% 11%;
+    --sidebar-foreground: 30 5% 58%;
+    --sidebar-primary: 162 25% 47%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 3% 17%;
+    --sidebar-accent-foreground: 36 20% 93%;
+    --sidebar-border: 30 3% 17%;
+    --sidebar-ring: 162 25% 47%;
+  }
+
+  html[data-animations='off'] *,
+  html[data-animations='off'] *::before,
+  html[data-animations='off'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html[data-density='compact'] {
+    --panel-title-height: 32px;
+  }
+
+  html[data-density='comfortable'] {
+    --panel-title-height: 38px;
+  }
+
+  * {
+    @apply border-border-primary;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  #root {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+}
+
+@layer utilities {
+  /* 始终预留滚动条槽，避免 overflow 在 auto/scroll 间切换导致面板高度抖动 */
+  .custom-scrollbar {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+  }
+}

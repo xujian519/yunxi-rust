@@ -82,8 +82,7 @@ impl TaskAnalyzer {
     }
 
     fn detect_structured_data(&self, text: &str) -> bool {
-        (text.contains('{') && text.contains('}'))
-            || (text.contains('<') && text.contains('>'))
+        (text.contains('{') && text.contains('}')) || (text.contains('<') && text.contains('>'))
     }
 }
 

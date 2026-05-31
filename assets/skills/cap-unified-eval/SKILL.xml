@@ -1,0 +1,62 @@
+<skill id="cap-unified-eval" layer="capability" version="1.0">
+  <include ref="_shared/quality_gate" />
+  <include ref="_shared/quality_checklist" />
+  <include ref="_shared/output_standards" />
+
+  <identity>
+    统一评估能力 — 聚合规则型与 LLM 型评估器，生成综合质量报告并进行交叉验证。
+  </identity>
+
+  <workflow>
+    <step n="1" name="规则型评估">
+      运行 QualityChecker（12条规则检查）+ QualityScorer（四维评分）
+      输出：问题清单（rule_id, severity, suggestion）+ 各维度量化评分
+    </step>
+    <step n="2" name="形式合规评估">
+      运行 ClaimFormalityCheck + SpecFormalityCheck
+      输出：形式问题清单
+    </step>
+    <step n="3" name="LLM 语义评估（可选）">
+      当需要评估创新度或技术深度时，运行 InnovationEvaluator
+      输出：新颖性/创造性/技术效果/市场潜力评分
+    </step>
+    <step n="4" name="聚合">
+      合并所有评估结果，按维度分组：
+      - 结构完整性（来自规则型）
+      - 权利要求质量（来自规则型 + 形式检查）
+      - 说明书质量（来自规则型 + 形式检查）
+      - 法律合规性（来自规则型）
+      - 创新度（来自 LLM 型，可选）
+    </step>
+    <step n="5" name="交叉验证">
+      检查规则型与 LLM 型结果的一致性：
+      - 若两者评分偏差 &gt;20分，标记为"需人工复核"
+      - 若规则型发现 critical 问题但 LLM 型评分偏高，以规则型为准
+    </step>
+    <step n="6" name="质量门控">
+      对照 quality_gate 阈值判定是否可交付
+      输出：通过 / 自动改进 / 人工确认
+    </step>
+  </workflow>
+
+  <output>
+    统一评估报告：
+    1. 综合评分（加权总分 + 各维度分项）
+    2. 问题清单（按 severity 排序，附带 suggestion）
+    3. 一致性标注（规则型 vs LLM 型）
+    4. 门控判定（通过/改进/人工确认）
+    5. 改进建议（若未达标）
+  </output>
+
+  <tools>
+    <primary>QualityChecker, QualityScorer, ClaimFormalityCheck, SpecFormalityCheck</primary>
+    <secondary>InnovationEvaluator</secondary>
+  </tools>
+
+  <quality>
+    <check>评估结果包含所有维度评分</check>
+    <check>critical 问题必须出现在问题清单首位</check>
+    <check>门控判定与 quality_gate 阈值一致</check>
+    <check>交叉验证标注准确</check>
+  </quality>
+</skill>

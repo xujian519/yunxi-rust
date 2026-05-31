@@ -9,7 +9,7 @@ class ToolPermissionContext:
     deny_prefixes: tuple[str, ...] = ()
 
     @classmethod
-    def from_iterables(cls, deny_names: list[str] | None = None, deny_prefixes: list[str] | None = None) -> 'ToolPermissionContext':
+    def from_iterables(cls, deny_names: list[str] | None = None, deny_prefixes: list[str] | None = None) -> ToolPermissionContext:
         return cls(
             deny_names=frozenset(name.lower() for name in (deny_names or [])),
             deny_prefixes=tuple(prefix.lower() for prefix in (deny_prefixes or [])),

@@ -494,13 +494,13 @@ pub(crate) fn patent_tool_specs() -> Vec<ToolSpec> {
         },
         ToolSpec {
             name: "PatentSearch",
-            description: "统一专利检索入口。支持本地/Google Patents/CNIPA多源检索（需配置检索后端）。",
+            description: "本地专利检索。从本地 patent_db（PostgreSQL，7520万中国专利）检索，毫秒级响应。支持关键词/申请人/发明人/IPC/全文检索。",
             input_schema: json!({
                 "type": "object",
                 "properties": {
-                    "query": { "type": "string" },
-                    "source": { "type": "string", "enum": ["local", "google_patents", "cnipa", "all"], "default": "all" },
-                    "limit": { "type": "integer", "default": 10 },
+                    "query": { "type": "string", "description": "检索内容：关键词、申请人名、发明人名、IPC分类号、或公开号（detail模式）" },
+                    "search_type": { "type": "string", "enum": ["keyword", "applicant", "inventor", "ipc", "fulltext", "detail"], "default": "keyword", "description": "检索类型：keyword=关键词(默认), applicant=申请人, inventor=发明人, ipc=IPC分类, fulltext=全文, detail=公开号详情" },
+                    "limit": { "type": "integer", "default": 10, "maximum": 100 },
                     "offset": { "type": "integer", "default": 0 }
                 },
                 "required": ["query"],

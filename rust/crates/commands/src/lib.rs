@@ -1,3 +1,12 @@
+mod custom_slash;
+mod slash_registry;
+
+pub use custom_slash::{
+    custom_slash_command_names, custom_slash_registry, load_custom_slash_commands,
+    resolve_custom_prompt, CustomSlashCommand,
+};
+pub use slash_registry::{all_slash_command_names, render_full_slash_help, SLASH_ALIAS_HELP_LINES};
+
 use runtime::{compact_session, CompactionConfig, Session};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -183,6 +192,18 @@ const SLASH_COMMAND_SPECS: &[SlashCommandSpec] = &[
         argument_hint: None,
         resume_supported: false,
     },
+    SlashCommandSpec {
+        name: "connect",
+        summary: "查看 API 与 OAuth 配置指引",
+        argument_hint: None,
+        resume_supported: false,
+    },
+    SlashCommandSpec {
+        name: "thinking",
+        summary: "切换推理过程在对话区的显示",
+        argument_hint: None,
+        resume_supported: false,
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -238,6 +259,12 @@ pub enum SlashCommand {
         query: Option<String>,
     },
     Undo,
+    Connect,
+    ThinkingToggle,
+    Custom {
+        name: String,
+        arguments: Option<String>,
+    },
     Unknown(String),
 }
 
@@ -251,10 +278,20 @@ impl SlashCommand {
 
         let mut parts = trimmed.trim_start_matches('/').split_whitespace();
         let command = parts.next().unwrap_or_default();
-        Some(match command {
+        let command_key = command.to_ascii_lowercase();
+        Some(match command_key.as_str() {
+            "" => Self::Help,
             "help" => Self::Help,
             "status" => Self::Status,
-            "compact" => Self::Compact,
+            "compact" | "summarize" => Self::Compact,
+            "new" => Self::Clear { confirm: true },
+            "models" => Self::Model { model: None },
+            "sessions" | "continue" => Self::Session {
+                action: None,
+                target: None,
+            },
+            "connect" => Self::Connect,
+            "thinking" => Self::ThinkingToggle,
             "bughunter" => Self::Bughunter {
                 scope: remainder_after_command(trimmed, command),
             },
@@ -303,7 +340,16 @@ impl SlashCommand {
                 query: remainder_after_command(trimmed, command),
             },
             "undo" => Self::Undo,
-            other => Self::Unknown(other.to_string()),
+            other => {
+                if custom_slash::custom_slash_registry().contains_key(other) {
+                    Self::Custom {
+                        name: other.to_string(),
+                        arguments: remainder_after_command(trimmed, command),
+                    }
+                } else {
+                    Self::Unknown(command.to_string())
+                }
+            }
         })
     }
 }
@@ -380,46 +426,25 @@ pub fn handle_slash_command(
             })
         }
         SlashCommand::Help => Some(SlashCommandResult {
-            message: render_slash_command_help(),
+            message: render_full_slash_help(),
             session: session.clone(),
         }),
-        SlashCommand::Status
-        | SlashCommand::Bughunter { .. }
-        | SlashCommand::Commit
-        | SlashCommand::Pr { .. }
-        | SlashCommand::Issue { .. }
-        | SlashCommand::Ultraplan { .. }
-        | SlashCommand::Teleport { .. }
-        | SlashCommand::DebugToolCall
-        | SlashCommand::Model { .. }
-        | SlashCommand::Permissions { .. }
-        | SlashCommand::Clear { .. }
-        | SlashCommand::Cost
-        | SlashCommand::Resume { .. }
-        | SlashCommand::Config { .. }
-        | SlashCommand::Memory
-        | SlashCommand::Init
-        | SlashCommand::Diff
-        | SlashCommand::Version
-        | SlashCommand::Export { .. }
-        | SlashCommand::Session { .. }
-        | SlashCommand::Search { .. }
-        | SlashCommand::Undo
-        | SlashCommand::Unknown(_) => None,
+        _ => None,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        handle_slash_command, render_slash_command_help, resume_supported_slash_commands,
-        slash_command_specs, SlashCommand,
+        handle_slash_command, render_full_slash_help, render_slash_command_help,
+        resume_supported_slash_commands, slash_command_specs, SlashCommand,
     };
     use runtime::{CompactionConfig, ContentBlock, ConversationMessage, MessageRole, Session};
 
     #[test]
     fn parses_supported_slash_commands() {
         assert_eq!(SlashCommand::parse("/help"), Some(SlashCommand::Help));
+        assert_eq!(SlashCommand::parse("/"), Some(SlashCommand::Help));
         assert_eq!(SlashCommand::parse(" /status "), Some(SlashCommand::Status));
         assert_eq!(
             SlashCommand::parse("/bughunter runtime"),
@@ -542,7 +567,21 @@ mod tests {
         assert!(help.contains("/version"));
         assert!(help.contains("/export [文件]"));
         assert!(help.contains("/session [list|switch <会话ID>]"));
-        assert_eq!(slash_command_specs().len(), 24);
+        assert!(slash_command_specs().len() >= 24);
+        assert!(render_full_slash_help().contains("/new"));
+        assert_eq!(
+            SlashCommand::parse("/new"),
+            Some(SlashCommand::Clear { confirm: true })
+        );
+        assert_eq!(
+            SlashCommand::parse("/models"),
+            Some(SlashCommand::Model { model: None })
+        );
+        assert_eq!(SlashCommand::parse("/connect"), Some(SlashCommand::Connect));
+        assert_eq!(
+            SlashCommand::parse("/thinking"),
+            Some(SlashCommand::ThinkingToggle)
+        );
         assert_eq!(resume_supported_slash_commands().len(), 12);
     }
 

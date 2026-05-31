@@ -1,0 +1,46 @@
+<skill id="reflective-writing" layer="technique" version="1.0">
+  <include ref="_shared/quality_gate" />
+  <include ref="_shared/quality_checklist" />
+
+  <identity>
+    反思循环精炼：对生成的文书进行自动评估—反思—改进，直到质量达标或达到最大迭代次数。
+    灵感来自 Self-Refine（NeurIPS 2023）：同一 LLM 完成 Generate → Feedback → Refine 全流程。
+  </identity>
+
+  <parameters>
+    <param name="max_iterations" default="2">最大反思轮次（含首次生成）</param>
+    <param name="quality_scene" default="oa_response">质量门控场景：oa_response | patent_drafting | innovation_eval</param>
+  </parameters>
+
+  <loop>
+    <step n="1" name="Generate">按调用方要求生成初稿</step>
+    <step n="2" name="Evaluate">
+      调用 QualityChecker / QualityScorer 进行规则型评估
+      对照 quality_gate 中对应场景的阈值，逐维度判定是否达标
+    </step>
+    <step n="3" name="Gate">
+      若所有维度达标 → 输出最终稿
+      若未达标且迭代次数 &lt; max_iterations → 进入 Reflect
+      若未达标且已达上限 → 进入 Fallback
+    </step>
+    <step n="4" name="Reflect">
+      列出未达标维度的具体问题
+      为每个问题生成一条可操作的改进指令（引用评估器返回的 suggestion）
+    </step>
+    <step n="5" name="Refine">
+      按改进指令修改文本，仅修改有问题的段落，不重写已达标部分
+      返回 Step 2 重新评估
+    </step>
+    <step n="6" name="Fallback">
+      输出当前最优稿并附加说明：
+      "经 N 轮改进后，以下维度仍未达标：[列表]。请人工审阅。"
+    </step>
+  </loop>
+
+  <constraints>
+    - 每轮反思必须引用评估器返回的具体 suggestion，不得凭空猜测改进方向
+    - Refine 阶段只修改有问题的部分，保持已达标内容不变
+    - Fallback 时必须明确告知用户哪些维度未达标及差值
+    - 反思过程不计入用户可见的最终输出，仅在 Fallback 时附带摘要
+  </constraints>
+</skill>
