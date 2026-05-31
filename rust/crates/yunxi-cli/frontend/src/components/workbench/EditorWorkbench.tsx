@@ -8,10 +8,11 @@ import DraftView from '@/components/center/DraftView';
 import DrawingsPlaceholder from '@/components/workbench/DrawingsPlaceholder';
 import WelcomeEditor from '@/components/workbench/WelcomeEditor';
 import EditorTabBar from '@/components/workbench/EditorTabBar';
+import { DocxEditorView } from '@/components/docx-editor';
 import { useApp } from '@/context/AppProvider';
 
 const EditorWorkbench: FC = () => {
-  const { activeView, editorTabs, activeTabId, activeCase, activeDocId } = useApp();
+  const { activeView, editorTabs, activeTabId, activeCase, activeDocId, activeDocContent, docxMode, updateCaseDocument } = useApp();
 
   const activeTab = editorTabs.find((t) => t.id === activeTabId);
   const activeDoc = activeCase?.documents.find((d) => d.id === activeDocId);
@@ -21,6 +22,18 @@ const EditorWorkbench: FC = () => {
   const renderView = () => {
     if (editorTabs.length === 0) return <WelcomeEditor />;
     if (showDrawings) return <DrawingsPlaceholder />;
+    if (docxMode === 'docx') {
+      const content = activeDoc?.contentMd || activeDocContent;
+      return (
+        <DocxEditorView
+          markdownContent={content}
+          mode="editing"
+          onChange={(markdown) => {
+            if (activeDocId) void updateCaseDocument(activeDocId, markdown);
+          }}
+        />
+      );
+    }
     switch (activeView) {
       case 'claims':
         return <ClaimsView />;
