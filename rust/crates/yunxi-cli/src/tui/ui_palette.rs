@@ -1,4 +1,58 @@
 //! TUI 品牌色与常用 ANSI 着色（云熙紫 / 粉强调 / 灰提示）。
+//!
+//! 提供两套色彩系统：
+//! - TrueColor RGB 常量（Claude Code 风格深色主题）
+//! - 256色索引函数（向后兼容）
+
+// ── TrueColor Claude Code 风格色彩系统 ──
+
+/// 主背景色（最深）
+pub(crate) const BG_PRIMARY: (u8, u8, u8) = (13, 13, 18);
+/// 次级背景色（标题栏 / 状态栏）
+pub(crate) const BG_SECONDARY: (u8, u8, u8) = (22, 22, 30);
+/// 三级背景色（输入框）
+pub(crate) const BG_TERTIARY: (u8, u8, u8) = (30, 30, 46);
+/// 用户消息背景
+pub(crate) const BG_MESSAGE_USER: (u8, u8, u8) = (26, 35, 50);
+/// AI 消息背景
+pub(crate) const BG_MESSAGE_AI: (u8, u8, u8) = (30, 30, 40);
+/// 代码块背景
+pub(crate) const BG_CODE: (u8, u8, u8) = (18, 18, 25);
+/// 边框色
+pub(crate) const BORDER: (u8, u8, u8) = (42, 42, 58);
+/// 焦点边框色
+pub(crate) const BORDER_FOCUS: (u8, u8, u8) = (74, 74, 106);
+
+/// 主文字色
+pub(crate) const TEXT_PRIMARY: (u8, u8, u8) = (232, 232, 237);
+/// 次级文字色
+pub(crate) const TEXT_SECONDARY: (u8, u8, u8) = (160, 160, 176);
+/// 弱化文字色
+pub(crate) const TEXT_MUTED: (u8, u8, u8) = (106, 106, 128);
+/// 强调文字色（淡紫）
+pub(crate) const TEXT_ACCENT: (u8, u8, u8) = (200, 182, 255);
+
+/// 品牌色（yunxi 蓝）
+pub(crate) const BRAND_YUNXI: (u8, u8, u8) = (107, 141, 214);
+/// 品牌闪烁色
+pub(crate) const BRAND_YUNXI_SHIMMER: (u8, u8, u8) = (139, 176, 240);
+
+/// 成功色
+pub(crate) const SUCCESS: (u8, u8, u8) = (123, 200, 156);
+/// 错误色
+pub(crate) const ERROR: (u8, u8, u8) = (232, 132, 124);
+/// 警告色
+pub(crate) const WARNING: (u8, u8, u8) = (232, 200, 124);
+
+/// "You" 标签色（蓝）
+pub(crate) const LABEL_YOU: (u8, u8, u8) = (107, 141, 214);
+/// "yunxi" 标签色（紫）
+pub(crate) const LABEL_YUNXI: (u8, u8, u8) = (200, 182, 255);
+
+/// 用量条填充色
+pub(crate) const USAGE_FILL: (u8, u8, u8) = (107, 141, 214);
+/// 用量条空槽色
+pub(crate) const USAGE_EMPTY: (u8, u8, u8) = (42, 42, 58);
 
 /// 品牌标识（樱花）。
 pub(crate) const BRAND_MARK: &str = "🌸";

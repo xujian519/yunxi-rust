@@ -3,7 +3,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
-use crate::tui::ui_palette::{dim_color, input_bg_color, input_text_color, user_role_color};
+use crate::tui::ui_palette;
 
 pub(crate) struct InputBarWidget<'a> {
     pub(crate) content: &'a str,
@@ -14,6 +14,31 @@ pub(crate) struct InputBarWidget<'a> {
 impl Widget for InputBarWidget<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let mut lines: Vec<Line> = Vec::new();
+        let muted = Color::Rgb(
+            ui_palette::TEXT_MUTED.0,
+            ui_palette::TEXT_MUTED.1,
+            ui_palette::TEXT_MUTED.2,
+        );
+        let primary = Color::Rgb(
+            ui_palette::TEXT_PRIMARY.0,
+            ui_palette::TEXT_PRIMARY.1,
+            ui_palette::TEXT_PRIMARY.2,
+        );
+        let accent = Color::Rgb(
+            ui_palette::BRAND_YUNXI.0,
+            ui_palette::BRAND_YUNXI.1,
+            ui_palette::BRAND_YUNXI.2,
+        );
+        let tertiary_bg = Color::Rgb(
+            ui_palette::BG_TERTIARY.0,
+            ui_palette::BG_TERTIARY.1,
+            ui_palette::BG_TERTIARY.2,
+        );
+        let border = Color::Rgb(
+            ui_palette::BORDER.0,
+            ui_palette::BORDER.1,
+            ui_palette::BORDER.2,
+        );
 
         if let Some(menu) = self.slash_completion {
             for (i, (display, _)) in menu.matches.iter().take(6).enumerate() {
@@ -21,50 +46,43 @@ impl Widget for InputBarWidget<'_> {
                     lines.push(Line::from(Span::styled(
                         format!("▸ {display}"),
                         Style::default()
-                            .fg(Color::Indexed(231))
-                            .bg(Color::Indexed(25)),
+                            .fg(Color::Rgb(232, 232, 237))
+                            .bg(Color::Rgb(74, 74, 106)),
                     )));
                 } else {
                     lines.push(Line::from(Span::styled(
                         format!("  {display}"),
-                        Style::default().fg(Color::Indexed(dim_color())),
+                        Style::default().fg(muted),
                     )));
                 }
             }
         }
 
         let block = Block::default()
-            .borders(Borders::TOP)
-            .border_style(Style::default().fg(Color::Indexed(dim_color())))
-            .style(Style::default().bg(Color::Indexed(input_bg_color())));
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(border))
+            .style(Style::default().bg(tertiary_bg));
 
         let prompt = Span::styled(
             "❯ ",
-            Style::default()
-                .fg(Color::Indexed(user_role_color()))
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(accent).add_modifier(Modifier::BOLD),
         );
 
         let content_span = if self.content.is_empty() {
-            Span::styled(
-                "在此输入消息，或输入 / 查看命令…",
-                Style::default().fg(Color::Indexed(dim_color())),
-            )
+            Span::styled("Ask anything...", Style::default().fg(muted))
         } else {
-            Span::styled(
-                self.content,
-                Style::default().fg(Color::Indexed(input_text_color())),
-            )
+            Span::styled(self.content, Style::default().fg(primary))
         };
 
         let mut spans = vec![prompt, content_span];
 
         if self.slash_completion_count > 0 && self.slash_completion.is_none() {
             let hint = Span::styled(
-                format!(" ({} 个命令可用，Tab 补全)", self.slash_completion_count),
-                Style::default()
-                    .fg(Color::Indexed(user_role_color()))
-                    .add_modifier(Modifier::BOLD),
+                format!(
+                    " ({} commands available, Tab to complete)",
+                    self.slash_completion_count
+                ),
+                Style::default().fg(accent).add_modifier(Modifier::BOLD),
             );
             spans.push(hint);
         }
@@ -76,13 +94,15 @@ impl Widget for InputBarWidget<'_> {
             .slash_completion
             .map(|m| {
                 let (display, _) = &m.matches[m.selected];
-                format!("Tab 应用 · ↑↓ 选择 · {}", display)
+                format!("Tab apply · ↑↓ select · {}", display)
             })
-            .unwrap_or_else(|| "Enter 发送 · Shift+Enter 换行 · / 命令 · Tab 补全".to_string());
+            .unwrap_or_else(|| {
+                "Enter send · Shift+Enter newline · / commands · Tab complete".to_string()
+            });
 
         lines.push(Line::from(Span::styled(
             hint_text,
-            Style::default().fg(Color::Indexed(dim_color())),
+            Style::default().fg(muted),
         )));
 
         let text = ratatui::text::Text::from(lines);

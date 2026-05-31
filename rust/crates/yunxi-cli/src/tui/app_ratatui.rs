@@ -32,7 +32,7 @@ impl TuiApp {
         let vertical = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1),
+                Constraint::Length(2),
                 Constraint::Min(0),
                 Constraint::Length(input_rows),
                 Constraint::Length(1),
@@ -58,10 +58,8 @@ impl TuiApp {
         StatusBarWidget {
             model: &self.status.model,
             permission_mode: &self.status.permission_mode,
-            session_id: &self.status.session_id,
             input_tokens: self.status.cumulative_input_tokens as u32,
             output_tokens: self.turn_output_tokens,
-            cost_usd: self.status.estimated_cost_usd,
             active_tool: self.active_tool.as_deref(),
         }
         .render(vertical[3], frame.buffer_mut());
