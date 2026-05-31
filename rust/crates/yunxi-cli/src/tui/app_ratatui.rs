@@ -6,10 +6,14 @@ use ratatui::widgets::{Clear, Paragraph};
 use ratatui::Frame;
 
 use crate::tui::app::TuiApp;
-use crate::tui::ui_palette::{highlight, user_role_color};
+
 use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
+use crate::tui::widgets::flow_hitl_overlay_ratatui::FlowHitlOverlayWidget;
+use crate::tui::widgets::guide_overlay_ratatui::GuideOverlayWidget;
 use crate::tui::widgets::help_overlay_ratatui::HelpOverlay;
 use crate::tui::widgets::input_bar_ratatui::InputBarWidget;
+use crate::tui::widgets::permission_overlay_ratatui::PermissionOverlayWidget;
+use crate::tui::widgets::session_picker_ratatui::SessionPickerWidget;
 use crate::tui::widgets::status_bar_ratatui::StatusBarWidget;
 use crate::tui::widgets::title_bar::TitleBar;
 use crate::tui::widgets::tool_panel_ratatui::ToolPanelWidget;
@@ -94,36 +98,31 @@ impl TuiApp {
             return;
         }
 
-        if self.pending_permission.is_some() {
-            let popup = centered_popup(area, 3);
-            Clear.render(popup, frame.buffer_mut());
-            Paragraph::new(Line::from(Span::styled(
-                "工具需要授权执行，按 y 允许 / n 拒绝",
-                Style::default().fg(Color::Indexed(user_role_color())),
-            )))
-            .render(popup, frame.buffer_mut());
+        if let Some(ref req) = self.pending_permission {
+            let popup = centered_popup(area, 10);
+            PermissionOverlayWidget { request: req }.render(popup, frame.buffer_mut());
             return;
         }
 
-        if self.pending_flow_hitl.is_some() {
-            let popup = centered_popup(area, 3);
-            Clear.render(popup, frame.buffer_mut());
-            Paragraph::new(Line::from(Span::styled(
-                "工作流挂起，按 y 继续 / n 稍后",
-                Style::default().fg(Color::Indexed(user_role_color())),
-            )))
-            .render(popup, frame.buffer_mut());
+        if let Some(ref record) = self.pending_flow_hitl {
+            let popup = centered_popup(area, 12);
+            FlowHitlOverlayWidget { record }.render(popup, frame.buffer_mut());
             return;
         }
 
         if self.show_guide {
-            let popup = centered_popup(area, 3);
-            Clear.render(popup, frame.buffer_mut());
-            Paragraph::new(Line::from(Span::styled(
-                "引导模式：在底栏编辑指引内容后按 Enter 发送",
-                Style::default().fg(Color::Indexed(highlight())),
-            )))
+            let popup = centered_popup(area, 10);
+            GuideOverlayWidget {
+                thinking: self.thinking,
+            }
             .render(popup, frame.buffer_mut());
+        }
+
+        if self.session_picker.is_some() {
+            SessionPickerWidget {
+                picker: self.session_picker.as_ref().unwrap(),
+            }
+            .render(area, frame.buffer_mut());
         }
     }
 

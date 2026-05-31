@@ -31,11 +31,22 @@ pub(crate) fn run_tui_repl(
     model: String,
     allowed_tools: Option<AllowedToolSet>,
     permission_mode: PermissionMode,
+    resume_session: Option<std::path::PathBuf>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let system_prompt = build_system_prompt()?;
     let session_handle = create_managed_session_handle()?;
+    let session = match &resume_session {
+        Some(path) => match Session::load_from_path(path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("警告: 无法加载会话 {}: {e}，将使用新会话", path.display());
+                Session::new()
+            }
+        },
+        None => Session::new(),
+    };
     let runtime = Arc::new(Mutex::new(build_runtime(
-        Session::new(),
+        session,
         model.clone(),
         system_prompt.clone(),
         true,
@@ -415,7 +426,15 @@ fn start_turn(
     app.reset_turn_progress();
     close_human_guide(app);
     refresh_status(app, state);
-    *active_turn = Some(spawn_turn(Arc::clone(&state.runtime), text.to_string()));
+    // Workflow routing: classify input, inject context prefix, merge suggested tools
+    let decision = crate::routing::route(text);
+    let snapshot = crate::routing::RoutingSnapshot::from_decision(&decision);
+    let prefix = crate::routing::routing_user_prefix(&decision);
+    crate::routing::merge_suggested_tools(&mut state.allowed_tools, &decision);
+    state.last_routing = Some(snapshot);
+    state.last_route_hint = Some(crate::routing::format_route_label(&decision));
+    let routed_input = format!("{prefix}{text}");
+    *active_turn = Some(spawn_turn(Arc::clone(&state.runtime), routed_input));
 }
 
 fn assistant_blocks_to_chat_text(blocks: &[runtime::ContentBlock]) -> String {

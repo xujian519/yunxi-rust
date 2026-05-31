@@ -116,10 +116,12 @@ pub fn run_cli() -> Result<(), Box<dyn std::error::Error>> {
             model,
             allowed_tools,
             permission_mode,
+            resume_session,
         } => crate::tui::runner::run_tui_repl(
             cli_action::normalize_startup_model(&model),
             allowed_tools,
             permission_mode,
+            resume_session,
         )?,
         CliAction::Repl {
             model,

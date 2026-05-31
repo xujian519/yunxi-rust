@@ -53,6 +53,7 @@ pub(crate) enum CliAction {
         model: String,
         allowed_tools: Option<AllowedToolSet>,
         permission_mode: PermissionMode,
+        resume_session: Option<PathBuf>,
     },
     Repl {
         model: String,
@@ -189,6 +190,10 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
                 allowed_tool_values.push(flag[16..].to_string());
                 index += 1;
             }
+            "--resume" => {
+                rest.push("--resume".to_string());
+                index += 1;
+            }
             other => {
                 rest.push(other.to_string());
                 index += 1;
@@ -208,13 +213,38 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
             model,
             allowed_tools,
             permission_mode,
+            resume_session: None,
         });
     }
     if matches!(rest.first().map(String::as_str), Some("--help" | "-h")) {
         return Ok(CliAction::Help);
     }
+    // --resume with slash commands → ResumeSession (REPL mode)
+    // --resume <path> → TUI resume
     if rest.first().map(String::as_str) == Some("--resume") {
-        return parse_resume_args(&rest[1..]);
+        let resume_args = &rest[1..];
+        // Slash commands: '/word' single-segment, no dot, no nested '/', and NOT an existing filesystem path.
+        // This correctly handles edge cases like /tmp or /home which are real paths but
+        // would otherwise match the slash-command pattern.
+        let has_slash_commands = resume_args.iter().any(|a| {
+            if !a.starts_with('/') { return false; }
+            if std::path::Path::new(a).exists() { return false; }
+            let rest = &a[1..];
+            !rest.contains('/') && !rest.contains('.')
+        });
+        if has_slash_commands {
+            return parse_resume_args(resume_args);
+        }
+        // Otherwise: TUI resume with session path
+        if let Some(path) = resume_args.first() {
+            return Ok(CliAction::Tui {
+                model,
+                allowed_tools,
+                permission_mode,
+                resume_session: Some(PathBuf::from(path)),
+            });
+        }
+        return Err("--resume requires a session path or slash command".to_string());
     }
 
     match rest[0].as_str() {
@@ -495,6 +525,7 @@ mod tests {
                 model: DEFAULT_MODEL.to_string(),
                 allowed_tools: None,
                 permission_mode: PermissionMode::DangerFullAccess,
+                resume_session: None,
             }
         );
     }
@@ -625,6 +656,7 @@ mod tests {
                 model: DEFAULT_MODEL.to_string(),
                 allowed_tools: None,
                 permission_mode: PermissionMode::ReadOnly,
+                resume_session: None,
             }
         );
     }
@@ -647,6 +679,7 @@ mod tests {
                         .collect()
                 ),
                 permission_mode: PermissionMode::DangerFullAccess,
+                resume_session: None,
             }
         );
     }

@@ -8,20 +8,21 @@ use crate::tui::ui_palette::{content_color, highlight, user_role_color};
 const HELP_TEXT: &[(&str, &str)] = &[
     ("Enter", "发送消息"),
     ("Shift+Enter", "换行"),
-    ("Esc / Ctrl+C", "清空输入 / 退出"),
-    ("Ctrl+H / F1", "帮助"),
-    ("Ctrl+G", "引导面板"),
-    ("Ctrl+I", "中断当前轮次"),
-    ("Ctrl+U", "导入预填"),
-    ("Ctrl+F", "搜索预填"),
-    ("Ctrl+Shift+C", "复制对话到剪贴板"),
-    ("鼠标拖选", "选中界面文字后 Cmd/Ctrl+C 复制"),
+    ("Ctrl+C / Esc", "清空输入或退出"),
+    ("Ctrl+G", "人机引导（预填模板）"),
+    ("Ctrl+I", "中断轮次并打开引导"),
+    ("Ctrl+U", "预填 /import 导入材料"),
+    ("Ctrl+F", "预填 /search 检索对话"),
+    ("Ctrl+H / F1", "显示帮助"),
     ("F2", "切换工具面板"),
-    ("F3", "专利导航循环"),
-    ("1-6", "专利导航快捷键"),
-    ("[/]", "证据面板滚动"),
-    ("j/k / ↑/↓", "滚动（输入框空时）"),
-    ("g/G", "滚动到顶部/底部"),
+    ("j / ↓", "向下滚动"),
+    ("k / ↑", "向上滚动"),
+    ("g", "滚动到顶部"),
+    ("G", "滚动到底部"),
+    ("/", "输入斜杠命令"),
+    ("鼠标拖选", "选中文字后 Cmd/Ctrl+C 复制"),
+    ("Ctrl+Shift+C", "复制对话到剪贴板"),
+    ("q", "退出 TUI 模式"),
 ];
 
 pub(crate) struct HelpOverlay;
@@ -30,8 +31,9 @@ impl Widget for HelpOverlay {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         Clear.render(area, buf);
 
+        let line_count = HELP_TEXT.len() + 4; // header sep + 2 footer lines + padding
         let popup_width = std::cmp::min(area.width, 50);
-        let popup_height = std::cmp::min(area.height, (HELP_TEXT.len() as u16) + 4);
+        let popup_height = std::cmp::min(area.height, line_count as u16 + 4);
         let popup_area = centered_rect(popup_width, popup_height, area);
 
         let block = Block::default()
@@ -51,6 +53,19 @@ impl Widget for HelpOverlay {
                 Span::styled(*desc, Style::default().fg(Color::Indexed(content_color())));
             lines.push(Line::from(vec![key_span, desc_span]));
         }
+
+        // Footer lines
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            " 斜杠命令：输入 /help 打开完整命令列表（分页器）",
+            Style::default().fg(Color::Indexed(content_color())),
+        )));
+        lines.push(Line::from(Span::styled(
+            " 按任意键关闭帮助",
+            Style::default()
+                .fg(Color::Indexed(highlight()))
+                .add_modifier(Modifier::BOLD),
+        )));
 
         Paragraph::new(lines).block(block).render(popup_area, buf);
     }

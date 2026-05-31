@@ -32,6 +32,26 @@ impl SessionPicker {
         &self.filter
     }
 
+    pub(crate) fn active_session_id(&self) -> &str {
+        &self.active_session_id
+    }
+
+    pub(crate) fn selected_visible_index(&self) -> usize {
+        self.selected_visible
+    }
+
+    pub(crate) fn all_sessions(&self) -> &[ManagedSessionSummary] {
+        &self.sessions
+    }
+
+    /// Returns visible sessions resolved to their actual data (in ranked order).
+    pub(crate) fn visible_sessions(&self) -> Vec<&ManagedSessionSummary> {
+        self.visible
+            .iter()
+            .filter_map(|&idx| self.sessions.get(idx))
+            .collect()
+    }
+
     pub(crate) fn push_filter_char(&mut self, ch: char) {
         if !ch.is_control() {
             self.filter.push(ch);
