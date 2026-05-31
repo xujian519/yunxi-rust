@@ -8,7 +8,7 @@ import DraftView from '@/components/center/DraftView';
 import DrawingsPlaceholder from '@/components/workbench/DrawingsPlaceholder';
 import WelcomeEditor from '@/components/workbench/WelcomeEditor';
 import EditorTabBar from '@/components/workbench/EditorTabBar';
-import { DocxEditorView, type AIActionType } from '@/components/docx-editor';
+import { DocxEditorView } from '@/components/docx-editor';
 import { useApp } from '@/context/AppProvider';
 import { buildPrompt } from '@/utils/aiBridge';
 
