@@ -421,7 +421,10 @@ fn format_agent_terminal_output(status: &str, result: Option<&str>, error: Optio
 #[derive(Debug, Clone)]
 enum SubagentProvider {
     Anthropic,
-    OpenAiCompatible { base_url: String, api_key_env: String },
+    OpenAiCompatible {
+        base_url: String,
+        api_key_env: String,
+    },
 }
 
 fn detect_provider(model: &str) -> SubagentProvider {
@@ -505,9 +508,8 @@ impl MessagesRuntimeClient {
 
         match &provider {
             SubagentProvider::Anthropic => {
-                AnthropicClient::from_env().map_err(|error| {
-                    format!("Anthropic API key not configured: {error}")
-                })?;
+                AnthropicClient::from_env()
+                    .map_err(|error| format!("Anthropic API key not configured: {error}"))?;
             }
             SubagentProvider::OpenAiCompatible { api_key_env, .. } => {
                 let api_key = resolve_api_key(api_key_env);
@@ -738,12 +740,7 @@ impl MessagesRuntimeClient {
                 }
                 let parsed: serde_json::Value =
                     serde_json::from_str(data).map_err(|e| RuntimeError::new(e.to_string()))?;
-                process_openai_chunk(
-                    &parsed,
-                    &mut events,
-                    &mut pending_tools,
-                    &mut on_event,
-                )?;
+                process_openai_chunk(&parsed, &mut events, &mut pending_tools, &mut on_event)?;
             }
 
             let remaining = std::mem::take(&mut pending_tools);
@@ -775,8 +772,8 @@ impl ApiClient for MessagesRuntimeClient {
     ) -> Result<Vec<AssistantEvent>, RuntimeError> {
         match &self.provider {
             SubagentProvider::Anthropic => {
-                let client = AnthropicClient::from_env()
-                    .map_err(|e| RuntimeError::new(e.to_string()))?;
+                let client =
+                    AnthropicClient::from_env().map_err(|e| RuntimeError::new(e.to_string()))?;
                 self.stream_anthropic(client, &request, on_event)
             }
             SubagentProvider::OpenAiCompatible {
@@ -1014,8 +1011,14 @@ fn process_openai_chunk(
                 for tc in tcs {
                     let idx = tc["index"].as_u64().unwrap_or(0) as u32;
                     let id = tc["id"].as_str().unwrap_or_default().to_string();
-                    let name = tc["function"]["name"].as_str().unwrap_or_default().to_string();
-                    let args = tc["function"]["arguments"].as_str().unwrap_or_default().to_string();
+                    let name = tc["function"]["name"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string();
+                    let args = tc["function"]["arguments"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_string();
                     if !id.is_empty() || !name.is_empty() {
                         pending_tools.insert(idx, (id, name, args));
                     } else if let Some(entry) = pending_tools.get_mut(&idx) {

@@ -21,9 +21,7 @@ pub fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> 
     build_system_prompt_for(crate::session_mgr::workspace_root()?)
 }
 
-pub fn build_system_prompt_for(
-    root: PathBuf,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+pub fn build_system_prompt_for(root: PathBuf) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(runtime::load_system_prompt(
         root,
         DEFAULT_DATE,

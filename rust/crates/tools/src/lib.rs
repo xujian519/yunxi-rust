@@ -1460,7 +1460,7 @@ mod tests {
     fn bash_tool_reports_success_exit_failure_timeout_and_background() {
         let success = execute_tool(
             "bash",
-            &json!({ "command": "printf 'hello'", "dangerously_disable_sandbox": true }),
+            &json!({ "command": "echo -n hello", "dangerously_disable_sandbox": true }),
         )
         .expect("bash should succeed");
         let success_output: serde_json::Value = serde_json::from_str(&success).expect("json");
@@ -1935,6 +1935,14 @@ printf 'pwsh:%s' "$1"
                     Err(error) => panic!("server accept failed: {error}"),
                 }
             });
+
+            // Wait for server to be ready by probing the port
+            for _ in 0..50 {
+                if std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(10)).is_ok() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
 
             Self {
                 addr,

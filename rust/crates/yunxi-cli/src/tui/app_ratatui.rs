@@ -119,8 +119,7 @@ impl TuiApp {
         }
 
         if let Some(picker) = &self.session_picker {
-            SessionPickerWidget { picker }
-                .render(area, frame.buffer_mut());
+            SessionPickerWidget { picker }.render(area, frame.buffer_mut());
         }
     }
 

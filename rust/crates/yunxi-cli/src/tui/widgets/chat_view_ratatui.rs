@@ -45,9 +45,7 @@ impl Widget for ChatViewWidget<'_> {
                 ),
                 ChatRole::System if is_error => Span::styled(
                     "⚠",
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ),
                 ChatRole::System => Span::styled(
                     "系统",
@@ -60,9 +58,7 @@ impl Widget for ChatViewWidget<'_> {
             let body = match entry.role {
                 ChatRole::System if is_error => Text::from(Line::from(Span::styled(
                     entry.text.clone(),
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ))),
                 ChatRole::Assistant | ChatRole::System => markdown::markdown_to_text(&entry.text),
                 ChatRole::User => Text::from(Line::from(Span::styled(

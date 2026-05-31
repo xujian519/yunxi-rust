@@ -17,7 +17,11 @@ impl Widget for SessionPickerWidget<'_> {
         Clear.render(area, buf);
 
         let sessions = self.picker.visible_sessions();
-        let line_count = if sessions.is_empty() { 1 } else { sessions.len() };
+        let line_count = if sessions.is_empty() {
+            1
+        } else {
+            sessions.len()
+        };
         let popup_height = std::cmp::min(area.height, line_count as u16 + 6);
         let popup_width = std::cmp::min(area.width, 72);
         let popup_area = centered_rect(popup_width, popup_height, area);
@@ -134,10 +138,7 @@ fn truncate_id(id: &str, max: usize) -> String {
     if id.chars().count() <= max {
         return id.to_string();
     }
-    id.chars()
-        .take(max.saturating_sub(1))
-        .collect::<String>()
-        + "…"
+    id.chars().take(max.saturating_sub(1)).collect::<String>() + "…"
 }
 
 fn centered_rect(width: u16, height: u16, r: Rect) -> Rect {

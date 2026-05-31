@@ -227,8 +227,12 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
         // This correctly handles edge cases like /tmp or /home which are real paths but
         // would otherwise match the slash-command pattern.
         let has_slash_commands = resume_args.iter().any(|a| {
-            if !a.starts_with('/') { return false; }
-            if std::path::Path::new(a).exists() { return false; }
+            if !a.starts_with('/') {
+                return false;
+            }
+            if std::path::Path::new(a).exists() {
+                return false;
+            }
             let rest = &a[1..];
             !rest.contains('/') && !rest.contains('.')
         });
