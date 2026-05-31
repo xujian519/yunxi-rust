@@ -5,8 +5,15 @@ use std::path::PathBuf;
 use runtime::PermissionMode;
 use tools::mvp_tool_specs;
 
+use crate::llm_auth::llm_auth_configured;
+use crate::model_routing::default_model_from_config;
 use crate::DEFAULT_DATE;
-use crate::DEFAULT_MODEL;
+
+const PATENT_TUI_REMOVED_MSG: &str =
+    "专利专屏 TUI 已移除。请使用 yunxi-desktop 桌面客户端（`cargo run -p yunxi-cli --bin yunxi-desktop --features desktop`）。";
+
+const DEFAULT_SERVER_HOST: &str = "127.0.0.1";
+const DEFAULT_SERVER_PORT: u16 = 8765;
 
 pub(crate) type AllowedToolSet = BTreeSet<String>;
 
@@ -33,6 +40,15 @@ pub(crate) enum CliAction {
     Login,
     Logout,
     Init,
+    Doctor,
+    Config {
+        action: crate::config::ConfigSubAction,
+    },
+    Server {
+        host: String,
+        port: u16,
+    },
+    SelfUpdate,
     Tui {
         model: String,
         allowed_tools: Option<AllowedToolSet>,
@@ -67,16 +83,29 @@ impl CliOutputFormat {
 
 #[allow(clippy::too_many_lines)]
 pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
-    let mut model = DEFAULT_MODEL.to_string();
+    let mut model = normalize_startup_model(&default_model_from_config());
     let mut output_format = CliOutputFormat::Text;
     let mut permission_mode = default_permission_mode();
     let mut wants_version = false;
+    let mut cli_profile: Option<String> = None;
     let mut allowed_tool_values = Vec::new();
     let mut rest = Vec::new();
     let mut index = 0;
 
     while index < args.len() {
         match args[index].as_str() {
+            "--patent" => return Err(PATENT_TUI_REMOVED_MSG.to_string()),
+            "--profile" => {
+                let value = args
+                    .get(index + 1)
+                    .ok_or_else(|| "missing value for --profile".to_string())?;
+                cli_profile = Some(value.clone());
+                index += 2;
+            }
+            flag if flag.starts_with("--profile=") => {
+                cli_profile = Some(flag[10..].to_string());
+                index += 1;
+            }
             "--version" | "-V" => {
                 wants_version = true;
                 index += 1;
@@ -85,11 +114,11 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
                 let value = args
                     .get(index + 1)
                     .ok_or_else(|| "missing value for --model".to_string())?;
-                model = resolve_model_alias(value).to_string();
+                model = normalize_startup_model(value);
                 index += 2;
             }
             flag if flag.starts_with("--model=") => {
-                model = resolve_model_alias(&flag[8..]).to_string();
+                model = normalize_startup_model(&flag[8..]);
                 index += 1;
             }
             "--output-format" => {
@@ -119,7 +148,7 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
                 index += 1;
             }
             "--repl" => {
-                // 旧 CLI REPL 模式
+                reject_removed_patent_ui(cli_profile.as_deref())?;
                 return Ok(CliAction::Repl {
                     model: resolve_model_alias(&model).to_string(),
                     allowed_tools: normalize_allowed_tools(&allowed_tool_values)?,
@@ -172,6 +201,7 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
     }
 
     let allowed_tools = normalize_allowed_tools(&allowed_tool_values)?;
+    reject_removed_patent_ui(cli_profile.as_deref())?;
 
     if rest.is_empty() {
         return Ok(CliAction::Tui {
@@ -194,6 +224,16 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
         "login" => Ok(CliAction::Login),
         "logout" => Ok(CliAction::Logout),
         "init" => Ok(CliAction::Init),
+        "doctor" => Ok(CliAction::Doctor),
+        "config" => {
+            let action = crate::config::parse_config_args(&rest[1..])?;
+            Ok(CliAction::Config { action })
+        }
+        "server" => {
+            let (host, port) = parse_server_args(&rest[1..])?;
+            Ok(CliAction::Server { host, port })
+        }
+        "self-update" => Ok(CliAction::SelfUpdate),
         "prompt" => {
             let prompt = rest[1..].join(" ");
             if prompt.trim().is_empty() {
@@ -216,6 +256,19 @@ pub(crate) fn parse_args(args: &[String]) -> Result<CliAction, String> {
         }),
         other => Err(format!("unknown subcommand: {other}")),
     }
+}
+
+/// 启动 TUI/REPL/单次 prompt 时使用的模型：默认 DeepSeek，auto 映射为 pro，缺失密钥时回退。
+#[must_use]
+pub fn normalize_startup_model(model: &str) -> String {
+    let mut m = resolve_model_alias(model).to_string();
+    if m == "auto" {
+        m = "deepseek-v4-pro".to_string();
+    }
+    if !llm_auth_configured(&m) && llm_auth_configured("deepseek-v4-pro") {
+        m = "deepseek-v4-pro".to_string();
+    }
+    m
 }
 
 pub(crate) fn resolve_model_alias(model: &str) -> &str {
@@ -281,7 +334,20 @@ pub(crate) fn normalize_tool_name(value: &str) -> String {
     value.trim().replace('-', "_").to_ascii_lowercase()
 }
 
-pub(crate) fn parse_permission_mode_arg(value: &str) -> Result<PermissionMode, String> {
+pub(crate) fn reject_removed_patent_ui(cli_profile: Option<&str>) -> Result<(), String> {
+    if cli_profile.is_some_and(|p| p.eq_ignore_ascii_case("patent")) {
+        return Err(PATENT_TUI_REMOVED_MSG.to_string());
+    }
+    if env::var("YUNXI_UI_MODE")
+        .ok()
+        .is_some_and(|m| m.eq_ignore_ascii_case("patent"))
+    {
+        return Err(PATENT_TUI_REMOVED_MSG.to_string());
+    }
+    Ok(())
+}
+
+fn parse_permission_mode_arg(value: &str) -> Result<PermissionMode, String> {
     normalize_permission_mode(value)
         .ok_or_else(|| {
             format!(
@@ -353,6 +419,46 @@ fn parse_system_prompt_args(args: &[String]) -> Result<CliAction, String> {
     Ok(CliAction::PrintSystemPrompt { cwd, date })
 }
 
+fn parse_server_args(args: &[String]) -> Result<(String, u16), String> {
+    let mut host = DEFAULT_SERVER_HOST.to_string();
+    let mut port = DEFAULT_SERVER_PORT;
+    let mut index = 0;
+
+    while index < args.len() {
+        match args[index].as_str() {
+            "--host" => {
+                host = args
+                    .get(index + 1)
+                    .ok_or_else(|| "missing value for --host".to_string())?
+                    .clone();
+                index += 2;
+            }
+            flag if flag.starts_with("--host=") => {
+                host = flag[7..].to_string();
+                index += 1;
+            }
+            "--port" => {
+                let value = args
+                    .get(index + 1)
+                    .ok_or_else(|| "missing value for --port".to_string())?;
+                port = value
+                    .parse()
+                    .map_err(|_| format!("invalid --port value: {value}"))?;
+                index += 2;
+            }
+            flag if flag.starts_with("--port=") => {
+                port = flag[7..]
+                    .parse()
+                    .map_err(|_| format!("invalid --port value: {}", &flag[7..]))?;
+                index += 1;
+            }
+            other => return Err(format!("unknown server option: {other}")),
+        }
+    }
+
+    Ok((host, port))
+}
+
 fn parse_resume_args(args: &[String]) -> Result<CliAction, String> {
     let session_path = args
         .first()
@@ -375,8 +481,9 @@ fn parse_resume_args(args: &[String]) -> Result<CliAction, String> {
 mod tests {
     use super::{
         filter_tool_specs, normalize_permission_mode, parse_args, resolve_model_alias, CliAction,
-        CliOutputFormat, DEFAULT_MODEL,
+        CliOutputFormat,
     };
+    use crate::DEFAULT_MODEL;
     use runtime::PermissionMode;
     use std::path::PathBuf;
 
@@ -389,6 +496,38 @@ mod tests {
                 allowed_tools: None,
                 permission_mode: PermissionMode::DangerFullAccess,
             }
+        );
+    }
+
+    #[test]
+    fn rejects_patent_flag() {
+        let error = parse_args(&["--patent".to_string()]).expect_err("patent flag should fail");
+        assert!(error.contains("专利专屏 TUI 已移除"));
+    }
+
+    #[test]
+    fn parses_server_subcommand_with_port() {
+        assert_eq!(
+            parse_args(&[
+                "server".to_string(),
+                "--host".to_string(),
+                "0.0.0.0".to_string(),
+                "--port".to_string(),
+                "9000".to_string(),
+            ])
+            .expect("args should parse"),
+            CliAction::Server {
+                host: "0.0.0.0".to_string(),
+                port: 9000,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_self_update_subcommand() {
+        assert_eq!(
+            parse_args(&["self-update".to_string()]).expect("args should parse"),
+            CliAction::SelfUpdate
         );
     }
 
@@ -416,7 +555,7 @@ mod tests {
         let args = vec![
             "--output-format=json".to_string(),
             "--model".to_string(),
-            "claude-opus".to_string(),
+            "deepseek-v4-pro".to_string(),
             "explain".to_string(),
             "this".to_string(),
         ];
@@ -424,7 +563,7 @@ mod tests {
             parse_args(&args).expect("args should parse"),
             CliAction::Prompt {
                 prompt: "explain this".to_string(),
-                model: "claude-opus".to_string(),
+                model: "deepseek-v4-pro".to_string(),
                 output_format: CliOutputFormat::Json,
                 allowed_tools: None,
                 permission_mode: PermissionMode::DangerFullAccess,
@@ -436,7 +575,7 @@ mod tests {
     fn resolves_model_aliases_in_args() {
         let args = vec![
             "--model".to_string(),
-            "opus".to_string(),
+            "ds".to_string(),
             "explain".to_string(),
             "this".to_string(),
         ];
@@ -444,7 +583,7 @@ mod tests {
             parse_args(&args).expect("args should parse"),
             CliAction::Prompt {
                 prompt: "explain this".to_string(),
-                model: "claude-opus-4-6".to_string(),
+                model: "deepseek-v4-pro".to_string(),
                 output_format: CliOutputFormat::Text,
                 allowed_tools: None,
                 permission_mode: PermissionMode::DangerFullAccess,
@@ -533,6 +672,39 @@ mod tests {
             CliAction::PrintSystemPrompt {
                 cwd: PathBuf::from("/tmp/project"),
                 date: "2026-04-01".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn parses_config_subcommands() {
+        assert_eq!(
+            parse_args(&["config".to_string()]).expect("config should parse"),
+            CliAction::Config {
+                action: crate::config::ConfigSubAction::Guide,
+            }
+        );
+        assert_eq!(
+            parse_args(&[
+                "config".to_string(),
+                "init".to_string(),
+                "--interactive".to_string(),
+            ])
+            .expect("config init should parse"),
+            CliAction::Config {
+                action: crate::config::ConfigSubAction::Init {
+                    scope: crate::config::ConfigInitScope::User,
+                    interactive: true,
+                },
+            }
+        );
+        assert_eq!(
+            parse_args(&["config".to_string(), "show".to_string(), "env".to_string()])
+                .expect("config show should parse"),
+            CliAction::Config {
+                action: crate::config::ConfigSubAction::Show {
+                    section: Some("env".to_string()),
+                },
             }
         );
     }

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use commands::SlashCommand;
+use commands::{render_full_slash_help, resolve_custom_prompt, SlashCommand};
 use runtime::CompactionConfig;
 
 use crate::cli_action::{
@@ -11,7 +11,7 @@ use crate::cli_action::{
 use crate::format_report::{
     format_compact_report, format_cost_report, format_model_report, format_model_switch_report,
     format_permissions_report, format_permissions_switch_report, format_resume_report,
-    format_status_report, git_output, init_yunxi_md, render_config_report,
+    format_status_report, git_output, render_config_report, render_connect_report,
     render_conversation_search, render_diff_report, render_export_text,
     render_last_tool_debug_report, render_memory_report, render_session_list,
     render_teleport_report, status_context, undo_last_interaction, StatusUsage,
@@ -25,7 +25,7 @@ use crate::VERSION;
 
 use runtime::Session;
 
-use super::patent::slash::handle_patent_slash;
+use super::init_dispatch::dispatch_init_command;
 use super::runner::TuiState;
 
 /// 斜杠命令处理结果。
@@ -44,10 +44,13 @@ pub(crate) fn handle_slash_command(
     width: u16,
     height: u16,
 ) -> Result<Option<SlashDispatch>, Box<dyn std::error::Error>> {
-    if app.is_patent_mode() {
-        if let Some(dispatch) = handle_patent_slash(app, state, input, width, height)? {
-            return Ok(Some(dispatch));
-        }
+    let trimmed = input.trim();
+    if matches!(trimmed, "/exit" | "/quit") {
+        app.push_system_message("使用 q 键或 Ctrl+C 退出 TUI 模式。");
+        return Ok(Some(SlashDispatch::Handled));
+    }
+    if trimmed == "/init" {
+        return Ok(Some(dispatch_init_command(app, state, width, height)?));
     }
 
     if input.trim() == "/semantic" {
@@ -116,20 +119,7 @@ pub(crate) fn handle_slash_command(
 
     let dispatch = match command {
         SlashCommand::Help => {
-            app.open_help();
-    if matches!(input.trim(), "/exit" | "/quit") {
-        app.push_system_message("使用 q 键或 Ctrl+C 退出 TUI 模式。");
-        return Ok(Some(SlashDispatch::Handled));
-    }
-
-    if app.is_patent_mode() {
-                app.push_output(
-                    "专利帮助",
-                    &crate::tui::patent::help_overlay::PatentHelpOverlay::slash_reference_text(),
-                    width,
-                    height,
-                );
-            }
+            app.push_output("帮助", &render_full_slash_help(), width, height);
             SlashDispatch::Handled
         }
         SlashCommand::Status => {
@@ -153,6 +143,9 @@ pub(crate) fn handle_slash_command(
                 state.last_routing.as_ref(),
                 state.allowed_tools.as_ref(),
             ));
+            if let Some(ref decision) = state.last_auto_decision {
+                report.push_str(&format!("\n\n模型路由\n  上次决策  {decision}"));
+            }
             if !state.suspended_flows.is_empty() {
                 report.push_str("\n\n挂起工作流\n");
                 for f in &state.suspended_flows {
@@ -266,9 +259,11 @@ pub(crate) fn handle_slash_command(
                     .session_mut()
                     .messages
                     .clear();
-                app.push_system_message("会话已清空。");
+                app.clear_chat();
+                state.persist_session(app)?;
+                app.push_system_message("已新建会话：对话区与历史消息已清空。");
             } else {
-                app.push_system_message("清空会话需使用 /clear --confirm");
+                app.push_system_message("清空会话请使用 /new 或 /clear --confirm");
             }
             SlashDispatch::Handled
         }
@@ -295,10 +290,7 @@ pub(crate) fn handle_slash_command(
             resume_session(app, state, session_path.as_deref())?;
             SlashDispatch::Handled
         }
-        SlashCommand::Init => {
-            app.push_output("Init", &init_yunxi_md()?, width, height);
-            SlashDispatch::Handled
-        }
+        SlashCommand::Init => dispatch_init_command(app, state, width, height)?,
         SlashCommand::Teleport { target } => {
             let Some(target) = target.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
                 app.push_system_message("Usage: /teleport <symbol-or-path>");
@@ -366,6 +358,26 @@ pub(crate) fn handle_slash_command(
             app.push_output("Issue", &report, width, height);
             SlashDispatch::Handled
         }
+        SlashCommand::Connect => {
+            app.push_output("Connect", &render_connect_report()?, width, height);
+            SlashDispatch::Handled
+        }
+        SlashCommand::ThinkingToggle => {
+            let on = app.toggle_show_reasoning();
+            app.push_system_message(&format!(
+                "推理过程显示: {}",
+                if on { "开启" } else { "关闭" }
+            ));
+            SlashDispatch::Handled
+        }
+        SlashCommand::Custom { name, arguments } => {
+            let Some(prompt) = resolve_custom_prompt(&name, arguments.as_deref()) else {
+                app.push_system_message(&format!("自定义命令 /{name} 未找到。"));
+                return Ok(Some(SlashDispatch::Handled));
+            };
+            app.push_system_message(&format!("运行自定义命令 /{name} …"));
+            SlashDispatch::AgentTurn(prompt)
+        }
         SlashCommand::Unknown(name) => {
             app.push_system_message(&format!("未知命令: /{name}，输入 /help 查看帮助。"));
             SlashDispatch::Handled
@@ -413,6 +425,13 @@ fn switch_model(
     )?;
     *state.runtime.lock().map_err(|_| "runtime lock poisoned")? = new_runtime;
     app.set_model(model.clone());
+    if model == "auto" {
+        state.active_model = None;
+        state.last_auto_decision = None;
+    } else {
+        state.active_model = Some(model.clone());
+        state.last_auto_decision = None;
+    }
     app.push_system_message(&format_model_switch_report(
         &previous,
         &model,
@@ -533,6 +552,7 @@ pub(crate) fn refresh_status(app: &mut TuiApp, state: &TuiState) {
         .map(|start| start.elapsed().as_secs_f64());
     app.update_status(crate::tui::status_bar::StatusBarSnapshot {
         model: app.model().to_string(),
+        auto_decision: state.last_auto_decision.clone(),
         permission_mode: state.permission_mode.as_str().to_string(),
         session_id: state.session_handle.id.clone(),
         cumulative_input_tokens: u64::from(cumulative.input_tokens)
@@ -555,11 +575,7 @@ pub(crate) fn refresh_status(app: &mut TuiApp, state: &TuiState) {
         turn_output_max: app.turn_progress().1,
         route_hint: state.last_route_hint.clone(),
         semantic_on: embedding::semantic_enabled(),
-        patent_case_hint: if app.is_patent_mode() {
-            crate::tui::patent::ingest::patent_case_status_hint(&app.patent.case)
-        } else {
-            None
-        },
+        patent_case_hint: None,
         flow_hitl_hint: state.athena_meta().pending_flow_label(),
     });
 }
@@ -611,7 +627,6 @@ pub(crate) fn apply_session_switch(
     let handle = resolve_session_reference(target)?;
     let session = Session::load_from_path(&handle.path)?;
     let message_count = session.messages.len();
-    let session_snapshot = session.clone();
     let new_runtime = build_runtime(
         session,
         app.model().to_string(),
@@ -625,13 +640,6 @@ pub(crate) fn apply_session_switch(
     state.session_handle = handle;
     let athena = crate::session_meta::load_athena_meta(&state.session_handle.path);
     state.apply_athena_meta(&athena);
-    if app.is_patent_mode() {
-        app.reload_patent_from_session(
-            &state.session_handle.id,
-            &state.session_handle.path,
-            &session_snapshot,
-        );
-    }
     app.push_system_message(&format!(
         "Session switched\n  Active session   {}\n  File             {}\n  Messages         {message_count}{}",
         state.session_handle.id,
