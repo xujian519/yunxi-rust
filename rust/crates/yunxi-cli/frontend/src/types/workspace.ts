@@ -78,3 +78,6 @@ export function viewFromDocType(docType: string): ViewType {
       return 'claims';
   }
 }
+
+export type DocxMode = 'markdown' | 'docx'
+export type DocxModeMap = Record<string, DocxMode>

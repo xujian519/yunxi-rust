@@ -40,6 +40,8 @@ import {
 import { runSlashCommand } from '@/utils/slashCommandRunner';
 import type {
   BottomPanelTab,
+  DocxMode,
+  DocxModeMap,
   EditorTab,
   PanelLogLevel,
   PanelLogLine,
@@ -144,6 +146,9 @@ interface AppContextValue {
   activeCase: PatentCase | undefined;
   getDocumentByType: (docType: string) => PatentCase['documents'][number] | undefined;
   updateCaseDocument: (docId: string, contentMd: string) => Promise<void>;
+  docxMode: DocxMode;
+  setDocxMode: (mode: DocxMode) => void;
+  getDocxMode: (docId: string) => DocxMode;
 
   bottomPanelVisible: boolean;
   bottomPanelHeight: number;
@@ -358,6 +363,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [importMaterialsPreview, setImportMaterialsPreview] =
     useState<ImportMaterialsPreview | null>(null);
   const [importMaterialsLoading, setImportMaterialsLoading] = useState(false);
+
+  const [docxModes, setDocxModes] = useState<DocxModeMap>(() => {
+    try {
+      const raw = localStorage.getItem('yunxi-docx-modes')
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
 
   const assistantIdRef = useRef<string | null>(null);
   const unlistenRef = useRef<(() => void) | null>(null);
@@ -648,6 +662,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [activeCase],
   );
+
+  const docxMode = useMemo<DocxMode>(() => {
+    if (!activeDocId) return 'markdown'
+    return docxModes[activeDocId] || 'markdown'
+  }, [docxModes, activeDocId])
+
+  const setDocxMode = useCallback(
+    (mode: DocxMode) => {
+      if (!activeDocId) return
+      setDocxModes((prev) => {
+        const next = { ...prev, [activeDocId]: mode }
+        localStorage.setItem('yunxi-docx-modes', JSON.stringify(next))
+        return next
+      })
+    },
+    [activeDocId],
+  )
+
+  const getDocxMode = useCallback(
+    (docId: string) => docxModes[docId] || 'markdown',
+    [docxModes],
+  )
 
   const refreshUsage = useCallback(async () => {
     try {
@@ -1624,6 +1660,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       confirmImportMaterialsPreview,
       executeSlashCommand,
       reorderEditorTabs,
+      docxMode,
+      setDocxMode,
+      getDocxMode,
     }),
     [
       ready,
