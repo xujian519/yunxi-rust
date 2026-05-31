@@ -1,7 +1,6 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DocxEditor, type DocxEditorRef } from '@eigenpal/docx-editor-react'
 import type { Document } from '@eigenpal/docx-editor-core/types/document'
-import type { BlockContent } from '@eigenpal/docx-editor-core'
 import { createDocumentWithText } from '@eigenpal/docx-editor-core'
 import '@eigenpal/docx-editor-react/styles.css'
 
@@ -108,23 +107,12 @@ export const DocxEditorView = forwardRef<DocxEditorRef, DocxEditorViewProps>(
 
 DocxEditorView.displayName = 'DocxEditorView'
 
-interface RunLike {
-  content?: Array<{ type: string; text?: string }>
-}
-
-interface ParaLike {
-  content?: RunLike[]
-}
-
-interface CellLike {
-  content?: ParaLike[]
-}
-
-function extractText(body: { content?: BlockContent[] }): string {
+function extractText(doc: Document): string {
+  const body = doc.package?.document
   if (!body?.content) return ''
   return body.content
     .map((block) => {
-      if (block.type === 'paragraph') return runsText(block.content ?? [])
+      if (block.type === 'paragraph') return runsText(block.content)
       if (block.type === 'table') return tableText(block)
       return ''
     })
@@ -132,10 +120,10 @@ function extractText(body: { content?: BlockContent[] }): string {
     .join('\n')
 }
 
-function runsText(content: RunLike[]): string {
+function runsText(content: unknown[]): string {
   return content
     .filter((c): c is { content: Array<{ type: string; text: string }> } =>
-      'content' in c && !!c.content
+      typeof c === 'object' && c !== null && 'content' in c && !!c.content
     )
     .map((c) =>
       c.content
@@ -146,12 +134,12 @@ function runsText(content: RunLike[]): string {
     .join('')
 }
 
-function tableText(table: { rows?: Array<{ cells?: CellLike[] }> }): string {
+function tableText(table: { rows?: Array<{ cells: unknown[] }> }): string {
   if (!table.rows) return ''
   return table.rows
     .map((row) =>
       row.cells
-        ? '| ' + row.cells.map((c) => runsText(c.content ?? [])).join(' | ') + ' |'
+        ? '| ' + row.cells.map((c) => runsText((c as { content: unknown[] }).content ?? [])).join(' | ') + ' |'
         : '',
     )
     .filter(Boolean)
