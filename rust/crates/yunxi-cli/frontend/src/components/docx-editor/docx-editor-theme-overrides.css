@@ -1,0 +1,305 @@
+/**
+ * docx-editor 主题覆盖 CSS
+ *
+ * 将 docx-editor 的默认 shadcn 和 tailwind 颜色覆盖为云熙桌面端主题。
+ * 所有规则限定在 .ep-root 下，编辑器页面区域保持白色（WYSIWYG）。
+ */
+
+/* ============ 亮色模式 ============ */
+
+.ep-root {
+  /* shadcn HSL 变量（匹配桌面端 :root 定义） */
+  --background: 30 20% 95%;
+  --foreground: 36 14% 9%;
+  --card: 30 25% 98%;
+  --card-foreground: 36 14% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 36 14% 9%;
+  --primary: 160 25% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 30 10% 93%;
+  --secondary-foreground: 36 14% 9%;
+  --muted: 30 10% 93%;
+  --muted-foreground: 30 5% 42%;
+  --accent: 160 25% 39%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 8 43% 52%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 30 5% 90%;
+  --input: 30 5% 90%;
+  --ring: 160 25% 39%;
+  --radius: 0.625rem;
+
+  /* doc 颜色变量覆盖 */
+  --doc-bg: var(--bg-surface, #FAF8F5);
+  --doc-primary: var(--accent-primary, #4A7C6F);
+  --doc-primary-hover: var(--accent-primary-hover, #3D6A5E);
+  --doc-primary-light: var(--accent-primary-muted, rgba(74,124,111,0.12));
+  --doc-text: var(--text-primary, #1A1814);
+  --doc-text-muted: var(--text-secondary, #6B6560);
+  --doc-text-subtle: var(--text-tertiary, #A39E98);
+  --doc-border: var(--border-primary, rgba(0,0,0,0.06));
+  --doc-bg-hover: var(--bg-sidebar-active, rgba(230,226,220,0.85));
+  --doc-border-light: rgba(0, 0, 0, 0.03);
+}
+
+/* 背景色覆盖 */
+.ep-root .bg-white {
+  background-color: var(--bg-elevated, #FFFFFF) !important;
+}
+.ep-root .bg-slate-100,
+.ep-root .bg-slate-200,
+.ep-root .bg-\[\#f1f5f9\] {
+  background-color: var(--bg-surface, #FAF8F5) !important;
+}
+.ep-root .bg-slate-900 {
+  background-color: var(--bg-base, #F5F2EE) !important;
+}
+.ep-root .bg-background {
+  background-color: var(--bg-surface, #FAF8F5) !important;
+}
+.ep-root .bg-secondary {
+  background-color: var(--bg-sidebar, rgba(245,242,238,0.72)) !important;
+}
+
+/* 文字色覆盖 */
+.ep-root .text-slate-700,
+.ep-root .text-slate-800 {
+  color: var(--text-primary, #1A1814) !important;
+}
+.ep-root .text-slate-400,
+.ep-root .text-slate-500 {
+  color: var(--text-secondary, #6B6560) !important;
+}
+.ep-root .text-white {
+  color: var(--text-inverse, #FFFFFF) !important;
+}
+
+/* 悬浮文字色 */
+.ep-root .hover\:text-slate-900:hover {
+  color: var(--text-primary, #1A1814) !important;
+}
+.ep-root .hover\:text-white:hover {
+  color: var(--text-inverse, #FFFFFF) !important;
+}
+
+/* 边框色覆盖 */
+.ep-root .border-slate-200,
+.ep-root .border-slate-300 {
+  border-color: var(--border-primary, rgba(0,0,0,0.06)) !important;
+}
+.ep-root .border-slate-200\/50 {
+  border-color: rgba(0, 0, 0, 0.03) !important;
+}
+.ep-root .border-input {
+  border-color: hsl(var(--input)) !important;
+}
+
+/* 悬浮背景色 */
+.ep-root .hover\:bg-slate-100:hover,
+.ep-root .hover\:bg-slate-50:hover {
+  background-color: var(--bg-sidebar-active, rgba(230,226,220,0.85)) !important;
+}
+.ep-root .hover\:bg-slate-100\/80:hover {
+  background-color: var(--bg-sidebar-active, rgba(230,226,220,0.85)) !important;
+}
+.ep-root .hover\:bg-slate-800:hover {
+  background-color: var(--accent-primary-muted, rgba(74,124,111,0.12)) !important;
+}
+/* 覆盖 shadcn hover */
+.ep-root .hover\:bg-accent:hover {
+  background-color: var(--bg-sidebar-active, rgba(230,226,220,0.85)) !important;
+}
+.ep-root .hover\:bg-secondary\/80:hover {
+  background-color: var(--bg-sidebar-active, rgba(230,226,220,0.85)) !important;
+}
+.ep-root .hover\:bg-primary\/90:hover {
+  background-color: var(--accent-primary-hover, #3D6A5E) !important;
+}
+
+/* 焦点背景色 */
+.ep-root .focus\:bg-slate-100:focus,
+.ep-root .focus\:bg-slate-100\/80:focus {
+  background-color: var(--bg-sidebar-active, rgba(230,226,220,0.85)) !important;
+}
+.ep-root .focus\:bg-white:focus {
+  background-color: var(--bg-elevated, #FFFFFF) !important;
+}
+
+/* 选择高亮 - 使用桌面端强调色 */
+.ep-root .docx-run-editable::selection,
+.ep-root .docx-run-editable *::selection,
+.ep-root .docx-run::selection,
+.ep-root .docx-run *::selection,
+.ep-root [contenteditable='true']::selection,
+.ep-root [contenteditable='true'] *::selection {
+  background-color: rgba(74, 124, 111, 0.3) !important;
+}
+
+/* Outline heading hover */
+.ep-root .docx-outline-heading-btn:hover {
+  background-color: var(--bg-sidebar-active, rgba(230,226,220,0.85)) !important;
+}
+
+/* Header/footer hover */
+.ep-root .layout-page-header:hover,
+.ep-root .layout-page-footer:hover {
+  background-color: rgba(74, 124, 111, 0.06) !important;
+}
+
+/* 超链接弹窗图标 hover */
+.ep-root .ep-hyperlink-popup__icon-btn:hover {
+  background: var(--bg-sidebar-active, rgba(230,226,220,0.85)) !important;
+}
+
+/* Radix 选择器/下拉菜单 */
+.ep-root [data-radix-popper-content-wrapper] {
+  background-color: var(--bg-elevated, #FFFFFF) !important;
+  border: 1px solid var(--border-primary, rgba(0,0,0,0.06)) !important;
+  border-radius: var(--radius, 0.625rem) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+
+/* ============ 暗色模式 ============ */
+
+.dark .ep-root {
+  /* shadcn HSL 变量（匹配桌面端 .dark 定义） */
+  --background: 30 6% 11%;
+  --foreground: 36 20% 93%;
+  --card: 30 5% 14%;
+  --card-foreground: 36 20% 93%;
+  --popover: 30 5% 16%;
+  --popover-foreground: 36 20% 93%;
+  --primary: 162 25% 47%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 30 3% 17%;
+  --secondary-foreground: 36 20% 93%;
+  --muted: 30 3% 17%;
+  --muted-foreground: 30 5% 58%;
+  --accent: 162 25% 47%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 8 43% 52%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 30 3% 17%;
+  --input: 30 3% 17%;
+  --ring: 162 25% 47%;
+  --radius: 0.625rem;
+
+  /* doc 颜色变量 */
+  --doc-bg: var(--bg-surface, #242220);
+  --doc-primary: var(--accent-primary, #5FA08F);
+  --doc-primary-hover: var(--accent-primary-hover, #7BB8A8);
+  --doc-primary-light: var(--accent-primary-muted, rgba(95,160,143,0.12));
+  --doc-text: var(--text-primary, #F0EDE8);
+  --doc-text-muted: var(--text-secondary, #9A9590);
+  --doc-text-subtle: var(--text-tertiary, #6B6560);
+  --doc-border: var(--border-primary, rgba(255,255,255,0.08));
+  --doc-bg-hover: var(--bg-sidebar-active, rgba(60,58,56,0.85));
+  --doc-border-light: rgba(255, 255, 255, 0.03);
+}
+
+.dark .ep-root .bg-white {
+  background-color: var(--bg-elevated, #2C2A28) !important;
+}
+.dark .ep-root .bg-slate-100,
+.dark .ep-root .bg-slate-200,
+.dark .ep-root .bg-\[\#f1f5f9\] {
+  background-color: var(--bg-surface, #242220) !important;
+}
+.dark .ep-root .bg-slate-900 {
+  background-color: var(--bg-base, #1C1A18) !important;
+}
+.dark .ep-root .bg-background {
+  background-color: var(--bg-surface, #242220) !important;
+}
+.dark .ep-root .bg-secondary {
+  background-color: var(--bg-sidebar, rgba(28,26,24,0.78)) !important;
+}
+
+.dark .ep-root .text-slate-700,
+.dark .ep-root .text-slate-800 {
+  color: var(--text-primary, #F0EDE8) !important;
+}
+.dark .ep-root .text-slate-400,
+.dark .ep-root .text-slate-500 {
+  color: var(--text-secondary, #9A9590) !important;
+}
+.dark .ep-root .text-white {
+  color: var(--text-inverse, #FFFFFF) !important;
+}
+.dark .ep-root .hover\:text-slate-900:hover {
+  color: var(--text-primary, #F0EDE8) !important;
+}
+
+.dark .ep-root .border-slate-200,
+.dark .ep-root .border-slate-300 {
+  border-color: var(--border-primary, rgba(255,255,255,0.08)) !important;
+}
+.dark .ep-root .border-slate-200\/50 {
+  border-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+.dark .ep-root .hover\:bg-slate-100:hover,
+.dark .ep-root .hover\:bg-slate-50:hover {
+  background-color: var(--bg-sidebar-active, rgba(60,58,56,0.85)) !important;
+}
+.dark .ep-root .hover\:bg-slate-100\/80:hover {
+  background-color: var(--bg-sidebar-active, rgba(60,58,56,0.85)) !important;
+}
+.dark .ep-root .hover\:bg-slate-800:hover {
+  background-color: var(--accent-primary-muted, rgba(95,160,143,0.12)) !important;
+}
+.dark .ep-root .hover\:bg-accent:hover {
+  background-color: var(--bg-sidebar-active, rgba(60,58,56,0.85)) !important;
+}
+.dark .ep-root .hover\:bg-secondary\/80:hover {
+  background-color: var(--bg-sidebar-active, rgba(60,58,56,0.85)) !important;
+}
+.dark .ep-root .hover\:bg-primary\/90:hover {
+  background-color: var(--accent-primary-hover, #7BB8A8) !important;
+}
+
+.dark .ep-root .focus\:bg-slate-100:focus,
+.dark .ep-root .focus\:bg-slate-100\/80:focus {
+  background-color: var(--bg-sidebar-active, rgba(60,58,56,0.85)) !important;
+}
+.dark .ep-root .focus\:bg-white:focus {
+  background-color: var(--bg-elevated, #2C2A28) !important;
+}
+
+.dark .ep-root .docx-outline-heading-btn:hover {
+  background-color: var(--bg-sidebar-active, rgba(60,58,56,0.85)) !important;
+}
+.dark .ep-root .layout-page-header:hover,
+.dark .ep-root .layout-page-footer:hover {
+  background-color: rgba(95, 160, 143, 0.06) !important;
+}
+.dark .ep-root .ep-hyperlink-popup__icon-btn:hover {
+  background: var(--bg-sidebar-active, rgba(60,58,56,0.85)) !important;
+}
+
+/* ============ 编辑器页面区域 - 始终为白色 ============ */
+
+.ep-root .docx-page,
+.ep-root .docx-editor-page,
+.docx-page,
+.docx-editor-page {
+  background-color: #FFFFFF !important;
+}
+
+.dark .ep-root .docx-page,
+.dark .ep-root .docx-editor-page,
+.dark .docx-page,
+.dark .docx-editor-page {
+  background-color: #FFFFFF !important;
+}
+
+.ep-root .docx-page,
+.ep-root .docx-editor-page {
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+}
+
+.dark .ep-root .docx-page,
+.dark .ep-root .docx-editor-page {
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
