@@ -95,6 +95,6 @@ pub fn list_managed_sessions() -> Result<Vec<ManagedSessionSummary>, Box<dyn std
             message_count,
         });
     }
-    sessions.sort_by(|left, right| right.modified_epoch_secs.cmp(&left.modified_epoch_secs));
+    sessions.sort_by_key(|s| std::cmp::Reverse(s.modified_epoch_secs));
     Ok(sessions)
 }

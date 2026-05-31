@@ -183,11 +183,7 @@ impl ProgressBar {
         if self.total == 0 {
             return String::new();
         }
-        let filled = if self.total > 0 {
-            self.width * self.completed / self.total
-        } else {
-            0
-        };
+        let filled = self.width * self.completed / self.total;
         let empty = self.width - filled;
         format!(
             "[{}{}] {}/{}",
