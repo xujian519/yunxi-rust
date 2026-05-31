@@ -590,18 +590,24 @@ impl UnifiedSearch {
 mod tests {
     use super::*;
 
-    fn make_search_engine() -> UnifiedSearch {
+    fn make_search_engine() -> Option<UnifiedSearch> {
         let paths = crate::KnowledgePaths::discover();
-        UnifiedSearch::new(
+        if paths.patent_kg_db.is_none() && paths.laws_db.is_none() && paths.card_index.is_none() {
+            return None;
+        }
+        Some(UnifiedSearch::new(
             paths.patent_kg_db.as_deref(),
             paths.laws_db.as_deref(),
             paths.card_index.as_deref(),
-        )
+        ))
     }
 
     #[test]
     fn test_unified_search() {
-        let engine = make_search_engine();
+        let Some(engine) = make_search_engine() else {
+            eprintln!("skipped: no local knowledge data");
+            return;
+        };
         let config = SearchConfig {
             query: "创造性".into(),
             limit: 5,
@@ -613,7 +619,10 @@ mod tests {
 
     #[test]
     fn test_search_status() {
-        let engine = make_search_engine();
+        let Some(engine) = make_search_engine() else {
+            eprintln!("skipped: no local knowledge data");
+            return;
+        };
         let status = engine.status();
         assert!(status["knowledge_graph"].as_bool().unwrap_or(false));
         assert!(status["law_database"].as_bool().unwrap_or(false));
@@ -621,21 +630,26 @@ mod tests {
 
     #[test]
     fn test_semantic_search_fallback() {
-        let engine = make_search_engine();
+        let Some(engine) = make_search_engine() else {
+            eprintln!("skipped: no local knowledge data");
+            return;
+        };
         let config = SearchConfig {
             query: "新颖性".into(),
             limit: 5,
             mode: SearchMode::Semantic,
             ..Default::default()
         };
-        // 即使没有嵌入服务也应该回退到文本搜索
         let results = engine.search(&config);
         assert!(!results.is_empty(), "should fallback to text search");
     }
 
     #[test]
     fn test_hybrid_search_fallback() {
-        let engine = make_search_engine();
+        let Some(engine) = make_search_engine() else {
+            eprintln!("skipped: no local knowledge data");
+            return;
+        };
         let config = SearchConfig {
             query: "专利".into(),
             limit: 5,
