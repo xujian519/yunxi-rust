@@ -30,12 +30,20 @@ export const DocxEditorView = forwardRef<DocxEditorRef, DocxEditorViewProps>(
       readOnly,
       documentName,
       showToolbar = true,
+      onAIAction,
     },
     ref
   ) => {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const editorRef = useRef<DocxEditorRef>(null)
+    const onAIActionRef = useRef(onAIAction)
+    onAIActionRef.current = onAIAction
+
+    useEffect(() => {
+      const t = setTimeout(() => setIsLoading(false), 10000)
+      return () => clearTimeout(t)
+    }, [])
 
     const document = useMemo(() => {
       if (initialDocument) return initialDocument

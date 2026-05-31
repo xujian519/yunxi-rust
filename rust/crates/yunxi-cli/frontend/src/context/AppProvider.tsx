@@ -1752,8 +1752,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       importMaterialsLoading,
       dismissImportMaterialsPreview,
       confirmImportMaterialsPreview,
-      executeSlashCommand,
+       executeSlashCommand,
       reorderEditorTabs,
+      docxMode,
+      setDocxMode,
+      getDocxMode,
     ],
   );
 
