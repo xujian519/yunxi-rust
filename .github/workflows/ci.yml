@@ -24,6 +24,33 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests
         run: cargo test --workspace
+      - name: Audit dependencies
+        run: cargo install cargo-audit && cargo audit
+      - name: Check outdated dependencies
+        run: cargo install cargo-outdated && cargo outdated --exit-code 1
+
+  desktop:
+    name: YunXi Desktop (check)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: rust/crates/yunxi-cli/frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend dependencies
+        working-directory: rust/crates/yunxi-cli/frontend
+        run: npm ci
+      - name: Build desktop frontend
+        working-directory: rust/crates/yunxi-cli/frontend
+        run: npm run build
+      - name: Cargo check yunxi-desktop
+        run: cargo check -p yunxi-cli --features desktop --bin yunxi-desktop
 
   python:
     name: Python
@@ -37,5 +64,7 @@ jobs:
         run: pip install ruff mypy pytest
       - name: Lint
         run: ruff check src/ tests/
+      - name: Type check
+        run: mypy src/ --ignore-missing-imports
       - name: Tests
         run: python -m pytest tests/ -v
