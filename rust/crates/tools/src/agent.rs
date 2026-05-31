@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use api::{
     AnthropicClient, ContentBlockDelta, InputContentBlock, InputMessage, MessageRequest,
@@ -416,19 +416,112 @@ fn format_agent_terminal_output(status: &str, result: Option<&str>, error: Optio
     sections.join("")
 }
 
+// --- Provider detection ---
+
+#[derive(Debug, Clone)]
+enum SubagentProvider {
+    Anthropic,
+    OpenAiCompatible { base_url: String, api_key_env: String },
+}
+
+fn detect_provider(model: &str) -> SubagentProvider {
+    let lower = model.to_ascii_lowercase();
+    if lower.starts_with("claude-")
+        || lower.contains("opus")
+        || lower.contains("sonnet")
+        || lower.contains("haiku")
+    {
+        return SubagentProvider::Anthropic;
+    }
+    if lower.contains("deepseek") || lower.starts_with("ds-") {
+        return SubagentProvider::OpenAiCompatible {
+            base_url: "https://api.deepseek.com".to_string(),
+            api_key_env: "DEEPSEEK_API_KEY".to_string(),
+        };
+    }
+    if lower.contains("qwen") {
+        return SubagentProvider::OpenAiCompatible {
+            base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string(),
+            api_key_env: "QWEN_API_KEY".to_string(),
+        };
+    }
+    if lower.contains("kimi") || lower.contains("moonshot") {
+        return SubagentProvider::OpenAiCompatible {
+            base_url: "https://api.moonshot.cn/v1".to_string(),
+            api_key_env: "MOONSHOT_API_KEY".to_string(),
+        };
+    }
+    if lower.contains("glm") || lower.contains("chatglm") {
+        return SubagentProvider::OpenAiCompatible {
+            base_url: "https://open.bigmodel.cn/api/paas/v4".to_string(),
+            api_key_env: "GLM_API_KEY".to_string(),
+        };
+    }
+    if lower.starts_with("gpt-")
+        || lower.starts_with("o1-")
+        || lower.starts_with("o3-")
+        || lower.starts_with("o4-")
+        || lower.contains("chatgpt")
+    {
+        return SubagentProvider::OpenAiCompatible {
+            base_url: "https://api.openai.com/v1".to_string(),
+            api_key_env: "OPENAI_API_KEY".to_string(),
+        };
+    }
+    SubagentProvider::Anthropic
+}
+
+fn resolve_api_key(env_var: &str) -> String {
+    if let Ok(val) = std::env::var(env_var) {
+        if !val.is_empty() {
+            return val;
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        if let Ok(cfg) = runtime::ConfigLoader::default_for(cwd).load() {
+            if let Some(env_obj) = cfg.get("env").and_then(|v| v.as_object()) {
+                if let Some(val) = env_obj.get(env_var).and_then(|v| v.as_str()) {
+                    if !val.is_empty() {
+                        return val.to_string();
+                    }
+                }
+            }
+        }
+    }
+    String::new()
+}
+
 // --- Runtime client ---
 
 struct MessagesRuntimeClient {
-    client: AnthropicClient,
+    provider: SubagentProvider,
     model: String,
     allowed_tools: BTreeSet<String>,
 }
 
 impl MessagesRuntimeClient {
     fn new(model: String, allowed_tools: BTreeSet<String>) -> Result<Self, String> {
-        let client = AnthropicClient::from_env().map_err(|error| error.to_string())?;
+        let provider = detect_provider(&model);
+
+        match &provider {
+            SubagentProvider::Anthropic => {
+                AnthropicClient::from_env().map_err(|error| {
+                    format!("Anthropic API key not configured: {error}")
+                })?;
+            }
+            SubagentProvider::OpenAiCompatible { api_key_env, .. } => {
+                let api_key = resolve_api_key(api_key_env);
+                if api_key.is_empty() {
+                    return Err(format!(
+                        "{} is not set; export it before using sub-agents with model '{}'",
+                        api_key_env, model
+                    ));
+                }
+            }
+        }
+
         Ok(Self {
-            client,
+            provider,
             model,
             allowed_tools,
         })
@@ -441,16 +534,16 @@ impl MessagesRuntimeClient {
         if let Ok(handle) = tokio::runtime::Handle::try_current() {
             tokio::task::block_in_place(|| handle.block_on(future))
         } else {
-            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+            let rt = tokio::runtime::Runtime::new()
+                .expect("failed to create tokio runtime — system resource exhaustion");
             rt.block_on(future)
         }
     }
-}
 
-impl ApiClient for MessagesRuntimeClient {
-    fn stream(
-        &mut self,
-        request: ApiRequest,
+    fn stream_anthropic(
+        &self,
+        client: AnthropicClient,
+        request: &ApiRequest,
         mut on_event: Option<&mut dyn FnMut(AssistantEvent)>,
     ) -> Result<Vec<AssistantEvent>, RuntimeError> {
         let tools = tool_specs_for_allowed_tools(Some(&self.allowed_tools))
@@ -472,8 +565,7 @@ impl ApiClient for MessagesRuntimeClient {
         };
 
         self.block_on(async {
-            let mut stream = self
-                .client
+            let mut stream = client
                 .stream_message(&message_request)
                 .await
                 .map_err(|error| RuntimeError::new(error.to_string()))?;
@@ -568,8 +660,7 @@ impl ApiClient for MessagesRuntimeClient {
                 return Ok(events);
             }
 
-            let response = self
-                .client
+            let response = client
                 .send_message(&MessageRequest {
                     stream: false,
                     ..message_request.clone()
@@ -578,6 +669,124 @@ impl ApiClient for MessagesRuntimeClient {
                 .map_err(|error| RuntimeError::new(error.to_string()))?;
             Ok(response_to_events(response))
         })
+    }
+
+    fn stream_openai(
+        &self,
+        api_key: String,
+        base_url: String,
+        request: &ApiRequest,
+        mut on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+    ) -> Result<Vec<AssistantEvent>, RuntimeError> {
+        let tools = tool_specs_for_allowed_tools(Some(&self.allowed_tools));
+
+        let messages = build_openai_messages(&request.system_prompt, &request.messages);
+        let openai_tools: Option<Vec<serde_json::Value>> = (!tools.is_empty()).then(|| {
+            tools
+                .iter()
+                .map(|spec| {
+                    serde_json::json!({
+                        "type": "function",
+                        "function": {
+                            "name": spec.name,
+                            "description": spec.description,
+                            "parameters": spec.input_schema,
+                        }
+                    })
+                })
+                .collect()
+        });
+
+        let body = serde_json::json!({
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": 32_000,
+            "stream": true,
+            "tools": openai_tools,
+            "tool_choice": (!self.allowed_tools.is_empty()).then_some("auto"),
+        });
+
+        let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
+
+        self.block_on(async {
+            let http = reqwest::Client::new();
+            let response = http
+                .post(&url)
+                .header("Authorization", format!("Bearer {api_key}"))
+                .header("Content-Type", "application/json")
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| RuntimeError::new(e.to_string()))?;
+
+            let text = response
+                .text()
+                .await
+                .map_err(|e| RuntimeError::new(e.to_string()))?;
+
+            let mut events: Vec<AssistantEvent> = Vec::new();
+            let mut pending_tools: BTreeMap<u32, (String, String, String)> = BTreeMap::new();
+
+            for line in text.lines() {
+                let trimmed = line.trim();
+                if !trimmed.starts_with("data: ") {
+                    continue;
+                }
+                let data = &trimmed[6..];
+                if data == "[DONE]" {
+                    break;
+                }
+                let parsed: serde_json::Value =
+                    serde_json::from_str(data).map_err(|e| RuntimeError::new(e.to_string()))?;
+                process_openai_chunk(
+                    &parsed,
+                    &mut events,
+                    &mut pending_tools,
+                    &mut on_event,
+                )?;
+            }
+
+            let remaining = std::mem::take(&mut pending_tools);
+            for (_idx, (id, name, input)) in remaining {
+                let event = AssistantEvent::ToolUse { id, name, input };
+                if let Some(cb) = on_event.as_deref_mut() {
+                    cb(event.clone());
+                }
+                events.push(event);
+            }
+
+            if !events
+                .iter()
+                .any(|e| matches!(e, AssistantEvent::MessageStop))
+            {
+                events.push(AssistantEvent::MessageStop);
+            }
+
+            Ok(events)
+        })
+    }
+}
+
+impl ApiClient for MessagesRuntimeClient {
+    fn stream(
+        &mut self,
+        request: ApiRequest,
+        on_event: Option<&mut dyn FnMut(AssistantEvent)>,
+    ) -> Result<Vec<AssistantEvent>, RuntimeError> {
+        match &self.provider {
+            SubagentProvider::Anthropic => {
+                let client = AnthropicClient::from_env()
+                    .map_err(|e| RuntimeError::new(e.to_string()))?;
+                self.stream_anthropic(client, &request, on_event)
+            }
+            SubagentProvider::OpenAiCompatible {
+                base_url,
+                api_key_env,
+            } => {
+                let api_key = resolve_api_key(api_key_env);
+                self.stream_openai(api_key, base_url.clone(), &request, on_event)
+            }
+        }
     }
 }
 
@@ -698,4 +907,152 @@ fn response_to_events(response: MessageResponse) -> Vec<AssistantEvent> {
     }));
     events.push(AssistantEvent::MessageStop);
     events
+}
+
+// --- OpenAI streaming helpers ---
+
+fn build_openai_messages(
+    system_prompt: &[String],
+    messages: &[ConversationMessage],
+) -> Vec<serde_json::Value> {
+    let mut result = Vec::new();
+    if !system_prompt.is_empty() {
+        result.push(serde_json::json!({
+            "role": "system",
+            "content": system_prompt.join("\n\n"),
+        }));
+    }
+    for msg in messages {
+        let role = match msg.role {
+            MessageRole::System | MessageRole::User => "user",
+            MessageRole::Assistant => "assistant",
+            MessageRole::Tool => "tool",
+        };
+        let mut content_parts: Vec<String> = Vec::new();
+        let mut tool_calls = Vec::new();
+        let mut tool_call_id: Option<&str> = None;
+        for block in &msg.blocks {
+            match block {
+                ContentBlock::Text { text } => content_parts.push(text.clone()),
+                ContentBlock::Reasoning { .. } => {}
+                ContentBlock::ToolUse { id, name, input } => {
+                    tool_calls.push(serde_json::json!({
+                        "id": id,
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": input,
+                        }
+                    }));
+                }
+                ContentBlock::ToolResult {
+                    tool_use_id,
+                    output,
+                    ..
+                } => {
+                    tool_call_id = Some(tool_use_id.as_str());
+                    content_parts.push(output.clone());
+                }
+            }
+        }
+        let m = match (role, tool_call_id) {
+            ("tool", Some(tcid)) => {
+                serde_json::json!({
+                    "role": "tool",
+                    "tool_call_id": tcid,
+                    "content": content_parts.join(""),
+                })
+            }
+            ("assistant", _) if !tool_calls.is_empty() => {
+                serde_json::json!({
+                    "role": "assistant",
+                    "content": content_parts.join(""),
+                    "tool_calls": tool_calls,
+                })
+            }
+            _ => {
+                let content = content_parts.join("");
+                serde_json::json!({
+                    "role": role,
+                    "content": if content.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(content) },
+                })
+            }
+        };
+        result.push(m);
+    }
+    result
+}
+
+fn process_openai_chunk(
+    chunk: &serde_json::Value,
+    events: &mut Vec<AssistantEvent>,
+    pending_tools: &mut BTreeMap<u32, (String, String, String)>,
+    on_event: &mut Option<&mut dyn FnMut(AssistantEvent)>,
+) -> Result<(), RuntimeError> {
+    if let Some(choices) = chunk.get("choices").and_then(|v| v.as_array()) {
+        for choice in choices {
+            let delta = &choice["delta"];
+            if let Some(content) = delta.get("content").and_then(|v| v.as_str()) {
+                if !content.is_empty() {
+                    let ev = AssistantEvent::TextDelta(content.to_string());
+                    if let Some(cb) = on_event.as_deref_mut() {
+                        cb(ev.clone());
+                    }
+                    events.push(ev);
+                }
+            }
+            if let Some(reasoning) = delta.get("reasoning_content").and_then(|v| v.as_str()) {
+                if !reasoning.is_empty() {
+                    let ev = AssistantEvent::ReasoningDelta(reasoning.to_string());
+                    if let Some(cb) = on_event.as_deref_mut() {
+                        cb(ev.clone());
+                    }
+                    events.push(ev);
+                }
+            }
+            if let Some(tcs) = delta.get("tool_calls").and_then(|v| v.as_array()) {
+                for tc in tcs {
+                    let idx = tc["index"].as_u64().unwrap_or(0) as u32;
+                    let id = tc["id"].as_str().unwrap_or_default().to_string();
+                    let name = tc["function"]["name"].as_str().unwrap_or_default().to_string();
+                    let args = tc["function"]["arguments"].as_str().unwrap_or_default().to_string();
+                    if !id.is_empty() || !name.is_empty() {
+                        pending_tools.insert(idx, (id, name, args));
+                    } else if let Some(entry) = pending_tools.get_mut(&idx) {
+                        entry.2.push_str(&args);
+                    }
+                }
+            }
+            if let Some(finish) = choice.get("finish_reason").and_then(|v| v.as_str()) {
+                let completed: Vec<u32> = pending_tools.keys().copied().collect();
+                for idx in completed {
+                    if let Some((id, name, input)) = pending_tools.remove(&idx) {
+                        if !id.is_empty() || !name.is_empty() {
+                            let ev = AssistantEvent::ToolUse { id, name, input };
+                            if let Some(cb) = on_event.as_deref_mut() {
+                                cb(ev.clone());
+                            }
+                            events.push(ev);
+                        }
+                    }
+                }
+                if finish == "stop" || finish == "tool_calls" {
+                    events.push(AssistantEvent::MessageStop);
+                }
+            }
+        }
+    }
+    if let Some(usage) = chunk.get("usage") {
+        let ev = AssistantEvent::Usage(TokenUsage {
+            input_tokens: usage["prompt_tokens"].as_u64().unwrap_or(0) as u32,
+            output_tokens: usage["completion_tokens"].as_u64().unwrap_or(0) as u32,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+        });
+        if let Some(cb) = on_event.as_deref_mut() {
+            cb(ev.clone());
+        }
+        events.push(ev);
+    }
+    Ok(())
 }

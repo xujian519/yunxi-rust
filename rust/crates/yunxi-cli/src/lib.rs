@@ -47,7 +47,7 @@ use runtime::{
 use tools::mvp_tool_specs;
 
 const DEFAULT_MODEL: &str = "deepseek-v4-pro";
-pub const DEFAULT_DATE: &str = "2026-03-31";
+pub const DEFAULT_DATE: &str = "2026-06-01";
 const DEFAULT_OAUTH_CALLBACK_PORT: u16 = 4545;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BUILD_TARGET: Option<&str> = option_env!("TARGET");

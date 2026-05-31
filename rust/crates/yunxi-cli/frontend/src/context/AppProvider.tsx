@@ -1482,7 +1482,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       unlistenRef.current = unlisten;
 
       try {
-        await api.chatSend(activeSessionId, text, caseId ?? activeCaseId ?? undefined);
+        const wsRoot = activeWorkspaceFolder?.path;
+        await api.chatSend(activeSessionId, text, caseId ?? activeCaseId ?? undefined, wsRoot);
         await refreshUsage();
         await loadSessions();
       } catch (e) {
@@ -1510,6 +1511,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isStreaming,
       activeSessionId,
       activeCaseId,
+      activeWorkspaceFolder,
       model,
       usage,
       refreshUsage,

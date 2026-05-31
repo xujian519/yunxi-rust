@@ -11,9 +11,6 @@ import { getDesktop, maskApiKey, withApiKey, type DesktopModelPrefs } from '@/ut
 const modelOptions = [
   { value: 'deepseek-v4-pro', label: 'DeepSeek-V4 Pro (推荐)' },
   { value: 'deepseek-v4-flash', label: 'DeepSeek-V4 Flash' },
-  { value: 'messages-opus', label: 'Claude 3.5 Opus' },
-  { value: 'messages-sonnet', label: 'Claude 3.5 Sonnet' },
-  { value: 'messages-haiku', label: 'Claude 3.5 Haiku' },
   { value: 'auto', label: '自动选择 (推荐模型)' },
 ];
 

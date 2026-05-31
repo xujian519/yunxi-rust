@@ -1,5 +1,6 @@
 use std::env;
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 use crate::cli_action::AllowedToolSet;
 use crate::render::TerminalRenderer;
@@ -17,8 +18,14 @@ use crate::format_tool::format_tool_result;
 use crate::DEFAULT_DATE;
 
 pub fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    build_system_prompt_for(crate::session_mgr::workspace_root()?)
+}
+
+pub fn build_system_prompt_for(
+    root: PathBuf,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(runtime::load_system_prompt(
-        crate::session_mgr::workspace_root()?,
+        root,
         DEFAULT_DATE,
         env::consts::OS,
         "unknown",
@@ -27,7 +34,12 @@ pub fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> 
 
 pub(crate) fn build_runtime_feature_config(
 ) -> Result<runtime::RuntimeFeatureConfig, Box<dyn std::error::Error>> {
-    let root = crate::session_mgr::workspace_root()?;
+    build_runtime_feature_config_for(crate::session_mgr::workspace_root()?)
+}
+
+pub(crate) fn build_runtime_feature_config_for(
+    root: PathBuf,
+) -> Result<runtime::RuntimeFeatureConfig, Box<dyn std::error::Error>> {
     Ok(runtime::ConfigLoader::default_for(root)
         .load()?
         .feature_config()
@@ -52,6 +64,26 @@ pub fn build_runtime(
         permission_policy(permission_mode),
         system_prompt,
         build_runtime_feature_config()?,
+    ))
+}
+
+pub fn build_runtime_with_workspace(
+    session: Session,
+    model: String,
+    system_prompt: Vec<String>,
+    enable_tools: bool,
+    emit_output: bool,
+    allowed_tools: Option<AllowedToolSet>,
+    permission_mode: PermissionMode,
+    workspace_root: PathBuf,
+) -> Result<ConversationRuntime<llm::LlmClient, CliToolExecutor>, Box<dyn std::error::Error>> {
+    Ok(ConversationRuntime::new_with_features(
+        session,
+        llm::LlmClient::new(&model, enable_tools, emit_output, allowed_tools.clone())?,
+        CliToolExecutor::new(allowed_tools, emit_output),
+        permission_policy(permission_mode),
+        system_prompt,
+        build_runtime_feature_config_for(workspace_root)?,
     ))
 }
 

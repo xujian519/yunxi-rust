@@ -20,9 +20,15 @@ pub struct OpenAiClient {
 
 impl OpenAiClient {
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
-        let http = reqwest::Client::builder()
+        let mut builder = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
-            .connect_timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(30));
+        if std::env::var("YUNXI_NO_PROXY").as_deref() == Ok("1")
+            || std::env::var("NO_PROXY").as_deref() == Ok("*")
+        {
+            builder = builder.no_proxy();
+        }
+        let http = builder
             .build()
             .expect("reqwest client build should not fail with standard timeouts");
         Self {

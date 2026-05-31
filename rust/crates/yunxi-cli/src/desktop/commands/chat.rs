@@ -1,5 +1,6 @@
 //! 流式对话 IPC。
 
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::{mpsc, Arc};
 
@@ -13,7 +14,7 @@ use yunxi_cli::model_routing::{
     default_model_from_config, load_router_config, select_model_for_request,
 };
 use yunxi_cli::normalize_startup_model;
-use yunxi_cli::runtime_bridge::{build_runtime, build_system_prompt};
+use yunxi_cli::runtime_bridge::{build_runtime_with_workspace, build_system_prompt_for};
 use yunxi_cli::session_mgr::resolve_session_reference;
 
 use crate::state::{permission_request_id, DesktopState};
@@ -68,6 +69,7 @@ pub async fn chat_send(
     session_id: String,
     content: String,
     case_id: Option<String>,
+    workspace_root: Option<String>,
 ) -> Result<ChatSendResult, String> {
     let _ = case_id;
     let cancel_flag = state.cancel_flag(&session_id);
@@ -76,6 +78,7 @@ pub async fn chat_send(
     let app_clone = app.clone();
     let session_id_clone = session_id.clone();
     let state_arc = Arc::clone(&state);
+    let ws_root = workspace_root.map(PathBuf::from);
 
     let turn_id = format!(
         "turn-{}",
@@ -94,6 +97,7 @@ pub async fn chat_send(
             &turn_id_clone,
             cancel_flag,
             state_arc,
+            ws_root,
         )
     })
     .await
@@ -107,6 +111,7 @@ fn run_chat_turn(
     turn_id: &str,
     cancel_flag: Arc<std::sync::atomic::AtomicBool>,
     desktop_state: Arc<DesktopState>,
+    workspace_root: Option<PathBuf>,
 ) -> Result<ChatSendResult, String> {
     let handle = resolve_session_reference(session_id).map_err(|e| e.to_string())?;
     let session = Session::load_from_path(&handle.path).map_err(|e| e.to_string())?;
@@ -121,11 +126,14 @@ fn run_chat_turn(
         &router,
     ));
 
-    let system_prompt = build_system_prompt().map_err(|e| e.to_string())?;
+    let root = workspace_root.unwrap_or_else(|| {
+        yunxi_cli::session_mgr::workspace_root().unwrap_or_else(|_| PathBuf::from("."))
+    });
+    let system_prompt = build_system_prompt_for(root.clone()).map_err(|e| e.to_string())?;
     // 桌面端默认允许工具执行；后续可从 settings 读取权限模式
     let permission_mode = PermissionMode::DangerFullAccess;
 
-    let mut runtime = build_runtime(
+    let mut runtime = build_runtime_with_workspace(
         session,
         model,
         system_prompt,
@@ -133,6 +141,7 @@ fn run_chat_turn(
         false,
         None,
         permission_mode,
+        root,
     )
     .map_err(|e| e.to_string())?;
 

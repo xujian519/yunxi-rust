@@ -34,7 +34,7 @@ export const mockApi = {
     return { id: `session-${Date.now()}` };
   },
 
-  async chatSend(_sessionId: string, _content: string): Promise<{ turn_id: string; session_id: string }> {
+  async chatSend(_sessionId: string, _content: string, _caseId?: string, _workspaceRoot?: string): Promise<{ turn_id: string; session_id: string }> {
     return { turn_id: 'turn-mock', session_id: 'session-mock' };
   },
 

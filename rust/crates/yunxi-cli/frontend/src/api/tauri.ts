@@ -80,8 +80,8 @@ export const tauriApi = {
   sessionCreate: (title: string) =>
     invoke<SessionCreateResult>('session_create', { title }),
 
-  chatSend: (sessionId: string, content: string, caseId?: string) =>
-    invoke<ChatSendResult>('chat_send', { sessionId, content, caseId }),
+  chatSend: (sessionId: string, content: string, caseId?: string, workspaceRoot?: string) =>
+    invoke<ChatSendResult>('chat_send', { sessionId, content, caseId, workspaceRoot }),
   chatCancel: (sessionId: string) => invoke<void>('chat_cancel', { sessionId }),
 
   permissionRespond: (requestId: string, outcome: 'allow' | 'deny' | 'always') =>

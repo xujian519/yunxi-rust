@@ -118,11 +118,9 @@ impl TuiApp {
             .render(popup, frame.buffer_mut());
         }
 
-        if self.session_picker.is_some() {
-            SessionPickerWidget {
-                picker: self.session_picker.as_ref().unwrap(),
-            }
-            .render(area, frame.buffer_mut());
+        if let Some(picker) = &self.session_picker {
+            SessionPickerWidget { picker }
+                .render(area, frame.buffer_mut());
         }
     }
 

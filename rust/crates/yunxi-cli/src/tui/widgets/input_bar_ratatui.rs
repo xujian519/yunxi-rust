@@ -47,7 +47,7 @@ impl Widget for InputBarWidget<'_> {
 
         let content_span = if self.content.is_empty() {
             Span::styled(
-                "在此输入消息…",
+                "在此输入消息，或输入 / 查看命令…",
                 Style::default().fg(Color::Indexed(dim_color())),
             )
         } else {
@@ -61,8 +61,10 @@ impl Widget for InputBarWidget<'_> {
 
         if self.slash_completion_count > 0 && self.slash_completion.is_none() {
             let hint = Span::styled(
-                format!(" ({} 补全)", self.slash_completion_count),
-                Style::default().fg(Color::Indexed(dim_color())),
+                format!(" ({} 个命令可用，Tab 补全)", self.slash_completion_count),
+                Style::default()
+                    .fg(Color::Indexed(user_role_color()))
+                    .add_modifier(Modifier::BOLD),
             );
             spans.push(hint);
         }
@@ -76,7 +78,7 @@ impl Widget for InputBarWidget<'_> {
                 let (display, _) = &m.matches[m.selected];
                 format!("Tab 应用 · ↑↓ 选择 · {}", display)
             })
-            .unwrap_or_else(|| "Shift+Enter 换行 · Enter 发送 · Tab 补全".to_string());
+            .unwrap_or_else(|| "Enter 发送 · Shift+Enter 换行 · / 命令 · Tab 补全".to_string());
 
         lines.push(Line::from(Span::styled(
             hint_text,

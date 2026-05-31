@@ -23,6 +23,13 @@ impl Widget for ChatViewWidget<'_> {
             if entry.text.is_empty() && matches!(entry.role, ChatRole::Assistant) {
                 continue;
             }
+            let is_error = entry.text.starts_with("Error")
+                || entry.text.starts_with("error")
+                || entry.text.contains("Unauthorized")
+                || entry.text.contains("401")
+                || entry.text.contains("403")
+                || entry.text.contains("500");
+
             let role_label = match entry.role {
                 ChatRole::User => Span::styled(
                     "你",
@@ -36,6 +43,12 @@ impl Widget for ChatViewWidget<'_> {
                         .fg(Color::Indexed(user_role_color()))
                         .add_modifier(Modifier::BOLD),
                 ),
+                ChatRole::System if is_error => Span::styled(
+                    "⚠",
+                    Style::default()
+                        .fg(Color::Red)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 ChatRole::System => Span::styled(
                     "系统",
                     Style::default().fg(Color::Indexed(system_role_color())),
@@ -45,6 +58,12 @@ impl Widget for ChatViewWidget<'_> {
             let colon = Span::styled(": ", Style::default());
 
             let body = match entry.role {
+                ChatRole::System if is_error => Text::from(Line::from(Span::styled(
+                    entry.text.clone(),
+                    Style::default()
+                        .fg(Color::Red)
+                        .add_modifier(Modifier::BOLD),
+                ))),
                 ChatRole::Assistant | ChatRole::System => markdown::markdown_to_text(&entry.text),
                 ChatRole::User => Text::from(Line::from(Span::styled(
                     entry.text.clone(),
@@ -65,7 +84,10 @@ impl Widget for ChatViewWidget<'_> {
                     lines.push(Line::from(spans));
                 }
             }
-            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                "─".repeat(area.width as usize),
+                Style::default().fg(Color::DarkGray),
+            )));
         }
 
         if self.thinking {

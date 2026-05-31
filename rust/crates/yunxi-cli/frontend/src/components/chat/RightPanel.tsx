@@ -40,7 +40,7 @@ const commandIcons: Record<string, ComponentType<{ size?: number; style?: CSSPro
 
 const RightPanel: FC<RightPanelProps> = ({ onClose }) => {
   const { messages, send, isStreaming, error, usage, model, ready } = useChat();
-  const { budgetTotal, toggleMessageReasoning } = useApp();
+  const { budgetTotal, toggleMessageReasoning, activeWorkspaceFolder } = useApp();
   const [inputValue, setInputValue] = useState('');
   const [showCommands, setShowCommands] = useState(false);
   const [selectedCommandIdx, setSelectedCommandIdx] = useState(0);
@@ -282,7 +282,25 @@ const RightPanel: FC<RightPanelProps> = ({ onClose }) => {
           color: 'var(--text-secondary)',
         }}
       >
-        <span>AI 助手</span>
+        <div className="flex items-center" style={{ gap: 8, minWidth: 0, overflow: 'hidden' }}>
+          <span>AI 助手</span>
+          {activeWorkspaceFolder && (
+            <span
+              className="truncate"
+              title={activeWorkspaceFolder.path}
+              style={{
+                fontSize: 10,
+                fontWeight: 400,
+                color: 'var(--text-tertiary)',
+                textTransform: 'none',
+                letterSpacing: 'normal',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              {activeWorkspaceFolder.path.replace(/^\/(Users|home)\/[^/]+/, '~').replace(/^[A-Z]:\\Users\\[^\\]+/, '~')}
+            </span>
+          )}
+        </div>
         {onClose ? (
           <button
             type="button"
