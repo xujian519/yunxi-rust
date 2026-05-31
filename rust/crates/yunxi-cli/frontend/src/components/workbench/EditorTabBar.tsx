@@ -2,6 +2,7 @@ import type { FC, DragEvent } from 'react';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useApp } from '@/context/AppProvider';
+import ViewModeToggle from './ViewModeToggle';
 
 const EditorTabBar: FC = () => {
   const { editorTabs, activeTabId, setActiveTab, closeEditorTab, reorderEditorTabs } = useApp();
@@ -103,6 +104,11 @@ const EditorTabBar: FC = () => {
           </div>
         );
       })}
+      {editorTabs.length > 0 && (
+        <div className="flex flex-1 items-center justify-end px-2">
+          <ViewModeToggle />
+        </div>
+      )}
     </div>
   );
 };
