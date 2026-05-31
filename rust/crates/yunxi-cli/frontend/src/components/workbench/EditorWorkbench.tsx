@@ -24,12 +24,15 @@ const EditorWorkbench: FC = () => {
     if (showDrawings) return <DrawingsPlaceholder />;
     if (docxMode === 'docx') {
       const content = activeDoc?.contentMd || activeDocContent;
+      const isReview = activeView === 'review';
+      const isReadOnly = activeView === 'compare' || activeView === 'search';
       return (
         <DocxEditorView
           markdownContent={content}
-          mode="editing"
+          mode={isReview ? 'suggesting' : 'editing'}
+          readOnly={isReadOnly}
           onChange={(markdown) => {
-            if (activeDocId) void updateCaseDocument(activeDocId, markdown);
+            if (activeDocId && !isReadOnly) void updateCaseDocument(activeDocId, markdown);
           }}
         />
       );

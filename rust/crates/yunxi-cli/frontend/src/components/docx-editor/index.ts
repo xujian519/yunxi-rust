@@ -1,2 +1,2 @@
-export { default as DocxEditorView } from './DocxEditorView'
+export { DocxEditorView } from './DocxEditorView'
 export type { DocxEditorViewProps } from './DocxEditorView'
