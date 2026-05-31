@@ -8,11 +8,12 @@ import DraftView from '@/components/center/DraftView';
 import DrawingsPlaceholder from '@/components/workbench/DrawingsPlaceholder';
 import WelcomeEditor from '@/components/workbench/WelcomeEditor';
 import EditorTabBar from '@/components/workbench/EditorTabBar';
-import { DocxEditorView } from '@/components/docx-editor';
+import { DocxEditorView, type AIActionType } from '@/components/docx-editor';
 import { useApp } from '@/context/AppProvider';
+import { buildPrompt } from '@/utils/aiBridge';
 
 const EditorWorkbench: FC = () => {
-  const { activeView, editorTabs, activeTabId, activeCase, activeDocId, activeDocContent, docxMode, updateCaseDocument } = useApp();
+  const { activeView, editorTabs, activeTabId, activeCase, activeDocId, activeDocContent, docxMode, updateCaseDocument, send } = useApp();
 
   const activeTab = editorTabs.find((t) => t.id === activeTabId);
   const activeDoc = activeCase?.documents.find((d) => d.id === activeDocId);
@@ -33,6 +34,10 @@ const EditorWorkbench: FC = () => {
           readOnly={isReadOnly}
           onChange={(markdown) => {
             if (activeDocId && !isReadOnly) void updateCaseDocument(activeDocId, markdown);
+          }}
+          onAIAction={(action, selectedText) => {
+            const prompt = buildPrompt(action, selectedText);
+            void send(prompt);
           }}
         />
       );

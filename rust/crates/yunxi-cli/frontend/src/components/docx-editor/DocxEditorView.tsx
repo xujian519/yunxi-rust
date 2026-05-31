@@ -4,6 +4,8 @@ import type { Document } from '@eigenpal/docx-editor-core/types/document'
 import { createDocumentWithText } from '@eigenpal/docx-editor-core'
 import '@eigenpal/docx-editor-react/styles.css'
 
+export type AIActionType = 'polish' | 'expand' | 'rewrite' | 'summarize'
+
 export interface DocxEditorViewProps {
   markdownContent?: string
   initialDocument?: Document
@@ -13,6 +15,8 @@ export interface DocxEditorViewProps {
   readOnly?: boolean
   documentName?: string
   showToolbar?: boolean
+  /** 用户触发 AI 编辑动作的回调 */
+  onAIAction?: (action: AIActionType, selectedText: string) => void
 }
 
 export const DocxEditorView = forwardRef<DocxEditorRef, DocxEditorViewProps>(
