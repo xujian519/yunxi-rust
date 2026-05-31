@@ -1,0 +1,35 @@
+{
+  "semantic": {
+    "enabled": true,
+    "backend": "http",
+    "http": {
+      "baseUrl": "http://127.0.0.1:8009",
+      "embedPath": "/v1/embeddings",
+      "apiStyle": "openai",
+      "model": "bge-m3-mlx-8bit",
+      "apiKey": "YOUR_OMLX_API_KEY",
+      "timeoutSecs": 120
+    },
+    "defaults": {
+      "knowledgeSearchMode": "hybrid",
+      "semanticCompareAuto": true
+    }
+  },
+  "env": {
+    "DEEPSEEK_API_KEY": "sk-YOUR_DEEPSEEK_KEY",
+    "DEEPSEEK_BASE_URL": "https://api.deepseek.com",
+    "GLM_API_KEY": "YOUR_GLM_KEY",
+    "OMLX_API_KEY": "YOUR_OMLX_KEY",
+    "OMLX_BASE_URL": "http://127.0.0.1:8009/v1",
+    "YUNXI_SKILLS_DIR": "/path/to/.agents/skills",
+    "PATENT_KG_DB": "/path/to/YunXi/assets/knowledge_graph/patent_kg.db",
+    "QDRANT_URL": "http://localhost:6333",
+    "NEO4J_URI": "bolt://localhost:7687",
+    "NEO4J_USER": "neo4j",
+    "NEO4J_PASSWORD": "YOUR_NEO4J_PASSWORD",
+    "PGHOST": "127.0.0.1",
+    "PGPORT": "5432",
+    "PGUSER": "your_user",
+    "PG_DATABASE": "your_database"
+  }
+}

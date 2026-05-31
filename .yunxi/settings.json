@@ -1,5 +1,40 @@
 {
   "model": "deepseek-v4-pro",
+  "modelRouter": {
+    "enabled": true,
+    "strategy": "balanced",
+    "threshold": 65,
+    "fallbackModel": "deepseek-v4-pro",
+    "dimensions": {
+      "taskType": {
+        "weight": 40,
+        "keywords": {
+          "planning": ["规划", "计划", "设计", "评估", "反思", "策略", "方案"],
+          "analysis": ["分析", "检查", "验证", "审查", "对比", "诊断"],
+          "generation": ["生成", "撰写", "创建", "起草", "编写", "构建"],
+          "execution": ["执行", "修改", "操作", "处理", "运行", "应用"],
+          "chat": ["聊天", "对话", "解释", "说明", "帮助", "咨询"]
+        }
+      },
+      "inputComplexity": {
+        "weight": 20,
+        "maxLengthScore": 1000
+      },
+      "context": {
+        "weight": 20,
+        "maxHistoryRounds": 10,
+        "maxFilesInvolved": 5
+      },
+      "toolCalls": {
+        "weight": 20,
+        "complexTools": ["python", "bash", "search", "web_fetch", "agent"]
+      }
+    },
+    "logging": {
+      "enabled": true,
+      "level": "debug"
+    }
+  },
   "permissions": {
     "defaultMode": "dontAsk"
   }

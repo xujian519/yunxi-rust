@@ -1,45 +1,102 @@
-# Rust build artifacts
-rust/target/
+# =============================================================================
+# 云熙 (YunXi) — Git 忽略规则（知识数据、本地密钥、构建产物）
+# 说明见 docs/GIT_REPOSITORY.md
+# =============================================================================
 
-# Python
+# --- Rust / Node 构建 ---
+rust/target/
+**/node_modules/
+rust/crates/yunxi-cli/frontend/dist/
+rust/crates/yunxi-cli/dist/
+
+# --- Python ---
 __pycache__/
 *.pyc
 *.pyo
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Editor
-*.swp
-*.swo
-*~
-.vscode/
-.idea/
-
-# Environment
-*.env
 .venv/
 venv/
 
-# Session and state files
+# --- 操作系统 / 编辑器 ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+# 保留 .cursor/rules 等可提交规则；忽略本机 Cursor 状态
+.cursor/projects/
+.cursor/terminals/
+.vscode/
+
+# --- 环境变量与密钥（切勿提交）---
+.env
+.env.*
+!.env.example
+*.env.local
+*.pem
+*.p12
+*.key
+id_rsa
+id_rsa.*
+*.credentials
+credentials.json
+secrets.json
+**/api_keys.json
+
+# --- 云熙 / Claude 本地配置（含 env.API_KEY，仅提交 *.example.json）---
+.claude/
+.claude.json
+.claude/settings.local.json
+.yunxi/settings.local.json
+.yunxi/settings.local.json.*
+!.yunxi/settings.local.json.example
+.yunxi/settings.json.bak*
+.yunxi/.env
+.yunxi/sessions/
+.yunxi/vectors/
+.yunxi/workflows/
+.yunxi/*.bak
+.yunxi/*.bak-*
+
+# --- 知识库 / 向量 / 语义索引 / 图谱 / 法规库（体积大、常含本机路径）---
+assets/knowledge-base/
+assets/knowledge/
+assets/knowledge_graph/
+
+# SQLite / 图谱 / 向量库文件（仓库内任意位置）
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+
+# 向量与图数据库运行时目录
+**/qdrant_storage/
+**/neo4j/
+**/data/neo4j/
+
+# --- 会话与 Agent 本地状态 ---
 .port_sessions/
 .omc/
-.claude/
+.sisyphus/
+.sandbox-home/
+.superpowers/
+.reasonix/
+.codegraph/
+.agent/
+.agents/cache/
 *.clawd-todos.json
 
-# Sandbox
-.sandbox-home/
-
-# Generated data
-assets/knowledge_graph/
-assets/skills/
-
-# Tool state
-.sisyphus/
-
-# Misc
+# --- 日志与临时文件 ---
 *.log
+*.tmp
+*.temp
+
+# --- 桌面 / 工具链本地产物 ---
+*.app
+.bundle/

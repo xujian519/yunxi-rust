@@ -81,6 +81,15 @@ rust/
 
 ## 快速开始
 
+本机完整环境与资产说明见 [LOCAL_SETUP.md](LOCAL_SETUP.md)。首次使用建议：
+
+```bash
+cd rust && CARGO_TARGET_DIR="$(pwd)/target" cargo build --release
+export PATH="$(pwd)/target/release:$PATH"
+export DEEPSEEK_API_KEY="sk-..."
+yunxi doctor
+```
+
 ### 构建
 
 ```bash
@@ -114,7 +123,14 @@ export YUNXI_API_KEY="..."
 export YUNXI_API_BASE_URL="https://your-gateway.example"
 ```
 
-配置目录默认为 `~/.yunxi/`，项目级见 `.yunxi.json` 与 `.yunxi/settings.local.json`。
+配置目录默认为 `~/.yunxi/`。项目级复制模板：
+
+```bash
+cp .yunxi/settings.local.json.example .yunxi/settings.local.json
+# 或 ~/.yunxi/settings.local.json — 含 API Key，切勿提交 Git
+```
+
+详见 [docs/GIT_REPOSITORY.md](docs/GIT_REPOSITORY.md)（远程仓库、`.gitignore`、密钥与知识库数据）。
 
 或通过 OAuth 认证：
 
@@ -230,21 +246,11 @@ yunxi [选项] [命令]
 | `/semantic` | 查看语义嵌入与索引状态 |
 | `/flow [list\|resume\|clear]` | 管理工作流挂起 |
 
-### 专利专屏斜杠命令（`yunxi --patent`）
+### 专利案件工作（桌面客户端）
 
-| 命令 | 说明 |
-|------|------|
-| `/init` | 扫描文件夹并更新 YUNXI.md |
-| `/extract [路径]` | 批量抽取办公文件并灌入各视图 |
-| `/preview <路径>` | 单文件抽取预览（不灌入） |
-| `/ocr <路径>` | 单文件 OCR/抽取并灌入主视图 |
-| `/panel` | 分页查看当前主视图全文 |
-| `/materials` | 材料清单与工具建议 |
-| `/view <1-6\|名称>` | 切换主视图（权利要求/对比/审查意见/检索/草稿/对话） |
-| `/case [set key=val]` | 查看或设置案件信息 |
-| `/import <路径>` | 导入文本或办公文件 |
-| `/export [md\|docx]` | 国知局版式导出 |
-| `/reload` | 从 YUNXI.md 重载案件信息 |
+终端专利专屏（`yunxi --patent`）已移除。请使用 **`yunxi-desktop`**（Tauri + React）：检索、对比、审查意见、撰写等见 [`rust/crates/yunxi-cli/DESKTOP-DEVELOPMENT-LOG.md`](rust/crates/yunxi-cli/DESKTOP-DEVELOPMENT-LOG.md)。
+
+在专利项目目录运行 `yunxi` 时，`/init` 会提示改用桌面端；办公抽取脚本仍见 [`scripts/patent/README.md`](scripts/patent/README.md)。
 
 ---
 
