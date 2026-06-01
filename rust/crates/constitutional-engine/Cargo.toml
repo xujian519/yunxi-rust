@@ -1,14 +1,19 @@
 [package]
 name = "constitutional-engine"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-thiserror = "1.0"
+thiserror = "2"
 regex = "1.10"
 
 [dev-dependencies]
 tempfile = "3"
+
+[lints]
+workspace = true

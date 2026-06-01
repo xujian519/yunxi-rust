@@ -1,5 +1,6 @@
 import type {
   ChatSendResult,
+  DirectoryEntry,
   PatentCase,
   SessionCreateResult,
   SessionMeta,
@@ -79,6 +80,7 @@ export const tauriApi = {
     invoke<SessionSaveResult>('session_save', { sessionJson }),
   sessionCreate: (title: string) =>
     invoke<SessionCreateResult>('session_create', { title }),
+  sessionDelete: (id: string) => invoke<void>('session_delete', { id }),
 
   chatSend: (sessionId: string, content: string, caseId?: string, workspaceRoot?: string) =>
     invoke<ChatSendResult>('chat_send', { sessionId, content, caseId, workspaceRoot }),
@@ -91,6 +93,7 @@ export const tauriApi = {
   pickWorkspaceFolder: () => invoke<string | null>('pick_workspace_folder'),
   scanWorkspaceRoots: (paths: string[], maxDepth?: number) =>
     invoke<ScanWorkspaceResult>('scan_workspace_roots', { paths, maxDepth }),
+  listDirectory: (dir: string) => invoke<DirectoryEntry[]>('list_directory', { dir }),
   workspaceWatchStart: (paths: string[]) =>
     invoke<void>('workspace_watch_start', { paths }),
   workspaceWatchStop: () => invoke<void>('workspace_watch_stop'),

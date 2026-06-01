@@ -84,3 +84,12 @@ pub fn session_create(title: String) -> Result<SessionCreateResult, String> {
         .map_err(|e| e.to_string())?;
     Ok(SessionCreateResult { id: handle.id })
 }
+
+#[tauri::command]
+pub fn session_delete(id: String) -> Result<(), String> {
+    let handle = resolve_session_reference(&id).map_err(|e| e.to_string())?;
+    if handle.path.exists() {
+        std::fs::remove_file(&handle.path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

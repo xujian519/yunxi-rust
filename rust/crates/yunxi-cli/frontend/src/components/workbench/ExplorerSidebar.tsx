@@ -1,8 +1,9 @@
 import type { FC } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ChevronDown,
+  ChevronRight,
   FolderOpen,
   FolderPlus,
   MessageSquare,
@@ -15,12 +16,11 @@ import {
   Loader2,
   Trash2,
   Download,
-  Archive,
-  RotateCcw,
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { folderLabelFromPath } from '@/utils/workspaceStorage';
+import type { DirectoryEntry } from '@/api/types';
+import { api, isTauriRuntime } from '@/api';
 import { useApp } from '@/context/AppProvider';
 
 interface ExplorerSidebarProps {
@@ -40,21 +40,16 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
     openDocument,
     createCase,
     deleteCase,
-    archiveCase,
-    restoreCase,
-    archivedCases,
     sessions,
     activeSessionId,
     selectSession,
     createSession,
+    deleteSession,
     visibleWorkspaceFolders,
     activeWorkspaceFolderId,
     setActiveWorkspaceFolder,
     pickWorkspaceFolderDialog,
     removeWorkspaceFolder,
-    archiveWorkspacePath,
-    restoreArchivedPath,
-    archivedPaths,
     visibleWorkspaceProjects,
     workspaceWatchEnabled,
     setWorkspaceWatchEnabled,
@@ -66,12 +61,23 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
     setWorkspaceScanMaxDepth,
   } = useApp();
   const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set());
-  const [casesArchivedExpanded, setCasesArchivedExpanded] = useState(false);
   const [hoveredCase, setHoveredCase] = useState<string | null>(null);
   const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
-  const [archivedExpanded, setArchivedExpanded] = useState(false);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredSession, setHoveredSession] = useState<string | null>(null);
+  const [dirCache, setDirCache] = useState<Record<string, DirectoryEntry[]>>({});
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+
+  const loadDirectory = useCallback(async (dir: string) => {
+    if (dirCache[dir] || !isTauriRuntime()) return;
+    try {
+      const entries = await api.listDirectory(dir);
+      setDirCache((prev) => ({ ...prev, [dir]: entries }));
+    } catch {
+      // ignore
+    }
+  }, [dirCache]);
 
   const toggleCase = (id: string) => {
     setExpandedCases((prev) => {
@@ -99,6 +105,75 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
     const q = searchQuery.toLowerCase();
     return c.name.toLowerCase().includes(q) || c.number.toLowerCase().includes(q);
   });
+
+  const toggleDir = (dir: string) => {
+    setExpandedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(dir)) next.delete(dir);
+      else {
+        next.add(dir);
+        void loadDirectory(dir);
+      }
+      return next;
+    });
+  };
+
+  const renderFileTree = (rootPath: string, baseIndent: number): React.ReactNode => {
+    const entries = dirCache[rootPath];
+    if (!entries) return null;
+    return entries.map((entry) => {
+      const isOpen = expandedDirs.has(entry.path);
+      return (
+        <div key={entry.path}>
+          <div
+            className="flex w-full items-center"
+            style={{ height: 24, padding: `2px 12px 2px ${baseIndent + 16}px` }}
+          >
+            <button
+              type="button"
+              onClick={() => entry.isDir && toggleDir(entry.path)}
+              className="flex min-w-0 flex-1 items-center truncate text-left"
+              style={{ fontSize: 11, color: 'var(--text-secondary)' }}
+            >
+              {entry.isDir ? (
+                <>
+                  <ChevronRight
+                    size={10}
+                    style={{
+                      marginRight: 2,
+                      color: 'var(--text-tertiary)',
+                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <FolderOpen
+                    size={12}
+                    style={{
+                      marginRight: 4,
+                      color: 'var(--text-tertiary)',
+                      flexShrink: 0,
+                    }}
+                  />
+                </>
+              ) : (
+                <FileText
+                  size={12}
+                  style={{
+                    marginRight: 4,
+                    marginLeft: 12,
+                    color: 'var(--text-tertiary)',
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              <span className="truncate">{entry.name}</span>
+            </button>
+          </div>
+          {isOpen && entry.isDir && renderFileTree(entry.path, baseIndent + 12)}
+        </div>
+      );
+    });
+  };
 
   return (
     <div
@@ -278,22 +353,43 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
                 const projects = visibleWorkspaceProjects.filter(
                   (p) => p.workspaceRoot === folder.path,
                 );
+                const isFolderExpanded = expandedFolders.has(folder.id);
                 return (
                   <div key={folder.id}>
                     <div
                       className="group flex w-full items-center"
                       style={{
                         height: 28,
-                        padding: '4px 12px 4px 28px',
+                        padding: '4px 12px 4px 16px',
                         backgroundColor: isActive ? 'var(--bg-sidebar-active)' : 'transparent',
                       }}
                     >
                       <button
                         type="button"
-                        onClick={() => setActiveWorkspaceFolder(folder.id)}
+                        onClick={() => {
+                          setActiveWorkspaceFolder(folder.id);
+                          setExpandedFolders((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(folder.id)) next.delete(folder.id);
+                            else {
+                              next.add(folder.id);
+                              void loadDirectory(folder.path);
+                            }
+                            return next;
+                          });
+                        }}
                         className="flex min-w-0 flex-1 items-center truncate text-left"
                         title={folder.path}
                       >
+                        <ChevronDown
+                          size={12}
+                          style={{
+                            marginRight: 2,
+                            color: 'var(--text-tertiary)',
+                            transform: isFolderExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                            flexShrink: 0,
+                          }}
+                        />
                         <FolderOpen
                           size={14}
                           style={{
@@ -310,14 +406,6 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
                         </span>
                       </button>
                       <div className="flex shrink-0 items-center" style={{ gap: 4 }}>
-                        <button
-                          type="button"
-                          onClick={() => archiveWorkspacePath(folder.path)}
-                          title="归档（从列表隐藏，可恢复）"
-                          style={{ color: 'var(--text-tertiary)' }}
-                        >
-                          <Archive size={12} />
-                        </button>
                         {!folder.isPrimary && (
                           <button
                             type="button"
@@ -339,7 +427,8 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
                         )}
                       </div>
                     </div>
-                    {projects.map((project) => (
+                    {isFolderExpanded &&
+                      projects.map((project) => (
                       <div
                         key={project.folderPath}
                         className="group flex w-full items-center"
@@ -379,17 +468,6 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
                           )}
                         </button>
                         <div className="flex shrink-0 items-center" style={{ gap: 4 }}>
-                          <button
-                            type="button"
-                            title="归档项目"
-                            style={{ color: 'var(--text-tertiary)' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              archiveWorkspacePath(project.folderPath);
-                            }}
-                          >
-                            <Archive size={12} />
-                          </button>
                           {project.caseId && (
                             <button
                               type="button"
@@ -409,57 +487,10 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
                         </div>
                       </div>
                     ))}
+                    {isFolderExpanded && renderFileTree(folder.path, 44)}
                   </div>
                 );
               })}
-            {archivedPaths.length > 0 && workspaceExpanded && (
-              <div style={{ marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => setArchivedExpanded((v) => !v)}
-                  className="flex w-full items-center"
-                  style={{
-                    padding: '4px 12px',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: 'var(--text-tertiary)',
-                  }}
-                >
-                  <ChevronDown
-                    size={12}
-                    style={{
-                      marginRight: 4,
-                      transform: archivedExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-                    }}
-                  />
-                  已归档 ({archivedPaths.length})
-                </button>
-                {archivedExpanded &&
-                  archivedPaths.map((path) => (
-                    <div
-                      key={path}
-                      className="flex w-full items-center"
-                      style={{ height: 26, padding: '4px 12px 4px 28px' }}
-                    >
-                      <span
-                        className="min-w-0 flex-1 truncate"
-                        style={{ fontSize: 11, color: 'var(--text-tertiary)' }}
-                        title={path}
-                      >
-                        {folderLabelFromPath(path)}
-                      </span>
-                      <button
-                        type="button"
-                        title="恢复显示"
-                        onClick={() => restoreArchivedPath(path)}
-                        style={{ color: 'var(--accent-primary)', marginRight: 4 }}
-                      >
-                        <RotateCcw size={12} />
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            )}
           </>
         )}
 
@@ -573,23 +604,12 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
                   <div className="flex shrink-0 items-center" style={{ gap: 2, paddingRight: 4 }}>
                     <button
                       type="button"
-                      title="归档（从列表隐藏，可恢复）"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void archiveCase(caseItem.id);
-                      }}
-                      style={{ color: 'var(--text-tertiary)', width: 22, height: 22 }}
-                    >
-                      <Archive size={12} />
-                    </button>
-                    <button
-                      type="button"
-                      title="永久删除"
+                      title="删除案件"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (
                           !window.confirm(
-                            `确定永久删除案件「${caseItem.name}」？\n此操作不可恢复。`,
+                            `确定删除案件「${caseItem.name}」？\n此操作不可恢复。`,
                           )
                         ) {
                           return;
@@ -656,72 +676,6 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
           );
         })}
 
-        {archivedCases.length > 0 && isExpanded && (
-          <div style={{ marginTop: 4 }}>
-            <button
-              type="button"
-              onClick={() => setCasesArchivedExpanded((v) => !v)}
-              className="flex w-full items-center"
-              style={{
-                padding: '4px 12px',
-                fontSize: 10,
-                fontWeight: 600,
-                color: 'var(--text-tertiary)',
-              }}
-            >
-              <ChevronDown
-                size={12}
-                style={{
-                  marginRight: 4,
-                  transform: casesArchivedExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-                }}
-              />
-              已归档案件 ({archivedCases.length})
-            </button>
-            {casesArchivedExpanded &&
-              archivedCases.map((caseItem) => (
-                <div
-                  key={caseItem.id}
-                  className="flex w-full items-center"
-                  style={{ height: 26, padding: '4px 12px 4px 28px' }}
-                >
-                  <span
-                    className="min-w-0 flex-1 truncate"
-                    style={{ fontSize: 11, color: 'var(--text-tertiary)' }}
-                    title={caseItem.name}
-                  >
-                    {caseItem.name}
-                  </span>
-                  <button
-                    type="button"
-                    title="恢复显示"
-                    onClick={() => void restoreCase(caseItem.id)}
-                    style={{ color: 'var(--accent-primary)', marginRight: 4 }}
-                  >
-                    <RotateCcw size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    title="永久删除"
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          `确定永久删除已归档案件「${caseItem.name}」？\n此操作不可恢复。`,
-                        )
-                      ) {
-                        return;
-                      }
-                      void deleteCase(caseItem.id);
-                    }}
-                    style={{ color: 'var(--text-tertiary)' }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              ))}
-          </div>
-        )}
-
         <div style={{ marginTop: 12 }}>
           {isExpanded && (
             <div
@@ -739,10 +693,8 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
           )}
 
           {sessions.map((session) => (
-            <button
+            <div
               key={session.id}
-              type="button"
-              onClick={() => void selectSession(session.id)}
               className="flex w-full items-center"
               style={{
                 height: 30,
@@ -754,24 +706,44 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
               onMouseEnter={() => setHoveredSession(session.id)}
               onMouseLeave={() => setHoveredSession(null)}
             >
-              <MessageSquare
-                size={14}
-                style={{ color: 'var(--text-tertiary)', marginRight: isExpanded ? 6 : 0 }}
-              />
-              {isExpanded && (
-                <span
-                  className="truncate"
-                  style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1 }}
-                >
-                  {session.title}
-                </span>
-              )}
+              <button
+                type="button"
+                onClick={() => void selectSession(session.id)}
+                className="flex min-w-0 flex-1 items-center truncate text-left"
+              >
+                <MessageSquare
+                  size={14}
+                  style={{ color: 'var(--text-tertiary)', marginRight: isExpanded ? 6 : 0 }}
+                />
+                {isExpanded && (
+                  <span
+                    className="truncate"
+                    style={{ fontSize: 11, color: 'var(--text-secondary)', flex: 1 }}
+                  >
+                    {session.title}
+                  </span>
+                )}
+              </button>
               {isExpanded && hoveredSession === session.id && (
-                <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                  {session.timestamp}
-                </span>
+                <div className="flex shrink-0 items-center" style={{ gap: 2 }}>
+                  <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                    {session.timestamp}
+                  </span>
+                  <button
+                    type="button"
+                    title="删除会话"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!window.confirm(`确定删除会话「${session.title}」？`)) return;
+                      void deleteSession(session.id);
+                    }}
+                    style={{ color: 'var(--text-tertiary)', width: 18, height: 18 }}
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </div>
               )}
-            </button>
+            </div>
           ))}
         </div>
       </div>

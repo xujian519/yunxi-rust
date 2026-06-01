@@ -115,6 +115,7 @@ interface AppContextValue {
   activeSessionId: string | null;
   selectSession: (sessionId: string) => Promise<void>;
   createSession: (title?: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
 
   messages: ChatMessage[];
   send: (content: string, caseId?: string) => Promise<void>;
@@ -945,6 +946,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await loadSessions();
   }, [loadSessions]);
 
+  const deleteSession = useCallback(async (sessionId: string) => {
+    if (!isTauriRuntime()) {
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (activeSessionId === sessionId) {
+        const remaining = sessions.filter((s) => s.id !== sessionId);
+        const fallback = remaining[0]?.id ?? null;
+        setActiveSessionId(fallback);
+        setMessages(fallback ? [] : []);
+      }
+      return;
+    }
+    await api.sessionDelete(sessionId);
+    if (activeSessionId === sessionId) {
+      setActiveSessionId(null);
+      setMessages([]);
+    }
+    await loadSessions();
+  }, [activeSessionId, sessions, loadSessions]);
+
   const selectCase = useCallback(
     (caseId: string) => {
       const raw = casesRaw.find((c) => c.id === caseId);
@@ -1593,6 +1613,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activeSessionId,
       selectSession,
       createSession,
+      deleteSession,
       messages,
       send,
       cancel,
@@ -1691,6 +1712,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activeSessionId,
       selectSession,
       createSession,
+      deleteSession,
       messages,
       send,
       cancel,
@@ -1716,6 +1738,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       bottomPanelVisible,
       bottomPanelHeight,
       bottomPanelTab,
+      setBottomPanelVisible,
+      setBottomPanelHeight,
+      setBottomPanelTab,
+      toggleBottomPanel,
+      commandPaletteOpen,
+      setCommandPaletteOpen,
+      toggleCommandPalette,
       panelLogs,
       panelProblems,
       problemCount,

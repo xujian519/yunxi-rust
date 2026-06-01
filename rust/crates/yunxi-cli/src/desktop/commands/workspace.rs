@@ -114,6 +114,49 @@ pub fn workspace_watch_start(
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectoryEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size: u64,
+}
+
+#[tauri::command]
+pub fn list_directory(dir: String) -> Result<Vec<DirectoryEntry>, String> {
+    let root = PathBuf::from(&dir);
+    if !root.is_dir() {
+        return Err(format!("目录不存在: {dir}"));
+    }
+    let mut entries: Vec<DirectoryEntry> = Vec::new();
+    let read_dir = fs::read_dir(&root).map_err(|e| format!("读取目录失败: {e}"))?;
+    for entry in read_dir {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with('.') {
+            continue;
+        }
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        entries.push(DirectoryEntry {
+            name,
+            path: entry.path().to_string_lossy().into_owned(),
+            is_dir: metadata.is_dir(),
+            size: metadata.len(),
+        });
+    }
+    entries.sort_by(|a, b| {
+        b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(entries)
+}
+
 #[tauri::command]
 pub fn workspace_watch_stop(
     state: tauri::State<'_, std::sync::Arc<crate::state::DesktopState>>,

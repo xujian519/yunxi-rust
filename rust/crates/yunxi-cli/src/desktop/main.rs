@@ -11,9 +11,9 @@ use std::sync::Arc;
 use commands::{
     case_create, case_delete, case_list, case_load, case_save, chat_cancel, chat_send,
     get_settings, get_usage, get_version, get_workspace_info, greet, import_project_materials,
-    knowledge_search, list_project_materials, llm_auth_configured, patent_search,
+    knowledge_search, list_directory, list_project_materials, llm_auth_configured, patent_search,
     permission_respond, pick_workspace_folder, save_llm_api_key, save_settings,
-    scan_workspace_roots, session_create, session_list, session_load, session_save, shell_exec,
+    scan_workspace_roots, session_create, session_delete, session_list, session_load, session_save, shell_exec,
     workspace_watch_start, workspace_watch_stop,
 };
 use paths::init_desktop_environment;
@@ -50,6 +50,7 @@ fn main() {
             session_load,
             session_save,
             session_create,
+            session_delete,
             case_list,
             case_load,
             case_save,
@@ -62,6 +63,7 @@ fn main() {
             permission_respond,
             pick_workspace_folder,
             scan_workspace_roots,
+            list_directory,
             shell_exec,
             shell_session_start,
             shell_session_write,

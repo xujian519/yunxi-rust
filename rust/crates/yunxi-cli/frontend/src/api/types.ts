@@ -106,3 +106,10 @@ export interface ImportMaterialsResult {
   errors: string[];
   case: PatentCase;
 }
+
+export interface DirectoryEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+}
