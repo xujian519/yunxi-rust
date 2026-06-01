@@ -781,6 +781,7 @@ mod tests {
             "YUNXI_WEB_SEARCH_BASE_URL",
             format!("http://{}/search", server.addr()),
         );
+        std::env::set_var("YUNXI_SKIP_ANYSEARCH", "1");
         let result = execute_tool(
             "WebSearch",
             &json!({
@@ -791,6 +792,7 @@ mod tests {
         )
         .expect("WebSearch should succeed");
         std::env::remove_var("YUNXI_WEB_SEARCH_BASE_URL");
+        std::env::remove_var("YUNXI_SKIP_ANYSEARCH");
 
         let output: serde_json::Value = serde_json::from_str(&result).expect("valid json");
         assert_eq!(output["query"], "rust web search");
@@ -831,6 +833,7 @@ mod tests {
             "YUNXI_WEB_SEARCH_BASE_URL",
             format!("http://{}/fallback", server.addr()),
         );
+        std::env::set_var("YUNXI_SKIP_ANYSEARCH", "1");
         let result = execute_tool(
             "WebSearch",
             &json!({
@@ -839,6 +842,7 @@ mod tests {
         )
         .expect("WebSearch fallback parsing should succeed");
         std::env::remove_var("YUNXI_WEB_SEARCH_BASE_URL");
+        std::env::remove_var("YUNXI_SKIP_ANYSEARCH");
 
         let output: serde_json::Value = serde_json::from_str(&result).expect("valid json");
         let backend = output["backend"].as_str().unwrap_or("unknown");
