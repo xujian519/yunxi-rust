@@ -15,7 +15,8 @@ pub use settings::{get_settings, get_usage, llm_auth_configured, save_llm_api_ke
 pub use shell::shell_exec;
 pub use tools::{knowledge_search, patent_search};
 pub use workspace::{
-    list_directory, pick_workspace_folder, scan_workspace_roots, workspace_watch_start, workspace_watch_stop,
+    list_directory, pick_workspace_folder, scan_workspace_roots, workspace_watch_start,
+    workspace_watch_stop,
 };
 
 #[tauri::command]
