@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub(crate) mod chat_view;
+pub(crate) mod diff_view;
 pub(crate) mod flow_hitl_overlay;
 pub(crate) mod guide_overlay;
 pub(crate) mod help_overlay;
@@ -40,7 +41,7 @@ pub use breadcrumb::{Breadcrumb, BreadcrumbItem, BreadcrumbStyle};
 pub use button::{Button, ButtonStyle};
 pub use command_palette::CommandPalette;
 pub use label::Label;
-pub use list::{List, ListItemData, ListStyle};
+pub use list::{List, ListItemData, ListStyle, SelectionMode};
 pub use menu::{Menu, MenuItem, MenuItemType, MenuStyle};
 pub use progress_bar::{ProgressBar, ProgressBarStyle};
 pub use sidebar::{Sidebar, SidebarItem, SidebarPosition, SidebarStyle};

@@ -8,6 +8,12 @@ use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, List as RatatuiList, ListItem, ListState};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectionMode {
+    Single,
+    Multiple,
+}
+
 pub struct List<T: Clone + ToString + Send + Sync> {
     state: ComponentState,
     items: Vec<ListItemData<T>>,
@@ -17,7 +23,7 @@ pub struct List<T: Clone + ToString + Send + Sync> {
     page_size: usize,
     sorted: bool,
     sort_ascending: bool,
-    multi_select: bool,
+    selection_mode: SelectionMode,
     on_select: Option<Box<dyn Fn(usize, &T) -> ActionResult + Send + Sync>>,
     on_double_click: Option<Box<dyn Fn(usize, &T) -> ActionResult + Send + Sync>>,
     style: ListStyle,
@@ -83,7 +89,7 @@ impl<T: Clone + ToString + Send + Sync> List<T> {
             page_size: 10,
             sorted: false,
             sort_ascending: true,
-            multi_select: false,
+            selection_mode: SelectionMode::Single,
             on_select: None,
             on_double_click: None,
             style: ListStyle::default(),
@@ -102,8 +108,17 @@ impl<T: Clone + ToString + Send + Sync> List<T> {
         self
     }
 
+    pub fn with_selection_mode(mut self, selection_mode: SelectionMode) -> Self {
+        self.selection_mode = selection_mode;
+        self
+    }
+
     pub fn with_multi_select(mut self, multi_select: bool) -> Self {
-        self.multi_select = multi_select;
+        self.selection_mode = if multi_select {
+            SelectionMode::Multiple
+        } else {
+            SelectionMode::Single
+        };
         self
     }
 
@@ -162,6 +177,17 @@ impl<T: Clone + ToString + Send + Sync> List<T> {
         &self.items
     }
 
+    pub fn get_selection_mode(&self) -> SelectionMode {
+        self.selection_mode
+    }
+
+    pub fn set_selection_mode(&mut self, mode: SelectionMode) {
+        self.selection_mode = mode;
+        if mode == SelectionMode::Single && self.selected_indices.len() > 1 {
+            self.selected_indices = vec![self.focused_index];
+        }
+    }
+
     pub fn add_item(&mut self, item: T) {
         self.items.push(ListItemData {
             text: item.to_string(),
@@ -185,12 +211,44 @@ impl<T: Clone + ToString + Send + Sync> List<T> {
         }
     }
 
+    pub fn toggle_selection(&mut self) {
+        match self.selection_mode {
+            SelectionMode::Single => {
+                self.selected_indices.clear();
+                self.selected_indices.push(self.focused_index);
+            }
+            SelectionMode::Multiple => {
+                if self.selected_indices.contains(&self.focused_index) {
+                    self.selected_indices.retain(|&i| i != self.focused_index);
+                } else {
+                    self.selected_indices.push(self.focused_index);
+                }
+            }
+        }
+    }
+
+    pub fn select_range(&mut self, start: usize, end: usize) {
+        if self.selection_mode != SelectionMode::Multiple {
+            return;
+        }
+        if start > end {
+            self.select_range(end, start);
+            return;
+        }
+        self.selected_indices.clear();
+        for i in start..=end {
+            if i < self.items.len() {
+                self.selected_indices.push(i);
+            }
+        }
+    }
+
     pub fn clear_selection(&mut self) {
         self.selected_indices.clear();
     }
 
     pub fn select_all(&mut self) {
-        if self.multi_select {
+        if self.selection_mode == SelectionMode::Multiple {
             self.selected_indices = (0..self.items.len()).collect();
         }
     }
@@ -276,20 +334,32 @@ impl<T: Clone + ToString + Send + Sync> Component for List<T> {
         match event {
             Event::Input(InputEvent::Key(key)) => match key.code {
                 KeyCode::Down | KeyCode::Char('j') => {
+                    let old_index = self.focused_index;
                     if self.focused_index < self.items.len().saturating_sub(1) {
                         self.focused_index += 1;
                         if self.focused_index >= self.scroll_offset + self.page_size {
                             self.scroll_offset += 1;
                         }
                     }
+                    if key.modifiers.contains(KeyModifiers::SHIFT)
+                        && self.selection_mode == SelectionMode::Multiple
+                    {
+                        self.select_range(old_index, self.focused_index);
+                    }
                     ActionResult::Handled
                 }
                 KeyCode::Up | KeyCode::Char('k') => {
+                    let old_index = self.focused_index;
                     if self.focused_index > 0 {
                         self.focused_index -= 1;
                         if self.focused_index < self.scroll_offset {
                             self.scroll_offset = self.scroll_offset.saturating_sub(1);
                         }
+                    }
+                    if key.modifiers.contains(KeyModifiers::SHIFT)
+                        && self.selection_mode == SelectionMode::Multiple
+                    {
+                        self.select_range(old_index, self.focused_index);
                     }
                     ActionResult::Handled
                 }
@@ -340,13 +410,11 @@ impl<T: Clone + ToString + Send + Sync> Component for List<T> {
                     ActionResult::Handled
                 }
                 KeyCode::Char(' ') => {
-                    if self.multi_select {
-                        if self.selected_indices.contains(&self.focused_index) {
-                            self.selected_indices.retain(|&i| i != self.focused_index);
-                        } else {
-                            self.selected_indices.push(self.focused_index);
-                        }
-                    }
+                    self.toggle_selection();
+                    ActionResult::Handled
+                }
+                KeyCode::Esc => {
+                    self.clear_selection();
                     ActionResult::Handled
                 }
                 _ => ActionResult::Ignored,
@@ -382,8 +450,8 @@ mod tests {
 
     #[test]
     fn test_list_selection() {
-        let mut list: List<String> =
-            List::new(vec!["item1".to_string(), "item2".to_string()]).with_multi_select(true);
+        let mut list: List<String> = List::new(vec!["item1".to_string(), "item2".to_string()])
+            .with_selection_mode(SelectionMode::Multiple);
         list.handle_event(&Event::Input(InputEvent::Key(crossterm::event::KeyEvent {
             code: KeyCode::Char(' '),
             modifiers: KeyModifiers::NONE,
@@ -395,10 +463,61 @@ mod tests {
 
     #[test]
     fn test_list_select_all() {
-        let mut list: List<String> =
-            List::new(vec!["item1".to_string(), "item2".to_string()]).with_multi_select(true);
+        let mut list: List<String> = List::new(vec!["item1".to_string(), "item2".to_string()])
+            .with_selection_mode(SelectionMode::Multiple);
         list.select_all();
         assert_eq!(list.get_selected_indices().len(), 2);
+    }
+
+    #[test]
+    fn test_list_select_range() {
+        let mut list: List<String> = List::new(vec![
+            "item1".to_string(),
+            "item2".to_string(),
+            "item3".to_string(),
+            "item4".to_string(),
+        ])
+        .with_selection_mode(SelectionMode::Multiple);
+        list.select_range(1, 3);
+        assert_eq!(list.get_selected_indices(), vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_list_toggle_selection_single() {
+        let mut list: List<String> = List::new(vec!["item1".to_string(), "item2".to_string()])
+            .with_selection_mode(SelectionMode::Single);
+        list.toggle_selection();
+        assert_eq!(list.get_selected_indices(), vec![0]);
+        list.focused_index = 1;
+        list.toggle_selection();
+        assert_eq!(list.get_selected_indices(), vec![1]);
+    }
+
+    #[test]
+    fn test_list_toggle_selection_multiple() {
+        let mut list: List<String> = List::new(vec![
+            "item1".to_string(),
+            "item2".to_string(),
+            "item3".to_string(),
+        ])
+        .with_selection_mode(SelectionMode::Multiple);
+        list.toggle_selection();
+        assert_eq!(list.get_selected_indices(), vec![0]);
+        list.focused_index = 1;
+        list.toggle_selection();
+        assert_eq!(list.get_selected_indices().len(), 2);
+        list.focused_index = 0;
+        list.toggle_selection();
+        assert_eq!(list.get_selected_indices(), vec![1]);
+    }
+
+    #[test]
+    fn test_list_clear_selection() {
+        let mut list: List<String> = List::new(vec!["item1".to_string(), "item2".to_string()])
+            .with_selection_mode(SelectionMode::Multiple);
+        list.select_all();
+        list.clear_selection();
+        assert_eq!(list.get_selected_indices().len(), 0);
     }
 
     #[test]

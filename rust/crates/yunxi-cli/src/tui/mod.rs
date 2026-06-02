@@ -28,6 +28,8 @@ pub(crate) mod terminal;
 pub(crate) mod widgets;
 
 pub(crate) mod core;
+pub(crate) mod plugin;
+pub(crate) mod plugins;
 pub(crate) mod router;
 pub(crate) mod state;
 pub(crate) mod theme;

@@ -1,4 +1,5 @@
 use super::base::{generate_component_id, Component, ComponentState};
+use crate::tui::components::list::SelectionMode;
 use crate::tui::core::action::{Action, ActionResult};
 use crate::tui::core::event::{Event, InputEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -20,6 +21,7 @@ pub struct Tree<T: Clone + ToString + Send + Sync> {
     focused_path: Option<String>,
     indent_size: usize,
     selected_paths: Vec<String>,
+    selection_mode: SelectionMode,
     on_select: Option<Box<dyn Fn(String, &T) -> ActionResult + Send + Sync>>,
     on_expand: Option<Box<dyn Fn(String, &T) -> ActionResult + Send + Sync>>,
     style: TreeStyle,
@@ -122,6 +124,7 @@ impl<T: Clone + ToString + Send + Sync> Tree<T> {
             focused_path: None,
             indent_size: 2,
             selected_paths: Vec::new(),
+            selection_mode: SelectionMode::Single,
             on_select: None,
             on_expand: None,
             style: TreeStyle::default(),
@@ -164,6 +167,26 @@ impl<T: Clone + ToString + Send + Sync> Tree<T> {
         self
     }
 
+    pub fn with_selection_mode(mut self, selection_mode: SelectionMode) -> Self {
+        self.selection_mode = selection_mode;
+        self
+    }
+
+    pub fn get_selection_mode(&self) -> SelectionMode {
+        self.selection_mode
+    }
+
+    pub fn set_selection_mode(&mut self, mode: SelectionMode) {
+        self.selection_mode = mode;
+        if mode == SelectionMode::Single && self.selected_paths.len() > 1 {
+            if let Some(path) = self.focused_path.clone() {
+                self.selected_paths = vec![path];
+            } else {
+                self.selected_paths.clear();
+            }
+        }
+    }
+
     pub fn is_expanded(&self, path: &str) -> bool {
         self.expanded_paths.contains(&path.to_string())
     }
@@ -183,6 +206,53 @@ impl<T: Clone + ToString + Send + Sync> Tree<T> {
             self.collapse(path);
         } else {
             self.expand(path);
+        }
+    }
+
+    pub fn toggle_selection(&mut self) {
+        if let Some(ref path) = self.focused_path {
+            match self.selection_mode {
+                SelectionMode::Single => {
+                    self.selected_paths.clear();
+                    self.selected_paths.push(path.clone());
+                }
+                SelectionMode::Multiple => {
+                    if self.selected_paths.contains(path) {
+                        self.selected_paths.retain(|p| p != path);
+                    } else {
+                        self.selected_paths.push(path.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn select_range(&mut self, start_path: &str, end_path: &str) {
+        if self.selection_mode != SelectionMode::Multiple {
+            return;
+        }
+        let visible_paths = self.get_all_visible_paths();
+        let start_idx = visible_paths.iter().position(|p| p == start_path);
+        let end_idx = visible_paths.iter().position(|p| p == end_path);
+
+        if let (Some(start), Some(end)) = (start_idx, end_idx) {
+            self.selected_paths.clear();
+            let (start, end) = if start <= end {
+                (start, end)
+            } else {
+                (end, start)
+            };
+            for i in start..=end {
+                if let Some(path) = visible_paths.get(i) {
+                    self.selected_paths.push(path.clone());
+                }
+            }
+        }
+    }
+
+    pub fn select_all_visible(&mut self) {
+        if self.selection_mode == SelectionMode::Multiple {
+            self.selected_paths = self.get_all_visible_paths();
         }
     }
 
@@ -269,6 +339,16 @@ impl<T: Clone + ToString + Send + Sync> Tree<T> {
 
         self.focused_path = Some(visible_paths[new_index].clone());
     }
+
+    fn navigate_with_range_selection(&mut self, direction: i32) {
+        let old_path = self.focused_path.clone();
+        self.navigate(direction);
+        if let (Some(old), Some(new)) = (old_path, self.focused_path.clone()) {
+            if self.selection_mode == SelectionMode::Multiple {
+                self.select_range(&old, &new);
+            }
+        }
+    }
 }
 
 impl<T: Clone + ToString + Send + Sync> Component for Tree<T> {
@@ -335,11 +415,19 @@ impl<T: Clone + ToString + Send + Sync> Component for Tree<T> {
         match event {
             Event::Input(InputEvent::Key(key)) => match key.code {
                 KeyCode::Down | KeyCode::Char('j') => {
-                    self.navigate(1);
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        self.navigate_with_range_selection(1);
+                    } else {
+                        self.navigate(1);
+                    }
                     ActionResult::Handled
                 }
                 KeyCode::Up | KeyCode::Char('k') => {
-                    self.navigate(-1);
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        self.navigate_with_range_selection(-1);
+                    } else {
+                        self.navigate(-1);
+                    }
                     ActionResult::Handled
                 }
                 KeyCode::Enter => {
@@ -356,13 +444,15 @@ impl<T: Clone + ToString + Send + Sync> Component for Tree<T> {
                     }
                 }
                 KeyCode::Char(' ') => {
-                    if let Some(ref path) = self.focused_path {
-                        if self.selected_paths.contains(path) {
-                            self.selected_paths.retain(|p| p != path);
-                        } else {
-                            self.selected_paths.push(path.clone());
-                        }
-                    }
+                    self.toggle_selection();
+                    ActionResult::Handled
+                }
+                KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.select_all_visible();
+                    ActionResult::Handled
+                }
+                KeyCode::Esc => {
+                    self.selected_paths.clear();
                     ActionResult::Handled
                 }
                 KeyCode::Right => {
@@ -481,5 +571,89 @@ mod tests {
         let mut tree: Tree<String> = Tree::new(nodes);
         tree.selected_paths.push("/root/child1".to_string());
         assert_eq!(tree.get_selected_paths().len(), 1);
+    }
+
+    #[test]
+    fn test_tree_toggle_selection_single() {
+        let nodes = vec![
+            TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
+                TreeNode::new("/root/child1".to_string(), "child1".to_string(), "Child 1"),
+                TreeNode::new("/root/child2".to_string(), "child2".to_string(), "Child 2"),
+            ]),
+        ];
+        let mut tree: Tree<String> = Tree::new(nodes).with_selection_mode(SelectionMode::Single);
+        tree.on_focus(true);
+        tree.toggle("/root");
+        tree.toggle_selection();
+        assert_eq!(tree.get_selected_paths(), vec!["/root"]);
+
+        tree.navigate(1);
+        tree.toggle_selection();
+        assert_eq!(tree.get_selected_paths(), vec!["/root/child1"]);
+    }
+
+    #[test]
+    fn test_tree_toggle_selection_multiple() {
+        let nodes = vec![
+            TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
+                TreeNode::new("/root/child1".to_string(), "child1".to_string(), "Child 1"),
+                TreeNode::new("/root/child2".to_string(), "child2".to_string(), "Child 2"),
+            ]),
+        ];
+        let mut tree: Tree<String> = Tree::new(nodes).with_selection_mode(SelectionMode::Multiple);
+        tree.on_focus(true);
+        tree.toggle("/root");
+        tree.toggle_selection();
+        assert_eq!(tree.get_selected_paths(), vec!["/root"]);
+
+        tree.navigate(1);
+        tree.toggle_selection();
+        assert_eq!(tree.get_selected_paths().len(), 2);
+
+        tree.navigate(1);
+        tree.toggle_selection();
+        assert_eq!(tree.get_selected_paths().len(), 3);
+
+        tree.navigate(-1);
+        tree.toggle_selection();
+        assert_eq!(tree.get_selected_paths().len(), 2);
+    }
+
+    #[test]
+    fn test_tree_select_all_visible() {
+        let nodes = vec![
+            TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
+                TreeNode::new("/root/child1".to_string(), "child1".to_string(), "Child 1"),
+                TreeNode::new("/root/child2".to_string(), "child2".to_string(), "Child 2"),
+            ]),
+        ];
+        let mut tree: Tree<String> = Tree::new(nodes).with_selection_mode(SelectionMode::Multiple);
+        tree.on_focus(true);
+        tree.toggle("/root");
+        tree.select_all_visible();
+        assert!(tree.get_selected_paths().len() >= 1);
+    }
+
+    #[test]
+    fn test_tree_clear_selection() {
+        let nodes = vec![
+            TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
+                TreeNode::new("/root/child1".to_string(), "child1".to_string(), "Child 1"),
+                TreeNode::new("/root/child2".to_string(), "child2".to_string(), "Child 2"),
+            ]),
+        ];
+        let mut tree: Tree<String> = Tree::new(nodes).with_selection_mode(SelectionMode::Multiple);
+        tree.on_focus(true);
+        tree.toggle("/root");
+        tree.toggle_selection();
+        assert_eq!(tree.get_selected_paths().len(), 1);
+
+        tree.handle_event(&Event::Input(InputEvent::Key(crossterm::event::KeyEvent {
+            code: KeyCode::Esc,
+            modifiers: KeyModifiers::NONE,
+            kind: crossterm::event::KeyEventKind::Press,
+            state: crossterm::event::KeyEventState::NONE,
+        })));
+        assert_eq!(tree.get_selected_paths().len(), 0);
     }
 }
