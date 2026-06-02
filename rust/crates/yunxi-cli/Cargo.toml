@@ -41,11 +41,16 @@ server = { path = "../server" }
 syntect = "5"
 tauri = { version = "2", optional = true, features = ["devtools", "custom-protocol"] }
 tokio = { version = "1", features = ["rt-multi-thread", "time", "process"] }
+uuid = { version = "1", features = ["v4"] }
+regex = "1"
 rfd = { version = "0.15", optional = true }
 portable-pty = { version = "0.8", optional = true }
 notify = { version = "6.1", optional = true }
 tools = { path = "../tools", features = ["browser-fallback"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
