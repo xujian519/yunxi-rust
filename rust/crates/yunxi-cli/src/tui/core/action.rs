@@ -1,10 +1,11 @@
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Action {
     Navigate(String),
     GoBack,
     GoForward,
     ShowDialog(String),
     HideDialog,
+    Close,
     ToggleSidebar,
     SwitchTab(usize),
     NewSession,
@@ -28,6 +29,7 @@ pub enum Action {
     Refresh,
     ShowSubmenu(String, usize),
     ShowParentMenu(String),
+    Custom(String),
 }
 
 impl std::fmt::Display for Action {
@@ -38,6 +40,7 @@ impl std::fmt::Display for Action {
             Action::ShowSubmenu(id, idx) => write!(f, "ShowSubmenu({}, {})", id, idx),
             Action::ShowParentMenu(id) => write!(f, "ShowParentMenu({})", id),
             Action::ExecuteCommand(cmd) => write!(f, "ExecuteCommand({})", cmd),
+            Action::Custom(cmd) => write!(f, "Custom({})", cmd),
             _ => write!(f, "{:?}", self),
         }
     }
