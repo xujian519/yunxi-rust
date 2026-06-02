@@ -208,7 +208,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_save_and_load_session() {
         let temp_dir = TempDir::new().unwrap();
         let mut manager = SessionManager::new().with_sessions_dir(temp_dir.path().to_path_buf());

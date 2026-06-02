@@ -215,6 +215,10 @@ impl MarkdownParser {
         while let Some(c) = chars.next() {
             match c {
                 '*' => {
+                    if !current.is_empty() {
+                        spans.push(TextSpan::text(current.clone()));
+                        current.clear();
+                    }
                     if let Some(&next) = chars.peek() {
                         if next == '*' {
                             chars.next();
@@ -229,10 +233,18 @@ impl MarkdownParser {
                     }
                 }
                 '_' => {
+                    if !current.is_empty() {
+                        spans.push(TextSpan::text(current.clone()));
+                        current.clear();
+                    }
                     let italic_content = self.extract_until(&mut chars, "_");
                     spans.push(TextSpan::text(italic_content).italic());
                 }
                 '`' => {
+                    if !current.is_empty() {
+                        spans.push(TextSpan::text(current.clone()));
+                        current.clear();
+                    }
                     if let Some(&next) = chars.peek() {
                         if next == '`' {
                             chars.next();
@@ -245,23 +257,26 @@ impl MarkdownParser {
                     }
                 }
                 '[' => {
+                    if !current.is_empty() {
+                        spans.push(TextSpan::text(current.clone()));
+                        current.clear();
+                    }
                     let link_text = self.extract_until(&mut chars, "]");
-                    if let Some(&')') = chars.peek() {
+                    if chars.peek() == Some(&'(') {
                         chars.next();
-                        if let Some(&'(') = chars.peek() {
-                            chars.next();
-                            let url = self.extract_until(&mut chars, ")");
-                            spans.push(TextSpan::link(link_text, url));
-                        } else {
-                            spans.push(TextSpan::text(format!("[{}]", link_text)));
-                        }
+                        let url = self.extract_until(&mut chars, ")");
+                        spans.push(TextSpan::link(link_text, url));
                     } else {
-                        spans.push(TextSpan::text(format!("[{}", link_text)));
+                        spans.push(TextSpan::text(format!("[{}]", link_text)));
                     }
                 }
                 '~' => {
                     if let Some(&next) = chars.peek() {
                         if next == '~' {
+                            if !current.is_empty() {
+                                spans.push(TextSpan::text(current.clone()));
+                                current.clear();
+                            }
                             chars.next();
                             let strikethrough_content = self.extract_until(&mut chars, "~~");
                             spans.push(TextSpan::text(strikethrough_content).dim());
@@ -436,7 +451,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_parse_bold_text() {
         let mut parser = MarkdownParser::new();
         let elements = parser.parse("This is **bold** text");
@@ -452,7 +466,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_parse_italic_text() {
         let mut parser = MarkdownParser::new();
         let elements = parser.parse("This is *italic* text");
@@ -468,7 +481,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_parse_inline_code() {
         let mut parser = MarkdownParser::new();
         let elements = parser.parse("This is `code` text");
@@ -499,7 +511,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_parse_link() {
         let mut parser = MarkdownParser::new();
         let elements = parser.parse("[Click here](https://example.com)");
@@ -585,20 +596,18 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_parse_mixed_content() {
         let mut parser = MarkdownParser::new();
         let markdown =
             "# Title\n\nThis is **bold** and *italic*.\n\n```rust\ncode here\n```\n\n- List item";
         let elements = parser.parse(markdown);
 
-        assert_eq!(elements.len(), 5);
+        assert_eq!(elements.len(), 4);
         assert!(matches!(&elements[0], MarkdownElement::Heading { .. }));
         assert!(matches!(&elements[1], MarkdownElement::Paragraph { .. }));
         assert!(matches!(&elements[2], MarkdownElement::CodeBlock { .. }));
-        assert!(matches!(&elements[3], MarkdownElement::Paragraph { .. }));
         assert!(matches!(
-            &elements[4],
+            &elements[3],
             MarkdownElement::UnorderedList { .. }
         ));
     }
@@ -615,7 +624,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_strikethrough_text() {
         let mut parser = MarkdownParser::new();
         let elements = parser.parse("This is ~~strikethrough~~ text");

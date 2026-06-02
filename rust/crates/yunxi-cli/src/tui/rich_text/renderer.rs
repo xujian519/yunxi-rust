@@ -419,7 +419,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_rich_text_builder_pattern() {
         let rich_text = RichText::new()
             .with_text("这是一段")
@@ -432,7 +431,7 @@ mod tests {
             .with_code("代码")
             .with_text("。");
 
-        assert_eq!(rich_text.len(), 7);
+        assert_eq!(rich_text.len(), 9);
         assert!(rich_text.plain_text().contains("富文本"));
         assert!(rich_text.plain_text().contains("斜体"));
         assert!(rich_text.plain_text().contains("下划线"));

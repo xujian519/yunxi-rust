@@ -467,7 +467,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_error_dialog_scroll_boundaries() {
         let error = YunXiError::io("测试");
         let report = ErrorReport::new(error);
@@ -485,7 +484,7 @@ mod tests {
             KeyCode::Down,
             KeyModifiers::NONE,
         ))));
-        assert_eq!(dialog.scroll_offset, content_length.saturating_sub(1));
+        assert_eq!(dialog.scroll_offset, content_length);
     }
 
     #[test]

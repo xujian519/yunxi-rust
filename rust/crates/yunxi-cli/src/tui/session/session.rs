@@ -41,7 +41,7 @@ pub struct SessionContext {
     pub workspace: Option<String>,
     pub active_files: Vec<String>,
     pub theme: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub metadata: Vec<(String, String)>,
 }
 

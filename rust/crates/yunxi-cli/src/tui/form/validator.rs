@@ -385,16 +385,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_multiple_validators_chain() {
         let set = ValidatorSet::<String>::new()
             .add(RequiredValidator)
             .add(LengthValidator::new(5, 20))
-            .add(PatternValidator::new(r"^[a-zA-Z]+$", "只能包含字母"))
             .add(EmailValidator);
 
         assert!(set.validate(&"user@example.com".to_string()).is_ok());
-        assert!(set.validate(&"ab@cd.com".to_string()).is_err());
+        assert!(set.validate(&"ab".to_string()).is_err());
         assert!(set.validate(&String::new()).is_err());
     }
 

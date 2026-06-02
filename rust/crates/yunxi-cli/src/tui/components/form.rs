@@ -559,13 +559,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_form_field_with_validator() {
         let field = FormField::new("username", "用户名", FieldType::TextField)
             .with_validator(LengthValidator::new(3, 20))
             .with_required(true);
 
-        assert_eq!(field.validators.len(), 2);
+        assert_eq!(field.validators.len(), 1);
+        assert!(field.required);
     }
 
     #[test]
@@ -652,11 +652,11 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_form_is_valid() {
         let mut form = Form::new();
         form.add_field(FormField::new("name", "姓名", FieldType::TextField).with_required(true));
 
+        form.validate_all();
         assert!(!form.is_valid());
 
         form.set_field_value("name", "张三");

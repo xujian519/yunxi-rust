@@ -32,7 +32,7 @@ pub struct WorkspaceSettings {
     pub font_size: u8,
     pub line_numbers: bool,
     pub word_wrap: bool,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub custom: HashMap<String, String>,
 }
 
