@@ -1,13 +1,13 @@
-use super::base::{Component, ComponentState, generate_component_id};
+use super::base::{generate_component_id, Component, ComponentState};
+use crate::tui::core::action::Action;
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
-use crate::tui::core::action::Action;
-use ratatui::layout::Rect;
-use ratatui::buffer::Buffer;
-use ratatui::style::{Color, Style, Modifier};
-use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::prelude::Widget;
 use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::prelude::Widget;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Borders, Paragraph};
 
 pub struct Button {
     state: ComponentState,
@@ -128,7 +128,9 @@ impl Component for Button {
         }
 
         match event {
-            Event::Input(InputEvent::Key(key)) if key.code == KeyCode::Enter && key.modifiers == KeyModifiers::NONE => {
+            Event::Input(InputEvent::Key(key))
+                if key.code == KeyCode::Enter && key.modifiers == KeyModifiers::NONE =>
+            {
                 if self.state.focused {
                     if let Some(ref callback) = self.on_click {
                         return callback();

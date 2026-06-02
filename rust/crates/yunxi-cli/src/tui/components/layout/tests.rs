@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::tui::components::*;
     use crate::tui::components::layout::*;
+    use crate::tui::components::*;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
@@ -14,15 +14,15 @@ mod tests {
 
     #[test]
     fn test_container_render() {
-        let container = Container::new()
-            .with_padding(1)
-            .with_margin(1);
+        let container = Container::new().with_padding(1).with_margin(1);
 
         let backend = TestBackend::new(20, 5);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| {
-            container.render(f.area(), f.buffer_mut());
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                container.render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
     }
 
     #[test]
@@ -40,9 +40,11 @@ mod tests {
 
         let backend = TestBackend::new(40, 10);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| {
-            flex.render(f.area(), f.buffer_mut());
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                flex.render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
     }
 
     #[test]
@@ -58,14 +60,15 @@ mod tests {
     fn test_split_render() {
         let first = Box::new(Label::new("First"));
         let second = Box::new(Label::new("Second"));
-        let split = Split::new(first, second)
-            .with_ratio(0.3);
+        let split = Split::new(first, second).with_ratio(0.3);
 
         let backend = TestBackend::new(40, 10);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| {
-            split.render(f.area(), f.buffer_mut());
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                split.render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
     }
 
     #[test]

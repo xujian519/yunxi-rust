@@ -1,7 +1,7 @@
-use ratatui::layout::Rect;
-use ratatui::buffer::Buffer;
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::Event;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub trait Component: Send + Sync {

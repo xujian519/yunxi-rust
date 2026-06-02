@@ -1,13 +1,13 @@
-use crate::tui::components::base::{Component, ComponentState, generate_component_id};
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
-use ratatui::layout::Rect;
-use ratatui::buffer::Buffer;
-use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::prelude::Widget;
-use ratatui::text::{Line, Span};
 use crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::prelude::Widget;
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
 
 #[derive(Debug, Clone)]
 pub struct TextInputStyle {
@@ -226,14 +226,18 @@ impl Component for TextInput {
         };
 
         let widget = if self.style.border {
-            Paragraph::new(text_content)
-                .block(Block::default()
+            Paragraph::new(text_content).block(
+                Block::default()
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(border_color))
-                    .style(Style::default().bg(self.style.bg_color)))
+                    .style(Style::default().bg(self.style.bg_color)),
+            )
         } else {
-            Paragraph::new(text_content)
-                .style(Style::default().bg(self.style.bg_color).fg(self.style.fg_color))
+            Paragraph::new(text_content).style(
+                Style::default()
+                    .bg(self.style.bg_color)
+                    .fg(self.style.fg_color),
+            )
         };
 
         widget.render(area, buf);
@@ -245,45 +249,43 @@ impl Component for TextInput {
         }
 
         match event {
-            Event::Input(InputEvent::Key(key_event)) => {
-                match key_event.code {
-                    KeyCode::Char(c) => {
-                        self.insert_char(c);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Backspace => {
-                        self.delete_char();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Left => {
-                        self.move_cursor_left();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Right => {
-                        self.move_cursor_right();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Home => {
-                        self.move_cursor_to_start();
-                        ActionResult::Handled
-                    }
-                    KeyCode::End => {
-                        self.move_cursor_to_end();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Enter => {
-                        if let Some(ref callback) = self.on_submit {
-                            return callback(&self.value);
-                        }
-                        ActionResult::Ignored
-                    }
-                    KeyCode::Char('u') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.clear();
-                        ActionResult::Handled
-                    }
-                    _ => ActionResult::Ignored,
+            Event::Input(InputEvent::Key(key_event)) => match key_event.code {
+                KeyCode::Char(c) => {
+                    self.insert_char(c);
+                    ActionResult::Handled
                 }
-            }
+                KeyCode::Backspace => {
+                    self.delete_char();
+                    ActionResult::Handled
+                }
+                KeyCode::Left => {
+                    self.move_cursor_left();
+                    ActionResult::Handled
+                }
+                KeyCode::Right => {
+                    self.move_cursor_right();
+                    ActionResult::Handled
+                }
+                KeyCode::Home => {
+                    self.move_cursor_to_start();
+                    ActionResult::Handled
+                }
+                KeyCode::End => {
+                    self.move_cursor_to_end();
+                    ActionResult::Handled
+                }
+                KeyCode::Enter => {
+                    if let Some(ref callback) = self.on_submit {
+                        return callback(&self.value);
+                    }
+                    ActionResult::Ignored
+                }
+                KeyCode::Char('u') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.clear();
+                    ActionResult::Handled
+                }
+                _ => ActionResult::Ignored,
+            },
             Event::Input(InputEvent::Paste(text)) => {
                 for c in text.chars() {
                     self.insert_char(c);

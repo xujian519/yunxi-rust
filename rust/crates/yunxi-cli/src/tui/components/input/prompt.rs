@@ -1,16 +1,16 @@
-use crate::tui::components::base::{Component, ComponentState, generate_component_id};
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
 use crate::tui::components::button::{Button, ButtonStyle};
-use crate::tui::components::label::Label;
 use crate::tui::components::input::text_input::TextInput;
+use crate::tui::components::label::Label;
+use crate::tui::core::action::Action;
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::Event;
-use crate::tui::core::action::Action;
-use ratatui::layout::Rect;
 use ratatui::buffer::Buffer;
-use ratatui::style::{Color, Style};
-use ratatui::widgets::Paragraph;
+use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
+use ratatui::widgets::Paragraph;
 
 pub struct Prompt {
     state: ComponentState,
@@ -26,19 +26,17 @@ impl Prompt {
             .with_placeholder("输入内容...".to_string())
             .with_max_length(100);
 
-        let confirm_button = Button::new("确认")
-            .with_style(ButtonStyle {
-                normal_bg: Color::Rgb(123, 200, 156),
-                normal_fg: Color::Rgb(13, 13, 18),
-                ..Default::default()
-            });
+        let confirm_button = Button::new("确认").with_style(ButtonStyle {
+            normal_bg: Color::Rgb(123, 200, 156),
+            normal_fg: Color::Rgb(13, 13, 18),
+            ..Default::default()
+        });
 
-        let cancel_button = Button::new("取消")
-            .with_style(ButtonStyle {
-                normal_bg: Color::Rgb(232, 132, 124),
-                normal_fg: Color::Rgb(13, 13, 18),
-                ..Default::default()
-            });
+        let cancel_button = Button::new("取消").with_style(ButtonStyle {
+            normal_bg: Color::Rgb(232, 132, 124),
+            normal_fg: Color::Rgb(13, 13, 18),
+            ..Default::default()
+        });
 
         Self {
             state: ComponentState::new(generate_component_id("prompt")),
@@ -84,14 +82,18 @@ impl Component for Prompt {
         ));
         let message_paragraph = Paragraph::new(message_line);
         let message_area = Rect {
-            x: area.x, y: area.y,
-            width: area.width, height: 1,
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: 1,
         };
         message_paragraph.render(message_area, buf);
 
         let input_area = Rect {
-            x: area.x, y: area.y + 1,
-            width: area.width, height: 3,
+            x: area.x,
+            y: area.y + 1,
+            width: area.width,
+            height: 3,
         };
         self.input.render(input_area, buf);
 
@@ -103,13 +105,17 @@ impl Component for Prompt {
         let start_x = area.x + (area.width - total_buttons_width) / 2;
 
         let confirm_button_area = Rect {
-            x: start_x, y: area.y + 4,
-            width: button_width, height: button_height,
+            x: start_x,
+            y: area.y + 4,
+            width: button_width,
+            height: button_height,
         };
 
         let cancel_button_area = Rect {
-            x: start_x + button_width + button_gap, y: area.y + 4,
-            width: button_width, height: button_height,
+            x: start_x + button_width + button_gap,
+            y: area.y + 4,
+            width: button_width,
+            height: button_height,
         };
 
         self.confirm_button.render(confirm_button_area, buf);

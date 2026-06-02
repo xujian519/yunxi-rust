@@ -1,9 +1,9 @@
-use crate::tui::components::base::{Component, ComponentState, generate_component_id};
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
+use ratatui::buffer::Buffer;
 use ratatui::layout::Direction;
 use ratatui::layout::Rect;
-use ratatui::buffer::Buffer;
 
 pub struct Split {
     state: ComponentState,
@@ -55,23 +55,31 @@ impl Component for Split {
 
         let first_area = match self.direction {
             Direction::Horizontal => Rect {
-                x: area.x, y: area.y,
-                width: split_point, height: area.height,
+                x: area.x,
+                y: area.y,
+                width: split_point,
+                height: area.height,
             },
             Direction::Vertical => Rect {
-                x: area.x, y: area.y,
-                width: area.width, height: split_point,
+                x: area.x,
+                y: area.y,
+                width: area.width,
+                height: split_point,
             },
         };
 
         let second_area = match self.direction {
             Direction::Horizontal => Rect {
-                x: area.x + split_point, y: area.y,
-                width: area.width.saturating_sub(split_point), height: area.height,
+                x: area.x + split_point,
+                y: area.y,
+                width: area.width.saturating_sub(split_point),
+                height: area.height,
             },
             Direction::Vertical => Rect {
-                x: area.x, y: area.y + split_point,
-                width: area.width, height: area.height.saturating_sub(split_point),
+                x: area.x,
+                y: area.y + split_point,
+                width: area.width,
+                height: area.height.saturating_sub(split_point),
             },
         };
 
@@ -87,11 +95,15 @@ impl Component for Split {
         if self.resizable {
             if let Event::Input(InputEvent::Key(key_event)) = event {
                 match (key_event.code, self.direction) {
-                    (crossterm::event::KeyCode::Right, Direction::Horizontal) if self.ratio < 0.9 => {
+                    (crossterm::event::KeyCode::Right, Direction::Horizontal)
+                        if self.ratio < 0.9 =>
+                    {
                         self.ratio += 0.05;
                         return ActionResult::Handled;
                     }
-                    (crossterm::event::KeyCode::Left, Direction::Horizontal) if self.ratio > 0.1 => {
+                    (crossterm::event::KeyCode::Left, Direction::Horizontal)
+                        if self.ratio > 0.1 =>
+                    {
                         self.ratio -= 0.05;
                         return ActionResult::Handled;
                     }

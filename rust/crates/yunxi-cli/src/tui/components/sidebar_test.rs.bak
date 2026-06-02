@@ -1,0 +1,102 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tui::components::*;
+    use crate::tui::core::action::Action;
+    use crate::tui::core::action::ActionResult;
+    use crate::tui::core::event::{Event, InputEvent};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    #[test]
+    fn test_sidebar_creation() {
+        let sidebar = Sidebar::new();
+        assert!(!sidebar.get_state().disabled);
+        assert!(!sidebar.get_state().focused);
+        assert_eq!(sidebar.get_state().id.starts_with("sidebar_"), true);
+    }
+
+    #[test]
+    fn test_sidebar_with_items() {
+        let items = vec![
+            SidebarItem {
+                label: "Home".to_string(),
+                icon: Some("🏠".to_string()),
+                badge: Some("3".to_string()),
+                action: Some(Action::Navigate("/home".to_string())),
+                disabled: false,
+            },
+            SidebarItem {
+                label: "Settings".to_string(),
+                icon: Some("⚙️".to_string()),
+                badge: None,
+                action: Some(Action::Navigate("/settings".to_string())),
+                disabled: false,
+            },
+        ];
+
+        let sidebar = Sidebar::new().with_items(items);
+        assert_eq!(sidebar.get_active_item().unwrap().label, "Home");
+    }
+
+    #[test]
+    fn test_sidebar_navigation() {
+        let items = vec![
+            SidebarItem {
+                label: "Item 1".to_string(),
+                icon: None,
+                badge: None,
+                action: None,
+                disabled: false,
+            },
+            SidebarItem {
+                label: "Item 2".to_string(),
+                icon: None,
+                badge: None,
+                action: None,
+                disabled: false,
+            },
+        ];
+
+        let mut sidebar = Sidebar::new().with_items(items);
+        sidebar.next_item();
+        assert_eq!(sidebar.get_active_item().unwrap().label, "Item 2");
+
+        sidebar.prev_item();
+        assert_eq!(sidebar.get_active_item().unwrap().label, "Item 1");
+    }
+
+    #[test]
+    fn test_sidebar_collapse() {
+        let sidebar = Sidebar::new().with_collapsed(false);
+        assert!(!sidebar.get_state().visible);
+
+        let mut sidebar = Sidebar::new();
+        sidebar.toggle_collapse();
+        assert!(sidebar.collapsed);
+    }
+
+    #[test]
+    fn test_sidebar_render() {
+        let items = vec![
+            SidebarItem {
+                label: "Home".to_string(),
+                icon: Some("🏠".to_string()),
+                badge: None,
+                action: None,
+                disabled: false,
+            },
+        ];
+
+        let sidebar = Sidebar::new().with_items(items);
+        let backend = TestBackend::new(20, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                sidebar.render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
+    }
+}

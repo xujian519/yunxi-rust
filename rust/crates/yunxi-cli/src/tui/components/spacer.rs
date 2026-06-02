@@ -1,8 +1,8 @@
-use super::base::{Component, ComponentState, generate_component_id};
+use super::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::Event;
-use ratatui::layout::Rect;
 use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 
 pub struct Spacer {
     state: ComponentState,

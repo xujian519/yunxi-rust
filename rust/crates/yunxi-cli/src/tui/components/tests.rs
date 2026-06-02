@@ -25,14 +25,13 @@ mod tests {
 
     #[test]
     fn test_button_click_handler() {
-        let mut button = Button::new("Click me").with_on_click(|| {
-            ActionResult::Action(Action::Navigate("/test".to_string()))
-        });
+        let mut button = Button::new("Click me")
+            .with_on_click(|| ActionResult::Action(Action::Navigate("/test".to_string())));
 
         button.set_focused(true);
         let event = Event::Input(InputEvent::Key(KeyEvent::new(
             KeyCode::Enter,
-            KeyModifiers::NONE
+            KeyModifiers::NONE,
         )));
 
         let result = button.handle_event(&event);
@@ -52,7 +51,7 @@ mod tests {
 
         let event = Event::Input(InputEvent::Key(KeyEvent::new(
             KeyCode::Enter,
-            KeyModifiers::NONE
+            KeyModifiers::NONE,
         )));
         let result = button.handle_event(&event);
         assert!(matches!(result, ActionResult::Ignored));
@@ -77,9 +76,11 @@ mod tests {
         let backend = TestBackend::new(20, 5);
         let mut terminal = Terminal::new(backend).unwrap();
 
-        terminal.draw(|f| {
-            button.render(f.area(), f.buffer_mut());
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                button.render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
     }
 
     #[test]
@@ -91,7 +92,7 @@ mod tests {
     #[test]
     fn test_label_color() {
         let label = Label::new("Colored");
-        assert_eq!(label.get_state().id.starts_with("label_"), true);
+        assert!(label.get_state().id.starts_with("label_"));
     }
 
     #[test]

@@ -1,0 +1,41 @@
+#[cfg(test)]
+mod tests {
+    use super::super::base::Component;
+    use super::super::list::List;
+    use super::super::tree::{Tree, TreeNode};
+    use super::super::table::{Column, RowData, SortOrder, Table};
+    use super::super::editor::{Cursor, Editor, Syntax};
+
+    #[test]
+    fn test_list_creation() {
+        let list: List<String> = List::new(vec!["item1".to_string(), "item2".to_string()]);
+        assert_eq!(list.get_items().len(), 2);
+    }
+
+    #[test]
+    fn test_tree_creation() {
+        let nodes = vec![TreeNode::new("/root".to_string(), "root".to_string(), "Root")];
+        let tree: Tree<String> = Tree::new(nodes);
+        assert_eq!(tree.get_focused_path(), None);
+    }
+
+    #[test]
+    fn test_table_creation() {
+        let columns = vec![Column::new("Name", 20), Column::new("Age", 10)];
+        let table = Table::new(columns);
+        assert_eq!(table.get_columns().len(), 2);
+    }
+
+    #[test]
+    fn test_editor_creation() {
+        let editor = Editor::new("Hello, World!".to_string());
+        assert_eq!(editor.get_content(), "Hello, World!");
+        assert_eq!(editor.get_cursor(), Cursor::new(0, 0));
+    }
+
+    #[test]
+    fn test_editor_syntax() {
+        let editor = Editor::new("fn main() {}".to_string()).with_syntax(Syntax::Rust);
+        assert_eq!(editor.get_content(), "fn main() {}");
+    }
+}

@@ -1,12 +1,12 @@
-use super::base::{Component, ComponentState, generate_component_id};
+use super::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::Event;
-use ratatui::layout::Rect;
 use ratatui::buffer::Buffer;
-use ratatui::style::{Color, Style};
-use ratatui::widgets::Paragraph;
+use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
+use ratatui::style::{Color, Style};
 use ratatui::text::Span;
+use ratatui::widgets::Paragraph;
 
 pub struct Label {
     state: ComponentState,

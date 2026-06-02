@@ -1,9 +1,9 @@
-use crate::tui::components::base::{Component, ComponentState, generate_component_id};
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::Event;
-use ratatui::layout::{Direction, Alignment};
-use ratatui::layout::Rect;
 use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::layout::{Alignment, Direction};
 
 pub struct Flex {
     state: ComponentState,
@@ -78,13 +78,23 @@ impl Component for Flex {
                     let x = current_pos;
                     let width = child_size;
                     current_pos += width + self.gap;
-                    Rect { x, y: area.y, width, height: area.height }
+                    Rect {
+                        x,
+                        y: area.y,
+                        width,
+                        height: area.height,
+                    }
                 }
                 Direction::Vertical => {
                     let y = current_pos;
                     let height = child_size;
                     current_pos += height + self.gap;
-                    Rect { x: area.x, y, width: area.width, height }
+                    Rect {
+                        x: area.x,
+                        y,
+                        width: area.width,
+                        height,
+                    }
                 }
             };
 

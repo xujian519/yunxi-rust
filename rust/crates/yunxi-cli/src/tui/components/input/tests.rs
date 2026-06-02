@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::tui::components::input::*;
     use crate::tui::components::base::Component;
+    use crate::tui::components::input::*;
     use crate::tui::core::action::ActionResult;
     use crate::tui::core::event::{Event, InputEvent};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -24,7 +24,8 @@ mod tests {
         let mut input = TextInput::new();
 
         let event = Event::Input(InputEvent::Key(KeyEvent::new(
-            KeyCode::Char('A'), KeyModifiers::NONE
+            KeyCode::Char('A'),
+            KeyModifiers::NONE,
         )));
         input.handle_event(&event);
 
@@ -37,7 +38,8 @@ mod tests {
         assert_eq!(input.get_value(), "Hello");
 
         let event = Event::Input(InputEvent::Key(KeyEvent::new(
-            KeyCode::Backspace, KeyModifiers::NONE
+            KeyCode::Backspace,
+            KeyModifiers::NONE,
         )));
         input.handle_event(&event);
 
@@ -74,8 +76,7 @@ mod tests {
 
     #[test]
     fn test_text_input_placeholder() {
-        let input = TextInput::new()
-            .with_placeholder("请输入内容...".to_string());
+        let input = TextInput::new().with_placeholder("请输入内容...".to_string());
         assert!(input.get_value().is_empty());
     }
 }
