@@ -24,6 +24,7 @@ pub(crate) mod turn;
 pub(crate) mod ui_palette;
 
 pub(crate) mod components;
+pub(crate) mod event;
 pub(crate) mod hitl;
 pub(crate) mod runner;
 
@@ -35,6 +36,7 @@ pub(crate) mod widgets;
 pub(crate) mod core;
 pub(crate) mod plugin;
 pub(crate) mod plugins;
+pub(crate) mod renderer;
 pub(crate) mod router;
 pub(crate) mod state;
 pub(crate) mod theme;
