@@ -42,3 +42,4 @@ pub(crate) mod theme;
 pub(crate) mod permissions;
 pub(crate) mod session;
 pub(crate) mod workspace;
+
