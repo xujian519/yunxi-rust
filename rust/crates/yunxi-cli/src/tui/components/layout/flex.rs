@@ -75,7 +75,7 @@ impl Component for Flex {
             Direction::Vertical => area.y,
         };
 
-        for (index, child) in self.children.iter().enumerate() {
+        for (_index, child) in self.children.iter().enumerate() {
             let child_size = base_size;
 
             let child_area = match self.direction {

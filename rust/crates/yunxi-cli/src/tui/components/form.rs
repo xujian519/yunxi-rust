@@ -368,7 +368,7 @@ impl Component for Form {
             }
 
             let is_selected = i == self.selected_field;
-            let has_error = field.error_message.is_some();
+            let _has_error = field.error_message.is_some();
 
             let label_style = if field.required {
                 Style::default()

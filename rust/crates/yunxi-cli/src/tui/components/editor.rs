@@ -665,20 +665,21 @@ impl Component for Editor {
 
         if cursor_area.x < area.right() && cursor_area.y < area.bottom() {
             if cursor_area.x < buf.area.width && cursor_area.y < buf.area.height {
-                let cell = buf.get_mut(cursor_area.x, cursor_area.y);
-                cell.set_style(
-                    Style::default()
-                        .bg(if self.state.focused {
-                            self.style.cursor_bg
-                        } else {
-                            self.style.fg
-                        })
-                        .fg(if self.state.focused {
-                            self.style.cursor_fg
-                        } else {
-                            self.style.bg
-                        }),
-                );
+                if let Some(cell) = buf.cell_mut((cursor_area.x, cursor_area.y)) {
+                    cell.set_style(
+                        Style::default()
+                            .bg(if self.state.focused {
+                                self.style.cursor_bg
+                            } else {
+                                self.style.fg
+                            })
+                            .fg(if self.state.focused {
+                                self.style.cursor_fg
+                            } else {
+                                self.style.bg
+                            }),
+                    );
+                }
             }
         }
     }

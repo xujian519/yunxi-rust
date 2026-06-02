@@ -157,7 +157,7 @@ impl Component for Sidebar {
             return;
         }
 
-        let (sidebar_width, badge_width) = if self.collapsed {
+        let (sidebar_width, _badge_width) = if self.collapsed {
             (4, 0)
         } else {
             let max_label = self

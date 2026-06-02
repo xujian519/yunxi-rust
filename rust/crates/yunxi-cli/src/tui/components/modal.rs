@@ -116,7 +116,10 @@ impl Modal {
 
         for y in area.top()..area.bottom() {
             for x in area.left()..area.right() {
-                buf.get_mut(x, y).set_style(backdrop_style).set_char(' ');
+                if let Some(cell) = buf.cell_mut((x, y)) {
+                    cell.set_style(backdrop_style);
+                    cell.set_char(' ');
+                }
             }
         }
     }

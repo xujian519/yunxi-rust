@@ -67,7 +67,9 @@ impl Component for Container {
             let style = Style::default().bg(bg_color);
             for y in content_area.top()..content_area.bottom() {
                 for x in content_area.left()..content_area.right() {
-                    buf.get_mut(x, y).set_style(style);
+                    if let Some(cell) = buf.cell_mut((x, y)) {
+                        cell.set_style(style);
+                    }
                 }
             }
         }
