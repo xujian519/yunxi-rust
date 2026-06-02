@@ -25,3 +25,8 @@ pub(crate) mod runner;
 pub(crate) mod terminal;
 
 pub(crate) mod widgets;
+
+pub(crate) mod core;
+pub(crate) mod state;
+pub(crate) mod router;
+pub(crate) mod theme;
