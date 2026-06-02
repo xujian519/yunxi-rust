@@ -3,7 +3,7 @@ use ratatui::text::{Line, Span, Text};
 use std::sync::Arc;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Theme as SyntectTheme, ThemeSet};
-use syntect::parsing::{SyntaxDefinition, SyntaxSet};
+use syntect::parsing::{SyntaxReference, SyntaxSet};
 use syntect::util::LinesWithEndings;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -96,10 +96,12 @@ impl SyntaxHighlighter {
             let ranges = highlighter.highlight_line(line, &self.syntax_set);
             let mut spans = Vec::new();
 
-            for (style, text) in ranges {
-                let color = self.syntect_color_to_ratatui_color(style.foreground);
-                let span = Span::styled(text.to_string(), Style::default().fg(color));
-                spans.push(span);
+            for range_vec in &ranges {
+                for &(style, text) in range_vec {
+                    let color = self.syntect_color_to_ratatui_color(style.foreground);
+                    let span = Span::styled(text.to_string(), Style::default().fg(color));
+                    spans.push(span);
+                }
             }
 
             let trimmed_spans = self.trim_spans_to_width(spans, width);
@@ -133,7 +135,7 @@ impl SyntaxHighlighter {
         result
     }
 
-    fn get_syntax_for_language(&self) -> SyntaxDefinition {
+    fn get_syntax_for_language(&self) -> SyntaxReference {
         let name = match self.current_language {
             SyntaxLanguage::Rust => "Rust",
             SyntaxLanguage::Python => "Python",
@@ -149,7 +151,7 @@ impl SyntaxHighlighter {
         self.syntax_set
             .find_syntax_by_name(name)
             .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text())
-            .clone()
+            .to_owned()
     }
 
     fn syntect_color_to_ratatui_color(&self, color: syntect::highlighting::Color) -> Color {

@@ -133,12 +133,7 @@ impl SessionReplay {
             return None;
         }
         self.position = index;
-        self.playback_queue = self
-            .playback_queue
-            .make_contiguous()
-            .split_off(index)
-            .into_iter()
-            .collect();
+        self.playback_queue.drain(..index);
         Some(())
     }
 

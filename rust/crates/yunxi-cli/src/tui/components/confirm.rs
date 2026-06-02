@@ -6,10 +6,11 @@ use super::spacer::Spacer;
 use crate::tui::core::action::Action;
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
-use ratatui::layout::{Alignment, Direction};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::layout::{Alignment, Direction};
+use ratatui::prelude::Widget;
 use ratatui::style::{Color, Style};
 use ratatui::widgets::Paragraph;
 
@@ -91,7 +92,7 @@ impl Confirm {
         let text = text.into();
         self.confirm_text = text.clone();
         self.confirm_button = Button::new(text)
-            .with_style(self.confirm_button.style.as_ref().clone())
+            .with_style(self.confirm_button.get_style().clone())
             .with_id("confirm_ok_button");
         self
     }
@@ -100,7 +101,7 @@ impl Confirm {
         let text = text.into();
         self.cancel_text = text.clone();
         self.cancel_button = Button::new(text)
-            .with_style(self.cancel_button.style.as_ref().clone())
+            .with_style(self.cancel_button.get_style().clone())
             .with_id("confirm_cancel_button");
         self
     }
@@ -151,32 +152,52 @@ impl Confirm {
     }
 
     fn build_content_layout(&self) -> Flex {
-        let message_paragraph = Paragraph::new(self.message.as_str())
-            .style(Style::default().fg(Color::Rgb(232, 232, 237)))
-            .alignment(Alignment::Left)
-            .wrap(ratatui::widgets::Wrap { trim: true });
+        let message_text = self.message.clone();
+
+        let confirm_style = self.confirm_button.get_style().clone();
+        let cancel_style = self.cancel_button.get_style().clone();
 
         Flex::new()
             .with_direction(Direction::Vertical)
-            .add_child(Box::new(CustomParagraph(message_paragraph)))
+            .add_child(Box::new(CustomParagraph::new(message_text)))
             .add_child(Box::new(Spacer::new()))
             .add_child(Box::new(
                 Flex::new()
                     .with_direction(Direction::Horizontal)
-                    .add_child(Box::new(self.confirm_button.clone()))
+                    .add_child(Box::new(
+                        Button::new(&self.confirm_text)
+                            .with_style(confirm_style.clone())
+                            .with_id("confirm_ok_button"),
+                    ))
                     .add_child(Box::new(Spacer::new()))
                     .add_child(Box::new(Spacer::new()))
-                    .add_child(Box::new(self.cancel_button.clone())),
+                    .add_child(Box::new(
+                        Button::new(&self.cancel_text)
+                            .with_style(cancel_style.clone())
+                            .with_id("confirm_cancel_button"),
+                    )),
             ))
             .with_id("confirm_content_layout")
     }
 }
 
-struct CustomParagraph(Paragraph<'static>);
+struct CustomParagraph {
+    text: String,
+}
+
+impl CustomParagraph {
+    fn new(text: String) -> Self {
+        Self { text }
+    }
+}
 
 impl Component for CustomParagraph {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        self.0.render(area, buf);
+        let paragraph = Paragraph::new(self.text.as_str())
+            .style(Style::default().fg(Color::Rgb(232, 232, 237)))
+            .alignment(Alignment::Left)
+            .wrap(ratatui::widgets::Wrap { trim: true });
+        paragraph.render(area, buf);
     }
 
     fn handle_event(&mut self, _event: &Event) -> ActionResult {
@@ -206,9 +227,10 @@ impl Component for Confirm {
 
         if let Event::Input(InputEvent::Key(key)) = event {
             if key.code == KeyCode::Esc && key.modifiers == KeyModifiers::NONE {
-                if let Some(ref action) = self.cancel_action {
+                if self.cancel_action.is_some() {
+                    let action = self.cancel_action.take().unwrap();
                     self.hide();
-                    return action.clone();
+                    return action;
                 }
                 self.hide();
                 return ActionResult::Action(Action::HideDialog);
@@ -340,7 +362,7 @@ mod tests {
             .with_confirm_button_style(custom_style.clone())
             .with_cancel_button_style(custom_style);
 
-        assert!(confirm.confirm_button.style.as_ref().border);
-        assert!(confirm.cancel_button.style.as_ref().border);
+        assert!(confirm.confirm_button.get_style().border);
+        assert!(confirm.cancel_button.get_style().border);
     }
 }

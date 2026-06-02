@@ -227,17 +227,9 @@ impl Table {
             self.sort_order = SortOrder::Ascending;
         }
 
-        self.rows.sort_by(|a, b| {
-            match self.sort_order {
-                SortOrder::Ascending => {
-                    a.cells.get(column_index)
-                        .cmp(&b.cells.get(column_index))
-                }
-                SortOrder::Descending => {
-                    b.cells.get(column_index)
-                        .cmp(&a.cells.get(column_index))
-                }
-            }
+        self.rows.sort_by(|a, b| match self.sort_order {
+            SortOrder::Ascending => a.cells.get(column_index).cmp(&b.cells.get(column_index)),
+            SortOrder::Descending => b.cells.get(column_index).cmp(&a.cells.get(column_index)),
         });
 
         if let Some(ref callback) = self.on_sort {
@@ -307,15 +299,15 @@ impl Component for Table {
             visible_rows.push(Row::new(cells).style(style));
         }
 
-        let column_widths: Vec<u16> = self
-            .columns
-            .iter()
-            .map(|col| col.width)
-            .collect();
+        let column_widths: Vec<u16> = self.columns.iter().map(|col| col.width).collect();
 
         let table = RatatuiTable::new(
             vec![Row::new(header_cells)
-                .style(Style::default().bg(self.style.header_bg).fg(self.style.header_fg))
+                .style(
+                    Style::default()
+                        .bg(self.style.header_bg)
+                        .fg(self.style.header_fg),
+                )
                 .bottom_margin(0)]
             .into_iter()
             .chain(visible_rows.into_iter()),
@@ -343,91 +335,93 @@ impl Component for Table {
         let visible_count = self.rows.iter().filter(|r| r.visible).count();
 
         match event {
-            Event::Input(InputEvent::Key(key)) => {
-                match key.code {
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if self.focused_row < self.rows.len().saturating_sub(1) {
-                            self.focused_row += 1;
-                            if self.focused_row >= self.scroll_offset + self.page_size {
-                                self.scroll_offset += 1;
-                            }
+            Event::Input(InputEvent::Key(key)) => match key.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if self.focused_row < self.rows.len().saturating_sub(1) {
+                        self.focused_row += 1;
+                        if self.focused_row >= self.scroll_offset + self.page_size {
+                            self.scroll_offset += 1;
                         }
-                        ActionResult::Handled
                     }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if self.focused_row > 0 {
-                            self.focused_row -= 1;
-                            if self.focused_row < self.scroll_offset {
-                                self.scroll_offset = self.scroll_offset.saturating_sub(1);
-                            }
+                    ActionResult::Handled
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if self.focused_row > 0 {
+                        self.focused_row -= 1;
+                        if self.focused_row < self.scroll_offset {
+                            self.scroll_offset = self.scroll_offset.saturating_sub(1);
                         }
-                        ActionResult::Handled
                     }
-                    KeyCode::PageDown => {
-                        let page = self.page_size.min(visible_count);
-                        self.focused_row = (self.focused_row + page).min(self.rows.len().saturating_sub(1));
-                        self.scroll_offset = self.scroll_offset.saturating_add(page).min(self.rows.len().saturating_sub(self.page_size));
-                        ActionResult::Handled
+                    ActionResult::Handled
+                }
+                KeyCode::PageDown => {
+                    let page = self.page_size.min(visible_count);
+                    self.focused_row =
+                        (self.focused_row + page).min(self.rows.len().saturating_sub(1));
+                    self.scroll_offset = self
+                        .scroll_offset
+                        .saturating_add(page)
+                        .min(self.rows.len().saturating_sub(self.page_size));
+                    ActionResult::Handled
+                }
+                KeyCode::PageUp => {
+                    let page = self.page_size.min(visible_count);
+                    self.focused_row = self.focused_row.saturating_sub(page);
+                    self.scroll_offset = self.scroll_offset.saturating_sub(page);
+                    ActionResult::Handled
+                }
+                KeyCode::Home => {
+                    self.focused_row = 0;
+                    self.scroll_offset = 0;
+                    ActionResult::Handled
+                }
+                KeyCode::End => {
+                    self.focused_row = self.rows.len().saturating_sub(1);
+                    self.scroll_offset = self.rows.len().saturating_sub(self.page_size);
+                    ActionResult::Handled
+                }
+                KeyCode::Tab => {
+                    if let Some(col_idx) = self.sort_column {
+                        let new_col = (col_idx + 1).min(self.columns.len() - 1);
+                        self.sort_by_column(new_col);
+                    } else if !self.columns.is_empty() {
+                        self.sort_by_column(0);
                     }
-                    KeyCode::PageUp => {
-                        let page = self.page_size.min(visible_count);
-                        self.focused_row = self.focused_row.saturating_sub(page);
-                        self.scroll_offset = self.scroll_offset.saturating_sub(page);
-                        ActionResult::Handled
+                    ActionResult::Handled
+                }
+                KeyCode::BackTab => {
+                    if let Some(col_idx) = self.sort_column {
+                        let new_col = col_idx.saturating_sub(1);
+                        self.sort_by_column(new_col);
+                    } else if !self.columns.is_empty() {
+                        self.sort_by_column(self.columns.len() - 1);
                     }
-                    KeyCode::Home => {
-                        self.focused_row = 0;
-                        self.scroll_offset = 0;
-                        ActionResult::Handled
-                    }
-                    KeyCode::End => {
-                        self.focused_row = self.rows.len().saturating_sub(1);
-                        self.scroll_offset = self.rows.len().saturating_sub(self.page_size);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Tab => {
-                        if let Some(col_idx) = self.sort_column {
-                            let new_col = (col_idx + 1).min(self.columns.len() - 1);
-                            self.sort_by_column(new_col);
-                        } else if !self.columns.is_empty() {
-                            self.sort_by_column(0);
-                        }
-                        ActionResult::Handled
-                    }
-                    KeyCode::BackTab => {
-                        if let Some(col_idx) = self.sort_column {
-                            let new_col = col_idx.saturating_sub(1);
-                            self.sort_by_column(new_col);
-                        } else if !self.columns.is_empty() {
-                            self.sort_by_column(self.columns.len() - 1);
-                        }
-                        ActionResult::Handled
-                    }
-                    KeyCode::Enter => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            if let Some(ref callback) = self.on_double_click {
-                                return callback(self.focused_row);
-                            }
-                        } else if let Some(ref callback) = self.on_select {
+                    ActionResult::Handled
+                }
+                KeyCode::Enter => {
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        if let Some(ref callback) = self.on_double_click {
                             return callback(self.focused_row);
                         }
-                        ActionResult::Ignored
+                    } else if let Some(ref callback) = self.on_select {
+                        return callback(self.focused_row);
                     }
-                    KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.select_all();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Char(' ') => {
-                        if self.selected_rows.contains(&self.focused_row) {
-                            self.selected_rows.retain(|&i| i != self.focused_row);
-                        } else {
-                            self.selected_rows.push(self.focused_row);
-                        }
-                        ActionResult::Handled
-                    }
-                    _ => ActionResult::Ignored,
+                    ActionResult::Ignored
                 }
-            }
+                KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.select_all();
+                    ActionResult::Handled
+                }
+                KeyCode::Char(' ') => {
+                    if self.selected_rows.contains(&self.focused_row) {
+                        self.selected_rows.retain(|&i| i != self.focused_row);
+                    } else {
+                        self.selected_rows.push(self.focused_row);
+                    }
+                    ActionResult::Handled
+                }
+                _ => ActionResult::Ignored,
+            },
             _ => ActionResult::Ignored,
         }
     }

@@ -79,7 +79,7 @@ impl WorkspaceManager {
                 fs::remove_dir_all(&workspace.path)?;
             }
         }
-        if self.current_workspace.as_ref() == Some(name) {
+        if self.current_workspace.as_deref() == Some(name) {
             self.current_workspace = None;
         }
         Ok(())

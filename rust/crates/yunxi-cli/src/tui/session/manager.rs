@@ -51,7 +51,7 @@ impl SessionManager {
         self.active_session = Some(session_id);
 
         self.sessions
-            .get(&self.active_session.as_ref().unwrap())
+            .get(self.active_session.as_deref().unwrap())
             .unwrap()
     }
 
@@ -60,7 +60,7 @@ impl SessionManager {
             session.end();
             self.save(id)?;
         }
-        if self.active_session.as_ref() == Some(id) {
+        if self.active_session.as_deref() == Some(id) {
             self.active_session = None;
         }
         Ok(())
@@ -163,7 +163,7 @@ impl SessionManager {
             fs::remove_file(session_file)?;
         }
 
-        if self.active_session.as_ref() == Some(id) {
+        if self.active_session.as_deref() == Some(id) {
             self.active_session = None;
         }
 

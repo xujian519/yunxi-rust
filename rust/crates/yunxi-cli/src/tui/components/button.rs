@@ -64,8 +64,8 @@ impl Button {
         self
     }
 
-    pub fn with_id(mut self, id: String) -> Self {
-        self.state.id = id;
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.state.id = id.into();
         self
     }
 
@@ -79,6 +79,10 @@ impl Button {
 
     pub fn is_focused(&self) -> bool {
         self.state.focused
+    }
+
+    pub fn get_style(&self) -> &ButtonStyle {
+        self.style.as_ref()
     }
 }
 

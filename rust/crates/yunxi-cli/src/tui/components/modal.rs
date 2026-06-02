@@ -6,6 +6,7 @@ use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Alignment;
 use ratatui::layout::Rect;
+use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
@@ -184,8 +185,8 @@ impl Component for Modal {
             return ActionResult::Ignored;
         }
 
-        if let Event::Resize(area) = event {
-            self.state.bounds = *area;
+        if let Event::Input(InputEvent::Resize(width, height)) = event {
+            self.state.bounds = Rect::new(0, 0, *width, *height);
             return ActionResult::Handled;
         }
 
@@ -204,7 +205,7 @@ impl Component for Modal {
                     return self.handle_close();
                 }
             }
-            Event::Mouse(mouse_event) if self.close_on_click_outside => {
+            Event::Input(InputEvent::Mouse(mouse_event)) if self.close_on_click_outside => {
                 if let MouseEventKind::Down(crossterm::event::MouseButton::Left) = mouse_event.kind
                 {
                     if self.is_click_outside(mouse_event.column, mouse_event.row, self.state.bounds)

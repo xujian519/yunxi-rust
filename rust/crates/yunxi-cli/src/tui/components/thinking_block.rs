@@ -123,7 +123,7 @@ impl ThinkingBlock {
                 let status_indicator = if step.completed { "✓" } else { "○" };
                 let title = format!("{}. {} {}", step.step_number, status_indicator, step.title);
 
-                let mut collapsible = Collapsible::new(title)
+                let collapsible = Collapsible::new(title)
                     .with_content(&step.content)
                     .with_expanded(self.auto_expand_completed && step.completed);
 
@@ -239,7 +239,7 @@ impl Widget for ThinkingBlock {
                 height: step_height.max(3),
             };
 
-            collapsible.render(collapsible_area, buf);
+            Widget::render(&collapsible.clone(), collapsible_area, buf);
             current_y += step_height;
 
             if i < self.collapsibles.len() - 1 && current_y < area.y + area.height {

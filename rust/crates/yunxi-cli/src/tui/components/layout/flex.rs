@@ -48,6 +48,11 @@ impl Flex {
         self.children = children;
         self
     }
+
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.state.id = id.into();
+        self
+    }
 }
 
 impl Component for Flex {

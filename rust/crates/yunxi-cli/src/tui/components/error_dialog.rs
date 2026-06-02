@@ -5,7 +5,7 @@ use crate::tui::error::{ErrorReport, YunXiError};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::prelude::Widget;
+use ratatui::prelude::{StatefulWidget, Widget};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarState, Wrap};
@@ -215,7 +215,7 @@ impl Component for ErrorDialog {
 
         let mut scrollbar_state = self.scroll_state.clone();
         scrollbar_state = scrollbar_state.position(self.scroll_offset);
-        scrollbar.render(chunks[0], buf, &mut scrollbar_state);
+        StatefulWidget::render(&scrollbar, chunks[0], buf, &mut scrollbar_state);
     }
 
     fn handle_event(&mut self, event: &Event) -> ActionResult {
@@ -226,7 +226,7 @@ impl Component for ErrorDialog {
         match event {
             Event::Input(InputEvent::Key(KeyEvent {
                 code,
-                modifiers,
+                modifiers: _,
                 kind: _,
                 state: _,
             })) => self.handle_key_event(*code),

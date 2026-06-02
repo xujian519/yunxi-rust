@@ -169,7 +169,7 @@ impl KeymapEditor {
 
     pub fn resolve_conflict(&mut self, resolution: KeymapConflictResolution) {
         if let RecordingState::Conflict {
-            existing_binding,
+            existing_binding: _,
             new_key_sequence,
         } = std::mem::replace(&mut self.recording_state, RecordingState::Idle)
         {
@@ -223,7 +223,7 @@ impl KeymapEditor {
     }
 
     fn format_key(key: &KeyEvent) -> String {
-        let mut parts = Vec::new();
+        let mut parts: Vec<String> = Vec::new();
 
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             parts.push("Ctrl");
@@ -238,20 +238,20 @@ impl KeymapEditor {
         match key.code {
             KeyCode::Char(c) => parts.push(c.to_uppercase().to_string()),
             KeyCode::F(n) => parts.push(format!("F{}", n)),
-            KeyCode::Enter => parts.push("Enter".to_string()),
-            KeyCode::Esc => parts.push("Esc".to_string()),
-            KeyCode::Backspace => parts.push("Backspace".to_string()),
-            KeyCode::Tab => parts.push("Tab".to_string()),
-            KeyCode::Delete => parts.push("Delete".to_string()),
-            KeyCode::Insert => parts.push("Insert".to_string()),
-            KeyCode::Home => parts.push("Home".to_string()),
-            KeyCode::End => parts.push("End".to_string()),
-            KeyCode::PageUp => parts.push("PageUp".to_string()),
-            KeyCode::PageDown => parts.push("PageDown".to_string()),
-            KeyCode::Up => parts.push("↑".to_string()),
-            KeyCode::Down => parts.push("↓".to_string()),
-            KeyCode::Left => parts.push("←".to_string()),
-            KeyCode::Right => parts.push("→".to_string()),
+            KeyCode::Enter => parts.push("Enter"),
+            KeyCode::Esc => parts.push("Esc"),
+            KeyCode::Backspace => parts.push("Backspace"),
+            KeyCode::Tab => parts.push("Tab"),
+            KeyCode::Delete => parts.push("Delete"),
+            KeyCode::Insert => parts.push("Insert"),
+            KeyCode::Home => parts.push("Home"),
+            KeyCode::End => parts.push("End"),
+            KeyCode::PageUp => parts.push("PageUp"),
+            KeyCode::PageDown => parts.push("PageDown"),
+            KeyCode::Up => parts.push("↑"),
+            KeyCode::Down => parts.push("↓"),
+            KeyCode::Left => parts.push("←"),
+            KeyCode::Right => parts.push("→"),
             _ => parts.push(format!("{:?}", key.code)),
         }
 

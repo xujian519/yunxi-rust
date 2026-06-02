@@ -5,10 +5,13 @@ use crate::tui::core::event::{Event, InputEvent};
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::prelude::{StatefulWidget, Widget};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::symbols;
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{
+    Block, Borders, List, ListItem, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState,
+};
 
 pub struct Picker {
     state: ComponentState,
@@ -157,7 +160,7 @@ impl Picker {
 
     fn highlight_text(&self, text: &str) -> Text<'static> {
         if !self.highlight_matches || self.search_query.is_empty() {
-            return Text::raw(text);
+            return Text::from(text.to_string());
         }
 
         let mut spans = Vec::new();
@@ -170,11 +173,11 @@ impl Picker {
             let end = start + query_lower.len();
 
             if start > last_end {
-                spans.push(Span::raw(&text[last_end..start]));
+                spans.push(Span::raw(text[last_end..start].to_string()));
             }
 
             spans.push(Span::styled(
-                &text[start..end],
+                text[start..end].to_string(),
                 Style::default()
                     .fg(Color::Rgb(255, 255, 0))
                     .add_modifier(Modifier::BOLD),
@@ -184,11 +187,11 @@ impl Picker {
         }
 
         if last_end < text.len() {
-            spans.push(Span::raw(&text[last_end..]));
+            spans.push(Span::raw(text[last_end..].to_string()));
         }
 
         if spans.is_empty() {
-            Text::raw(text)
+            Text::from(text.to_string())
         } else {
             Text::from(Line::from(spans))
         }
@@ -212,7 +215,7 @@ impl Picker {
             .style(style)
             .border_style(Style::default().fg(Color::Rgb(139, 176, 240)));
 
-        let paragraph = ratatui::widgets::Paragraph::new(*input_text)
+        let paragraph = ratatui::widgets::Paragraph::new(input_text)
             .block(block)
             .style(Style::default().fg(Color::Rgb(232, 232, 237)));
 
@@ -275,17 +278,19 @@ impl Component for Picker {
 
         list_area.width = list_area.width.saturating_sub(1);
 
-        let mut scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
-        scrollbar = scrollbar.begin_symbol(Some("↑"));
-        scrollbar = scrollbar.end_symbol(Some("↓"));
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .begin_symbol(Some("↑"))
+            .end_symbol(Some("↓"))
+            .track_symbol(Some("│"))
+            .thumb_symbol("█");
 
         let mut scrollbar_state = ScrollbarState::new(self.filtered_items.len());
         if let Some(selected) = self.get_selected_filtered_index() {
             scrollbar_state = scrollbar_state.position(selected);
         }
 
-        list.render(list_area, buf, &mut list_state);
-        scrollbar.render(scrollbar_area, buf, &mut scrollbar_state);
+        Widget::render(list, list_area, buf);
+        StatefulWidget::render(scrollbar, scrollbar_area, buf, &mut scrollbar_state);
     }
 
     fn handle_event(&mut self, event: &Event) -> ActionResult {
@@ -335,8 +340,8 @@ impl Component for Picker {
                 }
                 _ => ActionResult::Ignored,
             },
-            Event::Resize(area) => {
-                self.state.bounds = *area;
+            Event::Input(InputEvent::Resize(width, height)) => {
+                self.state.bounds = Rect::new(0, 0, *width, *height);
                 ActionResult::Handled
             }
             _ => ActionResult::Ignored,
@@ -518,7 +523,8 @@ mod tests {
 
     #[test]
     fn test_picker_highlight_text() {
-        let picker = Picker::new(vec!["Apple".to_string()]).with_search_query("ap".to_string());
+        let mut picker = Picker::new(vec!["Apple".to_string()]);
+        picker.search_query = "ap".to_string();
 
         let text = picker.highlight_text("Apple");
         let line = text.lines.first();

@@ -65,7 +65,7 @@ where
 
 impl<T> Validator<T> for RangeValidator<T>
 where
-    T: PartialOrd + Clone + fmt::Display + Send + Sync,
+    T: PartialOrd + Clone + fmt::Display + Send + Sync + std::fmt::Debug,
 {
     fn validate(&self, value: &T) -> Result<(), String> {
         if *value < self.min {
@@ -148,7 +148,6 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct CustomValidator<T>
 where
     T: Send + Sync,
@@ -170,9 +169,18 @@ where
     }
 }
 
-impl<T> Validator<T> for CustomValidator<T>
+impl<T> std::fmt::Debug for CustomValidator<T>
 where
     T: Send + Sync,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomValidator").finish()
+    }
+}
+
+impl<T> Validator<T> for CustomValidator<T>
+where
+    T: Send + Sync + std::fmt::Debug,
 {
     fn validate(&self, value: &T) -> Result<(), String> {
         (self.validator)(value)
@@ -334,9 +342,12 @@ mod tests {
             .add(RequiredValidator)
             .add(LengthValidator::new(3, 10));
 
-        assert!(set.validate(&"hello").is_ok());
-        assert!(set.validate(&"hi").is_err());
-        assert!(set.validate(&"").is_err());
+        let v1 = "hello".to_string();
+        let v2 = "hi".to_string();
+        let v3 = String::new();
+        assert!(set.validate(&v1).is_ok());
+        assert!(set.validate(&v2).is_err());
+        assert!(set.validate(&v3).is_err());
     }
 
     #[test]
@@ -345,7 +356,8 @@ mod tests {
             .add(RequiredValidator)
             .add(LengthValidator::new(3, 10));
 
-        let result = set.validate(&"");
+        let v = String::new();
+        let result = set.validate(&v);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("不能为空"));
     }
@@ -367,9 +379,9 @@ mod tests {
             }
         });
 
-        assert!(validator.validate(&"HELLO").is_ok());
-        assert!(validator.validate(&"Hello").is_err());
-        assert!(validator.validate(&"hello").is_err());
+        assert!(validator.validate(&"HELLO".to_string()).is_ok());
+        assert!(validator.validate(&"Hello".to_string()).is_err());
+        assert!(validator.validate(&"hello".to_string()).is_err());
     }
 
     #[test]
@@ -380,9 +392,9 @@ mod tests {
             .add(PatternValidator::new(r"^[a-zA-Z]+$", "只能包含字母"))
             .add(EmailValidator);
 
-        assert!(set.validate(&"user@example.com").is_ok());
-        assert!(set.validate(&"ab@cd.com").is_err());
-        assert!(set.validate(&"").is_err());
+        assert!(set.validate(&"user@example.com".to_string()).is_ok());
+        assert!(set.validate(&"ab@cd.com".to_string()).is_err());
+        assert!(set.validate(&String::new()).is_err());
     }
 
     #[test]

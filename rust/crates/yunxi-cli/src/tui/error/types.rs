@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::time::SystemTime;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ErrorType {
     IO(String),
     Network(String),
@@ -26,7 +27,7 @@ impl fmt::Display for ErrorType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ErrorLevel {
     Info,
     Warning,
@@ -45,12 +46,13 @@ impl fmt::Display for ErrorLevel {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YunXiError {
     pub error_type: ErrorType,
     pub level: ErrorLevel,
     pub message: String,
     pub context: Vec<String>,
+    #[serde(default = "YunXiError::default_timestamp")]
     pub timestamp: SystemTime,
     pub suggestions: Vec<String>,
 }
@@ -67,6 +69,10 @@ impl YunXiError {
         }
     }
 
+    fn default_timestamp() -> SystemTime {
+        SystemTime::UNIX_EPOCH
+    }
+
     pub fn with_context(mut self, context: impl Into<String>) -> Self {
         self.context.push(context.into());
         self
@@ -78,50 +84,61 @@ impl YunXiError {
     }
 
     pub fn io(message: impl Into<String>) -> Self {
-        Self::new(ErrorType::IO(message.into()), ErrorLevel::Error, message)
+        let msg_str = message.into();
+        Self::new(ErrorType::IO(msg_str.clone()), ErrorLevel::Error, msg_str)
     }
 
     pub fn network(message: impl Into<String>) -> Self {
+        let msg_str = message.into();
         Self::new(
-            ErrorType::Network(message.into()),
+            ErrorType::Network(msg_str.clone()),
             ErrorLevel::Error,
-            message,
+            msg_str,
         )
     }
 
     pub fn parse(message: impl Into<String>) -> Self {
-        Self::new(ErrorType::Parse(message.into()), ErrorLevel::Error, message)
+        let msg_str = message.into();
+        Self::new(
+            ErrorType::Parse(msg_str.clone()),
+            ErrorLevel::Error,
+            msg_str,
+        )
     }
 
     pub fn validation(message: impl Into<String>) -> Self {
+        let msg_str = message.into();
         Self::new(
-            ErrorType::Validation(message.into()),
+            ErrorType::Validation(msg_str.clone()),
             ErrorLevel::Warning,
-            message,
+            msg_str,
         )
     }
 
     pub fn permission(message: impl Into<String>) -> Self {
+        let msg_str = message.into();
         Self::new(
-            ErrorType::Permission(message.into()),
+            ErrorType::Permission(msg_str.clone()),
             ErrorLevel::Fatal,
-            message,
+            msg_str,
         )
     }
 
     pub fn runtime(message: impl Into<String>) -> Self {
+        let msg_str = message.into();
         Self::new(
-            ErrorType::Runtime(message.into()),
+            ErrorType::Runtime(msg_str.clone()),
             ErrorLevel::Error,
-            message,
+            msg_str,
         )
     }
 
     pub fn user(message: impl Into<String>) -> Self {
+        let msg_str = message.into();
         Self::new(
-            ErrorType::User(message.into()),
+            ErrorType::User(msg_str.clone()),
             ErrorLevel::Warning,
-            message,
+            msg_str,
         )
     }
 }

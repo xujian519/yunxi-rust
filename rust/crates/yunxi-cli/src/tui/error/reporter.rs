@@ -1,8 +1,9 @@
 use super::types::{ErrorLevel, ErrorType, YunXiError};
+use serde::{Deserialize, Serialize};
 use std::backtrace::Backtrace;
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorReport {
     pub error: YunXiError,
     pub backtrace: Option<String>,

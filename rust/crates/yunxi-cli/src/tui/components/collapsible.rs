@@ -10,6 +10,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct Collapsible {
     state: ComponentState,
     expanded: bool,
@@ -94,7 +95,7 @@ impl Collapsible {
     where
         F: Fn(bool) -> ActionResult + Send + Sync + 'static,
     {
-        self.on_toggle = Some(Arc::new(callback));
+        self.on_toggle = Some(Box::new(callback));
         self
     }
 

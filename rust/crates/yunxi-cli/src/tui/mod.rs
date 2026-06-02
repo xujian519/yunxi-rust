@@ -4,7 +4,6 @@ pub(crate) mod banner;
 pub(crate) mod clipboard;
 pub(crate) mod color;
 pub(crate) mod diff;
-// TODO: Fix compilation errors
 // pub(crate) mod error;
 // pub(crate) mod form;
 pub(crate) mod frame;
@@ -41,6 +40,5 @@ pub(crate) mod state;
 pub(crate) mod theme;
 
 pub(crate) mod permissions;
-// TODO: Fix compilation errors
 // pub(crate) mod session;
 // pub(crate) mod workspace;
