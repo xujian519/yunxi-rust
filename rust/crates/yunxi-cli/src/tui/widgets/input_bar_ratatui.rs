@@ -39,22 +39,48 @@ impl Widget for InputBarWidget<'_> {
             ui_palette::BORDER.1,
             ui_palette::BORDER.2,
         );
+        let selected_bg = Color::Rgb(74, 74, 106);
+        let description_color = Color::Rgb(160, 160, 176);
 
         if let Some(menu) = self.slash_completion {
-            for (i, (display, _)) in menu.matches.iter().take(6).enumerate() {
-                if i == menu.selected {
-                    lines.push(Line::from(Span::styled(
-                        format!("▸ {display}"),
-                        Style::default()
-                            .fg(Color::Rgb(232, 232, 237))
-                            .bg(Color::Rgb(74, 74, 106)),
-                    )));
+            for (i, item) in menu.matches.iter().take(6).enumerate() {
+                let is_selected = i == menu.selected;
+                let icon_style = if is_selected {
+                    Style::default().fg(accent)
                 } else {
-                    lines.push(Line::from(Span::styled(
-                        format!("  {display}"),
-                        Style::default().fg(muted),
-                    )));
+                    Style::default().fg(muted)
+                };
+                let name_style = if is_selected {
+                    Style::default()
+                        .fg(Color::Rgb(232, 232, 237))
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(primary)
+                };
+                let desc_style = if is_selected {
+                    Style::default().fg(description_color)
+                } else {
+                    Style::default().fg(muted)
+                };
+
+                let prefix = if is_selected { "▸ " } else { "  " };
+                let mut spans = vec![
+                    Span::styled(prefix, name_style),
+                    Span::styled(format!("{} ", item.icon), icon_style),
+                    Span::styled(item.display.clone(), name_style),
+                ];
+
+                if !item.description.is_empty() {
+                    spans.push(Span::styled(format!("  {}", item.description), desc_style));
                 }
+
+                let line_style = if is_selected {
+                    Style::default().bg(selected_bg)
+                } else {
+                    Style::default()
+                };
+
+                lines.push(Line::from(spans).style(line_style));
             }
         }
 
@@ -93,8 +119,8 @@ impl Widget for InputBarWidget<'_> {
         let hint_text = self
             .slash_completion
             .map(|m| {
-                let (display, _) = &m.matches[m.selected];
-                format!("Tab apply · ↑↓ select · {}", display)
+                let item = &m.matches[m.selected];
+                format!("Tab apply · ↑↓ select · {}", item.display)
             })
             .unwrap_or_else(|| {
                 "Enter send · Shift+Enter newline · / commands · Tab complete".to_string()

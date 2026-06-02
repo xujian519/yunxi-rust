@@ -45,6 +45,7 @@ pub struct UIState {
     pub show_tool_panel: bool,
     pub sidebar_width: u16,
     pub tool_panel_width: u16,
+    pub command_palette_visible: bool,
 }
 
 pub trait Reducer<S, A> {
@@ -71,6 +72,7 @@ impl GlobalState {
                 show_tool_panel: true,
                 sidebar_width: 30,
                 tool_panel_width: 35,
+                command_palette_visible: false,
             },
         }
     }

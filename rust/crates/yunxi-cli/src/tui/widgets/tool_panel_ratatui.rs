@@ -1,32 +1,14 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
-use crate::tui::components::chat_view::wrap_line;
 use crate::tui::components::tool_panel::ToolPanel;
 use crate::tui::ui_palette;
+use crate::tui::widgets::tool_block::{ToolBlock, ToolBlockStatus};
 
 pub(crate) struct ToolPanelWidget<'a> {
     pub(crate) tools: &'a ToolPanel,
-}
-
-fn truncate_to_width(s: &str, max_width: usize) -> String {
-    if max_width == 0 {
-        return String::new();
-    }
-    let mut width = 0;
-    let mut result = String::new();
-    for ch in s.chars() {
-        let cw = if ch.is_ascii() { 1 } else { 2 };
-        if width + cw > max_width {
-            result.push('…');
-            break;
-        }
-        result.push(ch);
-        width += cw;
-    }
-    result
 }
 
 impl Widget for ToolPanelWidget<'_> {
@@ -41,26 +23,6 @@ impl Widget for ToolPanelWidget<'_> {
             ui_palette::TEXT_MUTED.1,
             ui_palette::TEXT_MUTED.2,
         );
-        let primary = Color::Rgb(
-            ui_palette::TEXT_PRIMARY.0,
-            ui_palette::TEXT_PRIMARY.1,
-            ui_palette::TEXT_PRIMARY.2,
-        );
-        let success = Color::Rgb(
-            ui_palette::SUCCESS.0,
-            ui_palette::SUCCESS.1,
-            ui_palette::SUCCESS.2,
-        );
-        let error = Color::Rgb(
-            ui_palette::ERROR.0,
-            ui_palette::ERROR.1,
-            ui_palette::ERROR.2,
-        );
-        let brand = Color::Rgb(
-            ui_palette::BRAND_YUNXI.0,
-            ui_palette::BRAND_YUNXI.1,
-            ui_palette::BRAND_YUNXI.2,
-        );
 
         let block = Block::default()
             .title(" Tools ")
@@ -68,7 +30,6 @@ impl Widget for ToolPanelWidget<'_> {
             .border_style(Style::default().fg(border));
 
         let inner = block.inner(area);
-        let inner_width = inner.width as usize;
 
         if self.tools.is_empty() {
             let msg = Line::from(Span::styled(
@@ -79,52 +40,57 @@ impl Widget for ToolPanelWidget<'_> {
             return;
         }
 
-        let mut lines: Vec<Line> = Vec::new();
-
+        // 渲染每个工具条目为 ToolBlock
+        let mut current_y = inner.y;
         for entry in self.tools.entries() {
-            let (icon, icon_color) = if entry.is_error {
-                ("✗", error)
+            // 估算高度：标题1行 + 展开时的输出
+            let estimated_height = if entry.collapsed {
+                2u16 // 标题行 + 摘要行
             } else {
-                ("✓", success)
+                let detail_lines = entry.detail.lines().count() as u16;
+                (1 + detail_lines).min(10) // 最多10行
             };
 
-            let name_max = inner_width.saturating_sub(3);
-            let name_str = truncate_to_width(&entry.name, name_max);
-
-            lines.push(Line::from(vec![
-                Span::styled(format!("{icon} "), Style::default().fg(icon_color)),
-                Span::styled(
-                    name_str,
-                    Style::default().fg(brand).add_modifier(Modifier::BOLD),
-                ),
-            ]));
-
-            if entry.collapsed {
-                let line_count = entry.detail.lines().count();
-                let summary = format!("  ▸ {} lines", line_count);
-                lines.push(Line::from(Span::styled(
-                    summary,
-                    Style::default().fg(muted),
-                )));
-            } else {
-                let detail_width = inner_width.saturating_sub(2);
-                for detail_line in entry.detail.lines() {
-                    let wrapped = wrap_line(detail_line, detail_width);
-                    for wl in &wrapped {
-                        let mut spans: Vec<Span> = vec![Span::raw("  ")];
-                        if !wl.is_empty() {
-                            spans.push(Span::styled(wl.clone(), Style::default().fg(primary)));
-                        }
-                        lines.push(Line::from(spans));
-                    }
-                }
+            if current_y + estimated_height > inner.y + inner.height {
+                break;
             }
+
+            let entry_area = Rect {
+                x: inner.x,
+                y: current_y,
+                width: inner.width,
+                height: estimated_height,
+            };
+
+            let status = if entry.is_error {
+                ToolBlockStatus::Failed
+            } else {
+                ToolBlockStatus::Success
+            };
+
+            ToolBlock {
+                name: &entry.name,
+                arguments: "", // 当前 ToolEntry 没有参数字段
+                status,
+                duration_ms: None,
+                error: if entry.is_error {
+                    Some(&entry.detail)
+                } else {
+                    None
+                },
+                expanded: !entry.collapsed,
+                output: if entry.collapsed {
+                    None
+                } else {
+                    Some(&entry.detail)
+                },
+            }
+            .render(entry_area, buf);
+
+            current_y += estimated_height;
         }
 
-        let scroll_y = self.tools.scroll_offset() as u16;
-        Paragraph::new(lines)
-            .block(block)
-            .scroll((scroll_y, 0))
-            .render(area, buf);
+        // 渲染边框
+        block.render(area, buf);
     }
 }

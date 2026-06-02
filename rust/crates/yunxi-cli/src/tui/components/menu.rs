@@ -279,11 +279,8 @@ impl Menu {
     }
 
     pub fn get_submenu_name(&self, index: usize) -> Option<String> {
-        if let MenuItemType::Submenu(name) = self
-            .items
-            .get(index)
-            .map(|i| i.item_type.clone())
-            .unwrap()
+        if let MenuItemType::Submenu(name) =
+            self.items.get(index).map(|i| i.item_type.clone()).unwrap()
         {
             Some(name)
         } else {
@@ -354,10 +351,7 @@ impl Component for Menu {
                     text.push_str(&item.label);
 
                     if let Some(ref shortcut) = item.shortcut {
-                        let spaces = menu_width as usize
-                            - item.label.len()
-                            - shortcut.len()
-                            - 4;
+                        let spaces = menu_width as usize - item.label.len() - shortcut.len() - 4;
                         text.push_str(&" ".repeat(spaces.max(0)));
                         text.push(' ');
                         text.push_str(shortcut);

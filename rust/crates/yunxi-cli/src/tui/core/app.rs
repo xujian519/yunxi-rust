@@ -1,7 +1,7 @@
 use crate::tui::core::action::{Action, ActionResult};
 use crate::tui::core::event::{Event, EventDispatcher};
-use crate::tui::core::renderer::Renderer;
 use crate::tui::core::lifecycle::LifecycleManager;
+use crate::tui::core::renderer::Renderer;
 use crate::tui::state::global::GlobalState;
 use crate::tui::theme::ThemeRegistry;
 use crossterm::terminal;
@@ -71,6 +71,14 @@ impl App {
         match action {
             Action::Quit => {
                 self.running = false;
+            }
+            Action::ShowCommandPalette => {
+                let mut state = self.state.lock().unwrap();
+                state.ui.command_palette_visible = true;
+            }
+            Action::HideCommandPalette => {
+                let mut state = self.state.lock().unwrap();
+                state.ui.command_palette_visible = false;
             }
             Action::SwitchTheme(name) => {
                 let theme = self.theme_registry.get(&name);

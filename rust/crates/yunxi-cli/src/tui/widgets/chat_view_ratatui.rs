@@ -1,11 +1,11 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Paragraph, Widget};
 
 use crate::tui::components::chat_view::{ChatRole, ChatView};
-use crate::tui::markdown;
 use crate::tui::ui_palette;
+use crate::tui::widgets::message_bubble::MessageBubble;
 
 pub(crate) struct ChatViewWidget<'a> {
     pub(crate) chat: &'a ChatView,
@@ -13,111 +13,48 @@ pub(crate) struct ChatViewWidget<'a> {
     pub(crate) spinner_frame: usize,
 }
 
-fn role_accent_color(role: ChatRole) -> Color {
-    match role {
-        ChatRole::User => Color::Rgb(
-            ui_palette::LABEL_YOU.0,
-            ui_palette::LABEL_YOU.1,
-            ui_palette::LABEL_YOU.2,
-        ),
-        ChatRole::Assistant => Color::Rgb(
-            ui_palette::LABEL_YUNXI.0,
-            ui_palette::LABEL_YUNXI.1,
-            ui_palette::LABEL_YUNXI.2,
-        ),
-        ChatRole::System => Color::Rgb(
-            ui_palette::TEXT_MUTED.0,
-            ui_palette::TEXT_MUTED.1,
-            ui_palette::TEXT_MUTED.2,
-        ),
-    }
-}
-
-fn role_label(role: ChatRole) -> &'static str {
-    match role {
-        ChatRole::User => "You",
-        ChatRole::Assistant => "yunxi",
-        ChatRole::System => "System",
-    }
-}
-
 impl Widget for ChatViewWidget<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
-        let mut lines: Vec<Line> = Vec::new();
-        let muted = Color::Rgb(
-            ui_palette::TEXT_MUTED.0,
-            ui_palette::TEXT_MUTED.1,
-            ui_palette::TEXT_MUTED.2,
-        );
-        let primary = Color::Rgb(
-            ui_palette::TEXT_PRIMARY.0,
-            ui_palette::TEXT_PRIMARY.1,
-            ui_palette::TEXT_PRIMARY.2,
-        );
+        let mut current_y = area.y;
+        let entry_count = self.chat.entries().len();
 
-        for entry in self.chat.entries() {
+        for (idx, entry) in self.chat.entries().iter().enumerate() {
             if entry.text.is_empty() && matches!(entry.role, ChatRole::Assistant) {
                 continue;
             }
-            let is_error = entry.text.starts_with("Error")
-                || entry.text.starts_with("error")
-                || entry.text.contains("Unauthorized")
-                || entry.text.contains("401")
-                || entry.text.contains("403")
-                || entry.text.contains("500");
 
-            let accent = role_accent_color(entry.role);
-            let label = role_label(entry.role);
+            // 估算消息高度（标签1行 + 内容行数 + 内边距2行）
+            let content_lines = entry.text.lines().count().max(1);
+            let estimated_height = (content_lines + 3) as u16;
 
-            let gutter = Span::styled("┃ ", Style::default().fg(accent));
-            let label_span = Span::styled(
-                label,
-                Style::default().fg(accent).add_modifier(Modifier::BOLD),
-            );
+            // 检查是否超出显示区域
+            if current_y + estimated_height > area.y + area.height {
+                break;
+            }
 
-            let body = match entry.role {
-                ChatRole::System if is_error => Text::from(Line::from(Span::styled(
-                    entry.text.clone(),
-                    Style::default()
-                        .fg(Color::Rgb(
-                            ui_palette::ERROR.0,
-                            ui_palette::ERROR.1,
-                            ui_palette::ERROR.2,
-                        ))
-                        .add_modifier(Modifier::BOLD),
-                ))),
-                ChatRole::Assistant | ChatRole::System => markdown::markdown_to_text(&entry.text),
-                ChatRole::User => Text::from(Line::from(Span::styled(
-                    entry.text.clone(),
-                    Style::default().fg(primary),
-                ))),
+            let msg_area = Rect {
+                x: area.x,
+                y: current_y,
+                width: area.width,
+                height: estimated_height.min(area.y + area.height - current_y),
             };
 
-            if body.lines.len() == 1 {
-                let mut spans = vec![
-                    gutter,
-                    label_span,
-                    Span::styled(": ", Style::default().fg(muted)),
-                ];
-                spans.extend(body.lines.into_iter().flat_map(|l| l.spans));
-                lines.push(Line::from(spans));
-            } else {
-                lines.push(Line::from(vec![
-                    gutter.clone(),
-                    label_span,
-                    Span::styled(":", Style::default().fg(muted)),
-                ]));
-                for line in body.lines {
-                    let indent = Span::styled("┃ ", Style::default().fg(accent));
-                    let mut spans = vec![indent];
-                    spans.extend(line.spans);
-                    lines.push(Line::from(spans));
-                }
+            // 判断是否是最后一条且正在流式
+            let is_last = idx == entry_count - 1;
+            let is_streaming = is_last && self.thinking;
+
+            MessageBubble {
+                role: entry.role,
+                content: &entry.text,
+                is_streaming,
             }
-            lines.push(Line::from(Span::styled(" ", Style::default())));
+            .render(msg_area, buf);
+
+            current_y += estimated_height;
         }
 
-        if self.thinking {
+        // 如果正在思考但消息列表为空，显示 spinner
+        if self.thinking && entry_count == 0 {
             let spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
             let spinner_char = spinner_chars[self.spinner_frame % spinner_chars.len()];
             let t = (self.spinner_frame % 8) as f32 / 8.0;
@@ -131,18 +68,17 @@ impl Widget for ChatViewWidget<'_> {
                 + t * (ui_palette::BRAND_YUNXI_SHIMMER.2 as f32 - ui_palette::BRAND_YUNXI.2 as f32))
                 as u8;
             let gradient = Color::Rgb(r, g, b);
-            lines.push(Line::from(vec![
+            let muted = Color::Rgb(
+                ui_palette::TEXT_MUTED.0,
+                ui_palette::TEXT_MUTED.1,
+                ui_palette::TEXT_MUTED.2,
+            );
+            let spinner_line = Line::from(vec![
                 Span::styled("┃ ", Style::default().fg(gradient)),
                 Span::styled(spinner_char, Style::default().fg(gradient)),
-                Span::styled(
-                    " thinking...",
-                    Style::default().fg(muted).add_modifier(Modifier::ITALIC),
-                ),
-            ]));
+                Span::styled(" thinking...", Style::default().fg(muted)),
+            ]);
+            Paragraph::new(Text::from(vec![spinner_line])).render(area, buf);
         }
-
-        Paragraph::new(Text::from(lines))
-            .scroll((self.chat.scroll_offset() as u16, 0))
-            .render(area, buf);
     }
 }

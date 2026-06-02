@@ -174,9 +174,11 @@ impl<T: Clone + ToString + Send + Sync> List<T> {
         if index < self.items.len() {
             self.items.remove(index);
             self.selected_indices.retain(|&i| i != index);
-            self.selected_indices
-                .iter_mut()
-                .for_each(|i| if *i > index { *i -= 1 });
+            self.selected_indices.iter_mut().for_each(|i| {
+                if *i > index {
+                    *i -= 1
+                }
+            });
             if self.focused_index >= self.items.len() && !self.items.is_empty() {
                 self.focused_index = self.items.len() - 1;
             }
@@ -253,16 +255,15 @@ impl<T: Clone + ToString + Send + Sync> Component for List<T> {
         let mut list_state = ListState::default();
         list_state.select(Some(self.focused_index.saturating_sub(self.scroll_offset)));
 
-        let list = RatatuiList::new(visible_items)
-            .block(
-                Block::default()
-                    .borders(if self.style.border {
-                        Borders::ALL
-                    } else {
-                        Borders::NONE
-                    })
-                    .style(Style::default()),
-            );
+        let list = RatatuiList::new(visible_items).block(
+            Block::default()
+                .borders(if self.style.border {
+                    Borders::ALL
+                } else {
+                    Borders::NONE
+                })
+                .style(Style::default()),
+        );
 
         list.render(area, buf);
     }
@@ -273,81 +274,83 @@ impl<T: Clone + ToString + Send + Sync> Component for List<T> {
         }
 
         match event {
-            Event::Input(InputEvent::Key(key)) => {
-                match key.code {
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if self.focused_index < self.items.len().saturating_sub(1) {
-                            self.focused_index += 1;
-                            if self.focused_index >= self.scroll_offset + self.page_size {
-                                self.scroll_offset += 1;
-                            }
+            Event::Input(InputEvent::Key(key)) => match key.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if self.focused_index < self.items.len().saturating_sub(1) {
+                        self.focused_index += 1;
+                        if self.focused_index >= self.scroll_offset + self.page_size {
+                            self.scroll_offset += 1;
                         }
-                        ActionResult::Handled
                     }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if self.focused_index > 0 {
-                            self.focused_index -= 1;
-                            if self.focused_index < self.scroll_offset {
-                                self.scroll_offset = self.scroll_offset.saturating_sub(1);
-                            }
+                    ActionResult::Handled
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if self.focused_index > 0 {
+                        self.focused_index -= 1;
+                        if self.focused_index < self.scroll_offset {
+                            self.scroll_offset = self.scroll_offset.saturating_sub(1);
                         }
-                        ActionResult::Handled
                     }
-                    KeyCode::PageDown => {
-                        let page = self.page_size.min(self.items.len());
-                        let new_index = (self.focused_index + page).min(self.items.len().saturating_sub(1));
-                        self.focused_index = new_index;
-                        self.scroll_offset = self.scroll_offset.saturating_add(page).min(self.items.len().saturating_sub(self.page_size));
-                        ActionResult::Handled
-                    }
-                    KeyCode::PageUp => {
-                        let page = self.page_size.min(self.items.len());
-                        let new_index = self.focused_index.saturating_sub(page);
-                        self.focused_index = new_index;
-                        self.scroll_offset = self.scroll_offset.saturating_sub(page);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Home => {
-                        self.focused_index = 0;
-                        self.scroll_offset = 0;
-                        ActionResult::Handled
-                    }
-                    KeyCode::End => {
-                        self.focused_index = self.items.len().saturating_sub(1);
-                        self.scroll_offset = self.items.len().saturating_sub(self.page_size);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Enter => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            if let Some(ref callback) = self.on_double_click {
-                                if let Some(item) = self.items.get(self.focused_index) {
-                                    return callback(self.focused_index, &item.value);
-                                }
-                            }
-                        } else if let Some(ref callback) = self.on_select {
+                    ActionResult::Handled
+                }
+                KeyCode::PageDown => {
+                    let page = self.page_size.min(self.items.len());
+                    let new_index =
+                        (self.focused_index + page).min(self.items.len().saturating_sub(1));
+                    self.focused_index = new_index;
+                    self.scroll_offset = self
+                        .scroll_offset
+                        .saturating_add(page)
+                        .min(self.items.len().saturating_sub(self.page_size));
+                    ActionResult::Handled
+                }
+                KeyCode::PageUp => {
+                    let page = self.page_size.min(self.items.len());
+                    let new_index = self.focused_index.saturating_sub(page);
+                    self.focused_index = new_index;
+                    self.scroll_offset = self.scroll_offset.saturating_sub(page);
+                    ActionResult::Handled
+                }
+                KeyCode::Home => {
+                    self.focused_index = 0;
+                    self.scroll_offset = 0;
+                    ActionResult::Handled
+                }
+                KeyCode::End => {
+                    self.focused_index = self.items.len().saturating_sub(1);
+                    self.scroll_offset = self.items.len().saturating_sub(self.page_size);
+                    ActionResult::Handled
+                }
+                KeyCode::Enter => {
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        if let Some(ref callback) = self.on_double_click {
                             if let Some(item) = self.items.get(self.focused_index) {
                                 return callback(self.focused_index, &item.value);
                             }
                         }
-                        ActionResult::Ignored
-                    }
-                    KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.select_all();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Char(' ') => {
-                        if self.multi_select {
-                            if self.selected_indices.contains(&self.focused_index) {
-                                self.selected_indices.retain(|&i| i != self.focused_index);
-                            } else {
-                                self.selected_indices.push(self.focused_index);
-                            }
+                    } else if let Some(ref callback) = self.on_select {
+                        if let Some(item) = self.items.get(self.focused_index) {
+                            return callback(self.focused_index, &item.value);
                         }
-                        ActionResult::Handled
                     }
-                    _ => ActionResult::Ignored,
+                    ActionResult::Ignored
                 }
-            }
+                KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.select_all();
+                    ActionResult::Handled
+                }
+                KeyCode::Char(' ') => {
+                    if self.multi_select {
+                        if self.selected_indices.contains(&self.focused_index) {
+                            self.selected_indices.retain(|&i| i != self.focused_index);
+                        } else {
+                            self.selected_indices.push(self.focused_index);
+                        }
+                    }
+                    ActionResult::Handled
+                }
+                _ => ActionResult::Ignored,
+            },
             _ => ActionResult::Ignored,
         }
     }

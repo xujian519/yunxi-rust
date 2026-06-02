@@ -101,8 +101,7 @@ impl Cursor {
 
 impl Selection {
     pub fn new(start: Cursor, end: Cursor) -> Self {
-        let (start, end) = if start.row < end.row
-            || (start.row == end.row && start.col <= end.col)
+        let (start, end) = if start.row < end.row || (start.row == end.row && start.col <= end.col)
         {
             (start, end)
         } else {
@@ -367,36 +366,61 @@ impl Editor {
     }
 
     fn highlight_rust(&self, chars: &[char], i: &mut usize, spans: &mut Vec<Span>) {
-        let keywords = ["fn", "let", "mut", "pub", "struct", "enum", "impl", "use", "mod", "trait"];
+        let keywords = [
+            "fn", "let", "mut", "pub", "struct", "enum", "impl", "use", "mod", "trait",
+        ];
         let rest: String = chars[*i..].iter().collect();
 
         if rest.starts_with("//") {
             *i += 2;
             while *i < chars.len() {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.comment_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.comment_color),
+                ));
                 *i += 1;
             }
         } else if rest.starts_with('"') {
-            spans.push(Span::styled('"'.to_string(), Style::default().fg(self.style.string_color)));
+            spans.push(Span::styled(
+                '"'.to_string(),
+                Style::default().fg(self.style.string_color),
+            ));
             *i += 1;
             while *i < chars.len() && chars[*i] != '"' {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
             if *i < chars.len() {
-                spans.push(Span::styled('"'.to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    '"'.to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
         } else if rest.starts_with(|c: char| c.is_ascii_digit()) {
             while *i < chars.len() && chars[*i].is_ascii_digit() {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.number_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.number_color),
+                ));
                 *i += 1;
             }
-        } else if keywords.iter().any(|kw| rest.starts_with(kw) && (*i + kw.len() == chars.len() || !chars[*i + kw.len()].is_alphanumeric())) {
+        } else if keywords.iter().any(|kw| {
+            rest.starts_with(kw)
+                && (*i + kw.len() == chars.len() || !chars[*i + kw.len()].is_alphanumeric())
+        }) {
             for kw in keywords {
-                if rest.starts_with(kw) && (*i + kw.len() == chars.len() || !chars[*i + kw.len()].is_alphanumeric()) {
+                if rest.starts_with(kw)
+                    && (*i + kw.len() == chars.len() || !chars[*i + kw.len()].is_alphanumeric())
+                {
                     for c in kw.chars() {
-                        spans.push(Span::styled(c.to_string(), Style::default().fg(self.style.keyword_color)));
+                        spans.push(Span::styled(
+                            c.to_string(),
+                            Style::default().fg(self.style.keyword_color),
+                        ));
                         *i += 1;
                     }
                     return;
@@ -409,31 +433,50 @@ impl Editor {
     }
 
     fn highlight_python(&self, chars: &[char], i: &mut usize, spans: &mut Vec<Span>) {
-        let keywords = ["def", "class", "if", "else", "for", "while", "import", "from", "return"];
+        let keywords = [
+            "def", "class", "if", "else", "for", "while", "import", "from", "return",
+        ];
         let rest: String = chars[*i..].iter().collect();
 
         if rest.starts_with('#') {
             while *i < chars.len() {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.comment_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.comment_color),
+                ));
                 *i += 1;
             }
         } else if rest.starts_with('"') || rest.starts_with('\'') {
             let quote = chars[*i];
-            spans.push(Span::styled(quote.to_string(), Style::default().fg(self.style.string_color)));
+            spans.push(Span::styled(
+                quote.to_string(),
+                Style::default().fg(self.style.string_color),
+            ));
             *i += 1;
             while *i < chars.len() && chars[*i] != quote {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
             if *i < chars.len() {
-                spans.push(Span::styled(quote.to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    quote.to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
         } else {
             for kw in keywords {
-                if rest.starts_with(kw) && (*i + kw.len() == chars.len() || !chars[*i + kw.len()].is_alphanumeric()) {
+                if rest.starts_with(kw)
+                    && (*i + kw.len() == chars.len() || !chars[*i + kw.len()].is_alphanumeric())
+                {
                     for c in kw.chars() {
-                        spans.push(Span::styled(c.to_string(), Style::default().fg(self.style.keyword_color)));
+                        spans.push(Span::styled(
+                            c.to_string(),
+                            Style::default().fg(self.style.keyword_color),
+                        ));
                         *i += 1;
                     }
                     return;
@@ -452,26 +495,41 @@ impl Editor {
         let rest: String = chars[*i..].iter().collect();
 
         if rest.starts_with('"') {
-            spans.push(Span::styled('"'.to_string(), Style::default().fg(self.style.string_color)));
+            spans.push(Span::styled(
+                '"'.to_string(),
+                Style::default().fg(self.style.string_color),
+            ));
             *i += 1;
             while *i < chars.len() && chars[*i] != '"' {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
             if *i < chars.len() {
-                spans.push(Span::styled('"'.to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    '"'.to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
         } else if chars[*i].is_ascii_digit() {
             while *i < chars.len() && (chars[*i].is_ascii_digit() || chars[*i] == '.') {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.number_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.number_color),
+                ));
                 *i += 1;
             }
         } else if chars[*i] == 't' || chars[*i] == 'f' {
             let boolean = if chars[*i] == 't' { "true" } else { "false" };
             if rest.starts_with(boolean) {
                 for c in boolean.chars() {
-                    spans.push(Span::styled(c.to_string(), Style::default().fg(self.style.keyword_color)));
+                    spans.push(Span::styled(
+                        c.to_string(),
+                        Style::default().fg(self.style.keyword_color),
+                    ));
                     *i += 1;
                 }
                 return;
@@ -487,19 +545,33 @@ impl Editor {
 
         if rest.starts_with('#') {
             while *i < chars.len() && chars[*i] == '#' {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.keyword_color).add_modifier(Modifier::BOLD)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default()
+                        .fg(self.style.keyword_color)
+                        .add_modifier(Modifier::BOLD),
+                ));
                 *i += 1;
             }
         } else if rest.starts_with("**") {
-            spans.push(Span::styled("**".to_string(), Style::default().fg(self.style.keyword_color)));
+            spans.push(Span::styled(
+                "**".to_string(),
+                Style::default().fg(self.style.keyword_color),
+            ));
             *i += 2;
         } else if rest.starts_with('`') {
             while *i < chars.len() && chars[*i] != '`' {
-                spans.push(Span::styled(chars[*i].to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    chars[*i].to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
             if *i < chars.len() {
-                spans.push(Span::styled('`'.to_string(), Style::default().fg(self.style.string_color)));
+                spans.push(Span::styled(
+                    '`'.to_string(),
+                    Style::default().fg(self.style.string_color),
+                ));
                 *i += 1;
             }
         } else {
@@ -554,7 +626,10 @@ impl Component for Editor {
                             .fg(self.style.line_number_fg)
                     };
                     Line::from(vec![
-                        Span::styled(format!("{:>width$}", num, width = line_number_width as usize - 1), style),
+                        Span::styled(
+                            format!("{:>width$}", num, width = line_number_width as usize - 1),
+                            style,
+                        ),
                         Span::raw(" "),
                     ])
                 } else {
@@ -614,77 +689,75 @@ impl Component for Editor {
         }
 
         match event {
-            Event::Input(InputEvent::Key(key)) => {
-                match key.code {
-                    KeyCode::Up => {
-                        self.move_cursor(Direction::Up);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Down => {
-                        self.move_cursor(Direction::Down);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Left => {
-                        self.move_cursor(Direction::Left);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Right => {
-                        self.move_cursor(Direction::Right);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Enter => {
-                        self.new_line();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Backspace => {
-                        self.delete_char();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Delete => {
-                        self.delete_next_char();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Tab => {
-                        self.insert_tab();
-                        ActionResult::Handled
-                    }
-                    KeyCode::Home => {
-                        self.move_cursor(Direction::Home);
-                        ActionResult::Handled
-                    }
-                    KeyCode::End => {
-                        self.move_cursor(Direction::End);
-                        ActionResult::Handled
-                    }
-                    KeyCode::PageUp => {
-                        self.move_cursor(Direction::PageUp);
-                        ActionResult::Handled
-                    }
-                    KeyCode::PageDown => {
-                        self.move_cursor(Direction::PageDown);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.move_cursor(Direction::Top);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Char('G') => {
-                        self.move_cursor(Direction::Bottom);
-                        ActionResult::Handled
-                    }
-                    KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if let Some(ref callback) = self.on_save {
-                            return callback(self.content.clone());
-                        }
-                        ActionResult::Ignored
-                    }
-                    KeyCode::Char(c) => {
-                        self.insert_char(c);
-                        ActionResult::Handled
-                    }
-                    _ => ActionResult::Ignored,
+            Event::Input(InputEvent::Key(key)) => match key.code {
+                KeyCode::Up => {
+                    self.move_cursor(Direction::Up);
+                    ActionResult::Handled
                 }
-            }
+                KeyCode::Down => {
+                    self.move_cursor(Direction::Down);
+                    ActionResult::Handled
+                }
+                KeyCode::Left => {
+                    self.move_cursor(Direction::Left);
+                    ActionResult::Handled
+                }
+                KeyCode::Right => {
+                    self.move_cursor(Direction::Right);
+                    ActionResult::Handled
+                }
+                KeyCode::Enter => {
+                    self.new_line();
+                    ActionResult::Handled
+                }
+                KeyCode::Backspace => {
+                    self.delete_char();
+                    ActionResult::Handled
+                }
+                KeyCode::Delete => {
+                    self.delete_next_char();
+                    ActionResult::Handled
+                }
+                KeyCode::Tab => {
+                    self.insert_tab();
+                    ActionResult::Handled
+                }
+                KeyCode::Home => {
+                    self.move_cursor(Direction::Home);
+                    ActionResult::Handled
+                }
+                KeyCode::End => {
+                    self.move_cursor(Direction::End);
+                    ActionResult::Handled
+                }
+                KeyCode::PageUp => {
+                    self.move_cursor(Direction::PageUp);
+                    ActionResult::Handled
+                }
+                KeyCode::PageDown => {
+                    self.move_cursor(Direction::PageDown);
+                    ActionResult::Handled
+                }
+                KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.move_cursor(Direction::Top);
+                    ActionResult::Handled
+                }
+                KeyCode::Char('G') => {
+                    self.move_cursor(Direction::Bottom);
+                    ActionResult::Handled
+                }
+                KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    if let Some(ref callback) = self.on_save {
+                        return callback(self.content.clone());
+                    }
+                    ActionResult::Ignored
+                }
+                KeyCode::Char(c) => {
+                    self.insert_char(c);
+                    ActionResult::Handled
+                }
+                _ => ActionResult::Ignored,
+            },
             Event::Input(InputEvent::Paste(text)) => {
                 self.insert_text(text);
                 ActionResult::Handled
@@ -753,8 +826,8 @@ mod tests {
 
     #[test]
     fn test_editor_syntax_highlighting() {
-        let editor = Editor::new("fn main() { println!(\"Hello\"); }".to_string())
-            .with_syntax(Syntax::Rust);
+        let editor =
+            Editor::new("fn main() { println!(\"Hello\"); }".to_string()).with_syntax(Syntax::Rust);
         assert_eq!(editor.get_lines().len(), 1);
     }
 

@@ -153,9 +153,7 @@ impl Breadcrumb {
     pub fn get_path(&self) -> String {
         self.items
             .iter()
-            .map(|item| {
-                item.value.as_ref().unwrap_or(&item.label).clone()
-            })
+            .map(|item| item.value.as_ref().unwrap_or(&item.label).clone())
             .collect::<Vec<_>>()
             .join(&self.separator)
     }
@@ -242,7 +240,10 @@ impl Component for Breadcrumb {
 
             if *idx < display_items_len - 1
                 && (*idx + 1) < self.items.len()
-                && display_items.iter().position(|(i, _)| *i == *idx + 1).is_none()
+                && display_items
+                    .iter()
+                    .position(|(i, _)| *i == *idx + 1)
+                    .is_none()
             {
                 let ellipsis = "...";
                 let ellipsis_len = ellipsis.len();

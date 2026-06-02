@@ -6,6 +6,7 @@ pub(crate) mod color;
 pub(crate) mod diff;
 pub(crate) mod frame;
 pub(crate) mod init_dispatch;
+pub(crate) mod keymap;
 pub(crate) mod layout;
 pub(crate) mod markdown;
 pub(crate) mod overlays;
@@ -27,6 +28,6 @@ pub(crate) mod terminal;
 pub(crate) mod widgets;
 
 pub(crate) mod core;
-pub(crate) mod state;
 pub(crate) mod router;
+pub(crate) mod state;
 pub(crate) mod theme;

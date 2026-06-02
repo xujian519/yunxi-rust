@@ -65,7 +65,10 @@ impl EventDispatcher {
     }
 
     pub fn dispatch(&self, event: &Event) -> Vec<ActionResult> {
-        self.listeners.iter().map(|listener| listener(event)).collect()
+        self.listeners
+            .iter()
+            .map(|listener| listener(event))
+            .collect()
     }
 }
 

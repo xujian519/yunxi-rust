@@ -26,6 +26,8 @@ pub enum Action {
     EditorRedo,
     Quit,
     Refresh,
+    ShowSubmenu(String, usize),
+    ShowParentMenu(String),
 }
 
 impl std::fmt::Display for Action {
@@ -33,6 +35,8 @@ impl std::fmt::Display for Action {
         match self {
             Action::Navigate(route) => write!(f, "Navigate({})", route),
             Action::ShowDialog(name) => write!(f, "ShowDialog({})", name),
+            Action::ShowSubmenu(id, idx) => write!(f, "ShowSubmenu({}, {})", id, idx),
+            Action::ShowParentMenu(id) => write!(f, "ShowParentMenu({})", id),
             Action::ExecuteCommand(cmd) => write!(f, "ExecuteCommand({})", cmd),
             _ => write!(f, "{:?}", self),
         }

@@ -1,5 +1,10 @@
 use ratatui::style::Color;
 
+pub mod manager;
+pub mod presets;
+
+pub use manager::ThemeManager;
+
 #[derive(Debug, Clone)]
 pub struct Theme {
     pub name: String,
@@ -97,9 +102,7 @@ pub struct ThemeRegistry {
 
 impl ThemeRegistry {
     pub fn new() -> Self {
-        let mut registry = Self {
-            themes: Vec::new(),
-        };
+        let mut registry = Self { themes: Vec::new() };
         registry.register(Theme::default_dark());
         registry.register(Theme::default_light());
         registry
@@ -116,10 +119,51 @@ impl ThemeRegistry {
             .cloned()
             .unwrap_or_else(|| Theme::default_dark())
     }
+
+    pub fn list_names(&self) -> Vec<String> {
+        self.themes.iter().map(|t| t.name.clone()).collect()
+    }
 }
 
 impl Default for ThemeRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_dark_theme() {
+        let theme = Theme::default_dark();
+        assert_eq!(theme.name, "default_dark");
+        assert!(theme.is_dark);
+    }
+
+    #[test]
+    fn test_default_light_theme() {
+        let theme = Theme::default_light();
+        assert_eq!(theme.name, "default_light");
+        assert!(!theme.is_dark);
+    }
+
+    #[test]
+    fn test_theme_registry_get() {
+        let registry = ThemeRegistry::new();
+        let dark = registry.get("default_dark");
+        assert_eq!(dark.name, "default_dark");
+
+        let unknown = registry.get("unknown_theme");
+        assert_eq!(unknown.name, "default_dark");
+    }
+
+    #[test]
+    fn test_theme_registry_list() {
+        let registry = ThemeRegistry::new();
+        let names = registry.list_names();
+        assert!(names.contains(&"default_dark".to_string()));
+        assert!(names.contains(&"default_light".to_string()));
     }
 }

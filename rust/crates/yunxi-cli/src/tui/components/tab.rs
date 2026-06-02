@@ -295,9 +295,15 @@ impl Component for Tab {
                     self.toggle_pin(self.active_index);
                     ActionResult::Handled
                 }
-                KeyCode::Char('1') | KeyCode::Char('2') | KeyCode::Char('3') | KeyCode::Char('4')
-                | KeyCode::Char('5') | KeyCode::Char('6') | KeyCode::Char('7')
-                | KeyCode::Char('8') | KeyCode::Char('9') => {
+                KeyCode::Char('1')
+                | KeyCode::Char('2')
+                | KeyCode::Char('3')
+                | KeyCode::Char('4')
+                | KeyCode::Char('5')
+                | KeyCode::Char('6')
+                | KeyCode::Char('7')
+                | KeyCode::Char('8')
+                | KeyCode::Char('9') => {
                     let index = match key.code {
                         KeyCode::Char('1') => 0,
                         KeyCode::Char('2') => 1,

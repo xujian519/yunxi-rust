@@ -13,6 +13,7 @@ pub mod alert;
 pub mod base;
 pub mod breadcrumb;
 pub mod button;
+pub mod command_palette;
 pub mod editor;
 pub mod input;
 pub mod label;
@@ -37,6 +38,7 @@ pub use alert::{Alert, AlertAction, AlertLevel, AlertStyle};
 pub use base::{generate_component_id, Component, ComponentState};
 pub use breadcrumb::{Breadcrumb, BreadcrumbItem, BreadcrumbStyle};
 pub use button::{Button, ButtonStyle};
+pub use command_palette::CommandPalette;
 pub use label::Label;
 pub use list::{List, ListItemData, ListStyle};
 pub use menu::{Menu, MenuItem, MenuItemType, MenuStyle};
@@ -46,7 +48,7 @@ pub use spacer::Spacer;
 pub use spinner::{Spinner, SpinnerStyle};
 pub use tab::{Tab, TabItem, TabStyle};
 pub use toast::{Toast, ToastLevel, ToastMessage, ToastPosition, ToastStyle};
-pub use tree::{TreeNode, Tree, TreeStyle};
+pub use tree::{Tree, TreeNode, TreeStyle};
 
 #[cfg(test)]
 pub mod tests;

@@ -229,7 +229,11 @@ impl<T: Clone + ToString + Send + Sync> Tree<T> {
         paths
     }
 
-    fn flatten_nodes<'a>(&self, nodes: &'a [TreeNode<T>], depth: usize) -> Vec<(usize, String, &'a TreeNode<T>)> {
+    fn flatten_nodes<'a>(
+        &self,
+        nodes: &'a [TreeNode<T>],
+        depth: usize,
+    ) -> Vec<(usize, String, &'a TreeNode<T>)> {
         let mut result = Vec::new();
         for node in nodes {
             result.push((depth, node.path.clone(), node));
@@ -338,21 +342,19 @@ impl<T: Clone + ToString + Send + Sync> Component for Tree<T> {
                     self.navigate(-1);
                     ActionResult::Handled
                 }
-                    KeyCode::Enter => {
-                        if let Some(path) = self.focused_path.clone() {
-                            let is_leaf = self.find_node(&path)
-                                .map(|n| n.is_leaf)
-                                .unwrap_or(true);
-                            if !is_leaf {
-                                self.toggle(&path);
-                                ActionResult::Handled
-                            } else {
-                                ActionResult::Action(Action::Navigate(path))
-                            }
+                KeyCode::Enter => {
+                    if let Some(path) = self.focused_path.clone() {
+                        let is_leaf = self.find_node(&path).map(|n| n.is_leaf).unwrap_or(true);
+                        if !is_leaf {
+                            self.toggle(&path);
+                            ActionResult::Handled
                         } else {
-                            ActionResult::Ignored
+                            ActionResult::Action(Action::Navigate(path))
                         }
+                    } else {
+                        ActionResult::Ignored
                     }
+                }
                 KeyCode::Char(' ') => {
                     if let Some(ref path) = self.focused_path {
                         if self.selected_paths.contains(path) {
@@ -363,26 +365,26 @@ impl<T: Clone + ToString + Send + Sync> Component for Tree<T> {
                     }
                     ActionResult::Handled
                 }
-                    KeyCode::Right => {
-                        if let Some(path) = self.focused_path.clone() {
-                            if let Some(node) = self.find_node(&path) {
-                                if !node.is_leaf {
-                                    self.expand(&path);
-                                }
+                KeyCode::Right => {
+                    if let Some(path) = self.focused_path.clone() {
+                        if let Some(node) = self.find_node(&path) {
+                            if !node.is_leaf {
+                                self.expand(&path);
                             }
                         }
-                        ActionResult::Handled
                     }
-                    KeyCode::Left => {
-                        if let Some(path) = self.focused_path.clone() {
-                            if self.is_expanded(&path) {
-                                self.collapse(&path);
-                            } else if let Some(parent_path) = path.rsplit('/').nth(1) {
-                                self.focused_path = Some(format!("/{}", parent_path));
-                            }
+                    ActionResult::Handled
+                }
+                KeyCode::Left => {
+                    if let Some(path) = self.focused_path.clone() {
+                        if self.is_expanded(&path) {
+                            self.collapse(&path);
+                        } else if let Some(parent_path) = path.rsplit('/').nth(1) {
+                            self.focused_path = Some(format!("/{}", parent_path));
                         }
-                        ActionResult::Handled
                     }
+                    ActionResult::Handled
+                }
                 KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                     self.expand_all();
                     ActionResult::Handled
@@ -416,11 +418,10 @@ mod tests {
     #[test]
     fn test_tree_creation() {
         let nodes = vec![
-            TreeNode::new("/root".to_string(), "root".to_string(), "Root")
-                .with_children(vec![
-                    TreeNode::new("/root/child1".to_string(), "child1".to_string(), "Child 1"),
-                    TreeNode::new("/root/child2".to_string(), "child2".to_string(), "Child 2"),
-                ]),
+            TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
+                TreeNode::new("/root/child1".to_string(), "child1".to_string(), "Child 1"),
+                TreeNode::new("/root/child2".to_string(), "child2".to_string(), "Child 2"),
+            ]),
         ];
         let tree: Tree<String> = Tree::new(nodes);
         assert_eq!(tree.get_focused_path(), None);
@@ -428,9 +429,11 @@ mod tests {
 
     #[test]
     fn test_tree_expansion() {
-        let nodes = vec![TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
-            TreeNode::new("/root/child".to_string(), "child".to_string(), "Child"),
-        ])];
+        let nodes = vec![
+            TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
+                TreeNode::new("/root/child".to_string(), "child".to_string(), "Child"),
+            ]),
+        ];
         let mut tree: Tree<String> = Tree::new(nodes);
         tree.expand("/root");
         assert!(tree.is_expanded("/root"));
@@ -457,9 +460,11 @@ mod tests {
 
     #[test]
     fn test_tree_find_node() {
-        let nodes = vec![TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
-            TreeNode::new("/root/child".to_string(), "child".to_string(), "Child"),
-        ])];
+        let nodes = vec![
+            TreeNode::new("/root".to_string(), "root".to_string(), "Root").with_children(vec![
+                TreeNode::new("/root/child".to_string(), "child".to_string(), "Child"),
+            ]),
+        ];
         let tree: Tree<String> = Tree::new(nodes);
         assert!(tree.find_node("/root/child").is_some());
         assert!(tree.find_node("/nonexistent").is_none());

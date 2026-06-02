@@ -3,11 +3,11 @@ mod tests {
     use crate::tui::core::action::{Action, ActionResult};
     use crate::tui::core::event::{ActionEvent, Event, EventDispatcher};
     use crate::tui::core::lifecycle::LifecycleManager;
+    use crate::tui::router::{RouteType, Router};
     use crate::tui::state::global::GlobalState;
     use crate::tui::theme::{Theme, ThemeRegistry};
-    use crate::tui::router::{Router, RouteType};
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     #[test]
     fn test_action_display() {
