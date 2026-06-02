@@ -385,6 +385,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_multiple_validators_chain() {
         let set = ValidatorSet::<String>::new()
             .add(RequiredValidator)

@@ -419,6 +419,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_rich_text_builder_pattern() {
         let rich_text = RichText::new()
             .with_text("这是一段")

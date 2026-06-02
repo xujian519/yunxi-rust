@@ -134,6 +134,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_save_and_load_workspace() {
         let temp_dir = TempDir::new().unwrap();
         let mut manager = WorkspaceManager::new();

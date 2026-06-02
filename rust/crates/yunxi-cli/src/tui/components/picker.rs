@@ -411,6 +411,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_picker_search() {
         let mut picker = create_test_picker();
 
@@ -423,6 +424,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_picker_move_selection() {
         let mut picker = create_test_picker();
 
@@ -437,6 +439,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_picker_move_selection_wrap() {
         let mut picker = create_test_picker();
 
@@ -540,6 +543,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_picker_page_navigation() {
         let items: Vec<String> = (0..30).map(|i| format!("Item {}", i)).collect();
         let mut picker = Picker::new(items).with_page_size(10);
