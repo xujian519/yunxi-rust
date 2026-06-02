@@ -2,12 +2,50 @@
 
 use std::path::Path;
 
-use commands::{all_slash_command_names, slash_command_specs};
+use commands::{all_slash_command_names, slash_command_specs, SlashCommandSpec};
 
 use crate::session_mgr::list_managed_sessions;
 
-/// 返回 `(显示, 整行替换文本)` 候选列表。
-pub(crate) fn slash_line_completions(line: &str, cursor_at_end: bool) -> Vec<(String, String)> {
+/// 单个补全项的丰富信息。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SlashCompletionItem {
+    /// Unicode 图标（如 "❓"、"📊"）。
+    pub icon: String,
+    /// 显示文本（如 "/help"）。
+    pub display: String,
+    /// 整行替换文本（如 "/help" 或 "/model [模型]"）。
+    pub replacement: String,
+    /// 命令描述（如 "显示可用斜杠命令"）。
+    pub description: String,
+}
+
+impl SlashCompletionItem {
+    fn from_spec(spec: &SlashCommandSpec) -> Self {
+        let display = format!("/{}", spec.name);
+        let replacement = match spec.argument_hint {
+            Some(hint) => format!("/{} {}", spec.name, hint),
+            None => format!("/{}", spec.name),
+        };
+        Self {
+            icon: spec.icon.to_string(),
+            display,
+            replacement,
+            description: spec.summary.to_string(),
+        }
+    }
+
+    fn from_name(name: &str) -> Self {
+        Self {
+            icon: "⌨".to_string(),
+            display: format!("/{}", name),
+            replacement: format!("/{} ", name),
+            description: String::new(),
+        }
+    }
+}
+
+/// 返回补全候选列表。
+pub(crate) fn slash_line_completions(line: &str, cursor_at_end: bool) -> Vec<SlashCompletionItem> {
     if !cursor_at_end || !line.starts_with('/') || line.contains('\n') {
         return Vec::new();
     }
@@ -17,33 +55,25 @@ pub(crate) fn slash_line_completions(line: &str, cursor_at_end: bool) -> Vec<(St
     };
 
     if ctx.completing_command {
-        let builtin: Vec<(String, String)> = slash_command_specs()
+        let mut items: Vec<SlashCompletionItem> = slash_command_specs()
             .iter()
-            .map(|spec| {
-                let display = format!("/{}", spec.name);
-                let replacement = match spec.argument_hint {
-                    Some(hint) => format!("{display} {hint}"),
-                    None => display.clone(),
-                };
-                (display, replacement)
-            })
+            .map(SlashCompletionItem::from_spec)
             .collect();
-        let mut names: Vec<(String, String)> = all_slash_command_names()
+        let custom_items: Vec<SlashCompletionItem> = all_slash_command_names()
             .into_iter()
             .filter_map(|name| {
                 if slash_command_specs().iter().any(|s| s.name == name) {
                     return None;
                 }
-                let display = format!("/{name}");
-                let replacement = format!("{display} ");
-                Some((display, replacement))
+                Some(SlashCompletionItem::from_name(&name))
             })
             .collect();
-        names.extend(builtin);
-        return names
+        items.extend(custom_items);
+        return items
             .into_iter()
-            .filter(|(display, _)| {
-                display.starts_with(&ctx.command_token) || ctx.command_token.starts_with(display)
+            .filter(|item| {
+                item.display.starts_with(&ctx.command_token)
+                    || ctx.command_token.starts_with(&item.display)
             })
             .collect();
     }
@@ -71,7 +101,7 @@ fn parse_slash_line(line: &str) -> Option<SlashParse> {
 
     match first_space {
         None => Some(SlashParse {
-            command_token: format!("/{rest}"),
+            command_token: format!("/{}", rest),
             completing_command: true,
             subcommand: None,
             partial: rest.to_string(),
@@ -91,7 +121,7 @@ fn parse_slash_line(line: &str) -> Option<SlashParse> {
             };
 
             Some(SlashParse {
-                command_token: format!("/{cmd}"),
+                command_token: format!("/{}", cmd),
                 completing_command: false,
                 subcommand,
                 partial,
@@ -100,8 +130,8 @@ fn parse_slash_line(line: &str) -> Option<SlashParse> {
     }
 }
 
-fn argument_completions(ctx: &SlashParse, line: &str) -> Vec<(String, String)> {
-    let cmd = ctx.command_token.trim_start_matches('/');
+fn argument_completions(ctx: &SlashParse, line: &str) -> Vec<SlashCompletionItem> {
+    let cmd = ctx.command_token.trim_start_matches('/').trim_start();
 
     let options: Vec<String> = match cmd {
         "model" => MODEL_CANDIDATES
@@ -131,7 +161,12 @@ fn argument_completions(ctx: &SlashParse, line: &str) -> Vec<(String, String)> {
         .filter(|opt| prefix.is_empty() || opt.to_ascii_lowercase().starts_with(&prefix))
         .map(|opt| {
             let replacement = build_replacement_line(cmd, ctx, line, &opt);
-            (opt.clone(), replacement)
+            SlashCompletionItem {
+                icon: "⌨".to_string(),
+                display: opt.clone(),
+                replacement,
+                description: String::new(),
+            }
         })
         .collect()
 }
@@ -145,16 +180,18 @@ fn build_replacement_line(cmd: &str, ctx: &SlashParse, line: &str, choice: &str)
     match cmd {
         "session" if ctx.subcommand.is_none() => {
             if choice == "list" || choice == "switch" {
-                format!("{prefix} {choice} ")
+                format!("{} {}", prefix, choice)
             } else {
-                format!("{prefix} switch {choice}")
+                format!("{} switch {}", prefix, choice)
             }
         }
         "session" => format!(
-            "{prefix} {} {choice}",
-            ctx.subcommand.as_deref().unwrap_or("switch")
+            "{} {} {}",
+            prefix,
+            ctx.subcommand.as_deref().unwrap_or("switch"),
+            choice
         ),
-        _ => format!("{prefix} {choice}"),
+        _ => format!("{} {}", prefix, choice),
     }
 }
 
@@ -211,7 +248,7 @@ fn export_path_candidates(partial: &str) -> Vec<String> {
         };
         if file_prefix.is_empty() || name.starts_with(file_prefix) {
             let path = if partial.is_empty() || partial.ends_with('/') || partial.ends_with('\\') {
-                format!("{partial}{name}")
+                format!("{}{}", partial, name)
             } else if partial_path.parent().is_some()
                 && partial_path.parent() != Some(Path::new(""))
             {
@@ -243,23 +280,34 @@ mod tests {
     #[test]
     fn completes_command_prefix() {
         let items = slash_line_completions("/he", true);
-        assert!(items.iter().any(|(_, r)| r == "/help"));
+        assert!(items.iter().any(|item| item.replacement == "/help"));
     }
 
     #[test]
     fn completes_model_arguments() {
         let items = slash_line_completions("/model deep", true);
-        assert!(items.iter().any(|(d, _)| d.contains("deepseek")));
+        assert!(items.iter().any(|item| item.display.contains("deepseek")));
     }
 
     #[test]
     fn completes_permissions_arguments() {
         let items = slash_line_completions("/permissions work", true);
-        assert!(items.iter().any(|(_, r)| r.contains("workspace-write")));
+        assert!(items
+            .iter()
+            .any(|item| item.replacement.contains("workspace-write")));
     }
 
     #[test]
     fn ignores_non_slash() {
         assert!(slash_line_completions("hello", true).is_empty());
+    }
+
+    #[test]
+    fn command_items_have_icons() {
+        let items = slash_line_completions("/", true);
+        let help = items.iter().find(|i| i.display == "/help");
+        assert!(help.is_some());
+        assert_eq!(help.unwrap().icon, "❓");
+        assert!(!help.unwrap().description.is_empty());
     }
 }
