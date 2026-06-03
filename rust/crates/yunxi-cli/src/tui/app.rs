@@ -4,16 +4,20 @@ use runtime::PermissionRequest;
 
 use crate::session_meta::SuspendedFlowRecord;
 use crate::tui::components::chat_view::{ChatEntry, ChatRole, ChatView};
+use crate::tui::components::command_palette::CommandPalette;
 use crate::tui::components::input_bar::{InputBar, INPUT_PROMPT_WIDTH};
 use crate::tui::components::session_picker::SessionPicker;
 use crate::tui::components::tool_panel::{ToolEntry, ToolPanel};
+use crate::tui::core::action::Action;
 use crate::tui::frame::{compose_row, fit_lines, truncate_ansi_to_width, Frame};
 use crate::tui::hitl::{defer_flow_hitl_overlay, open_human_guide, open_import_prefill};
+use crate::tui::keymap::Command;
 use crate::tui::layout::{Layout, Rect};
 use crate::tui::overlays::ModalOverlays;
 use crate::tui::pager::Pager;
 use crate::tui::slash_complete::SlashCompletion;
 use crate::tui::status_bar::{StatusBar, StatusBarSnapshot};
+use crate::tui::theme::ThemeManager;
 use crate::tui::ui_palette::{bold_fg256, fg256, ACCENT, BRAND, BRAND_MARK};
 
 /// TUI 应用主状态。
@@ -49,6 +53,10 @@ pub(crate) struct TuiApp {
     pub(crate) pending_permission: Option<PermissionRequest>,
     pub(crate) spinner_frame: usize,
     pub(crate) slash_completion: Option<SlashCompletion>,
+    /// 命令面板（Ctrl+P）。
+    pub(crate) command_palette: CommandPalette,
+    /// 运行时主题管理。
+    theme_manager: ThemeManager,
     /// 当前轮次是否正在向对话区流式写入。
     turn_streaming: bool,
     stream_saw_text: bool,
@@ -58,6 +66,12 @@ pub(crate) struct TuiApp {
 
 impl TuiApp {
     pub(crate) fn new(model: String, version: String) -> Self {
+        let mut command_palette = CommandPalette::new();
+        Self::register_tui_commands(&mut command_palette);
+
+        let theme_manager = ThemeManager::default();
+        Self::sync_theme_palette(&theme_manager);
+
         Self {
             chat: ChatView::new(),
             tools: ToolPanel::new(),
@@ -79,10 +93,74 @@ impl TuiApp {
             pending_permission: None,
             spinner_frame: 0,
             slash_completion: None,
+            command_palette,
+            theme_manager,
             turn_streaming: false,
             stream_saw_text: false,
             show_reasoning: true,
         }
+    }
+
+    fn register_tui_commands(palette: &mut CommandPalette) {
+        let commands = [
+            Command::new(
+                "HumanGuide",
+                "打开人机引导面板",
+                Action::ExecuteCommand("human_guide".to_string()),
+            ),
+            Command::new(
+                "InterruptTurn",
+                "中断当前轮次",
+                Action::ExecuteCommand("interrupt".to_string()),
+            ),
+            Command::new(
+                "SessionList",
+                "打开会话列表",
+                Action::ExecuteCommand("sessions".to_string()),
+            ),
+            Command::new("CopyChat", "复制对话到剪贴板", Action::CopySelection),
+            Command::new("ToggleToolPanel", "切换工具面板", Action::ToggleSidebar),
+            Command::new("CycleTheme", "切换主题", Action::ToggleDarkMode),
+        ];
+        for cmd in commands {
+            palette.register_command(cmd);
+        }
+    }
+
+    pub(crate) fn open_command_palette(&mut self) {
+        self.command_palette.show();
+    }
+
+    pub(crate) fn close_command_palette(&mut self) {
+        self.command_palette.hide();
+    }
+
+    pub(crate) fn request_quit(&mut self) {
+        self.should_quit = true;
+    }
+
+    pub(crate) fn toggle_tool_panel(&mut self) {
+        self.show_tool_panel = !self.show_tool_panel;
+    }
+
+    fn sync_theme_palette(manager: &ThemeManager) {
+        crate::tui::ui_palette::active::apply(manager.get_theme().clone());
+    }
+
+    pub(crate) fn cycle_theme(&mut self) -> String {
+        self.theme_manager.cycle_next();
+        Self::sync_theme_palette(&self.theme_manager);
+        self.theme_manager.current_name().to_string()
+    }
+
+    pub(crate) fn set_theme_by_name(&mut self, name: &str) -> String {
+        self.theme_manager.set_theme(name);
+        Self::sync_theme_palette(&self.theme_manager);
+        self.theme_manager.current_name().to_string()
+    }
+
+    pub(crate) fn theme_name(&self) -> &str {
+        self.theme_manager.current_name()
     }
 
     /// 清空对话区（/new、/clear --confirm）。
@@ -321,6 +399,10 @@ impl TuiApp {
             return Some(action);
         }
 
+        if self.command_palette.is_visible() {
+            return crate::tui::action_bridge::handle_command_palette_key(self, key);
+        }
+
         if self.show_guide && matches!(key, KeyEvent::Esc) {
             self.show_guide = false;
             return None;
@@ -395,6 +477,19 @@ impl TuiApp {
             // 帮助
             KeyEvent::Ctrl('h') | KeyEvent::F(1) => {
                 self.open_help();
+                None
+            }
+            KeyEvent::Ctrl('p') | KeyEvent::F(3) => {
+                self.open_command_palette();
+                None
+            }
+            KeyEvent::Ctrl('b') => {
+                self.toggle_tool_panel();
+                None
+            }
+            KeyEvent::Ctrl('d') => {
+                let name = self.cycle_theme();
+                self.push_system_message(&format!("\x1b[2m主题: {name}\x1b[0m"));
                 None
             }
             KeyEvent::Ctrl('g') => {
@@ -742,6 +837,7 @@ impl TuiApp {
             || self.pager.is_some()
             || self.show_help
             || self.session_picker.is_some()
+            || self.command_palette.is_visible()
         {
             return;
         }
@@ -849,6 +945,14 @@ pub(crate) enum TuiAction {
     PermissionDecision(bool),
     /// 中断当前轮次（Ctrl+I）；完成后由 runner 打开引导面板。
     InterruptTurn,
+    /// 保存当前会话到磁盘。
+    SaveSession,
+    /// 打开会话选择器。
+    OpenSessionPicker,
+    /// 刷新状态栏与会话元数据。
+    RefreshStatus,
+    /// 开始新会话（清空对话区）。
+    NewSession,
 }
 
 #[cfg(test)]
@@ -881,6 +985,30 @@ mod tests {
         let mut app = test_app();
         app.handle_key(&KeyEvent::Char('q'));
         assert!(app.should_quit());
+    }
+
+    #[test]
+    fn app_ctrl_p_opens_command_palette() {
+        let mut app = test_app();
+        app.handle_key(&KeyEvent::Ctrl('p'));
+        assert!(app.command_palette.is_visible());
+    }
+
+    #[test]
+    fn app_ctrl_b_toggles_tool_panel() {
+        let mut app = test_app();
+        assert!(app.show_tool_panel);
+        app.handle_key(&KeyEvent::Ctrl('b'));
+        assert!(!app.show_tool_panel);
+    }
+
+    #[test]
+    fn app_ctrl_d_cycles_theme() {
+        let mut app = test_app();
+        let first = app.theme_name().to_string();
+        app.handle_key(&KeyEvent::Ctrl('d'));
+        let second = app.theme_name().to_string();
+        assert_ne!(first, second);
     }
 
     #[test]

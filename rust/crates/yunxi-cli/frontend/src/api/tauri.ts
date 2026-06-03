@@ -1,18 +1,22 @@
 import type {
   ChatSendResult,
   DirectoryEntry,
+  DoctorReport,
+  ImportMaterialsResult,
+  MaterialFileEntry,
+  McpStatusReport,
+  OAuthStatus,
   PatentCase,
   SessionCreateResult,
   SessionMeta,
   SessionSaveResult,
+  SlashExecuteResult,
   StreamEvent,
   UsageSummary,
   WorkspaceInfo,
   ScanWorkspaceResult,
   ShellExecResult,
   ShellEvent,
-  MaterialFileEntry,
-  ImportMaterialsResult,
   YunxiSettings,
 } from './types';
 
@@ -136,6 +140,44 @@ export const tauriApi = {
   patentSearch: (query: string, limit?: number) =>
     invoke<string>('patent_search', { query, limit }),
   knowledgeSearch: (query: string) => invoke<string>('knowledge_search', { query }),
+  memorySearch: (query: string, limit?: number) =>
+    invoke<string>('memory_search', { query, limit }),
+  oaParse: (content: string, applicationNumber?: string) =>
+    invoke<string>('oa_parse', { content, applicationNumber }),
+
+  patentCompare: (
+    targetTitle: string,
+    targetClaims: string[],
+    priorTitle: string,
+    priorClaims: string[],
+  ) =>
+    invoke<string>('patent_compare', {
+      targetTitle,
+      targetClaims,
+      priorTitle,
+      priorClaims,
+    }),
+
+  oauthStatus: () => invoke<OAuthStatus>('oauth_status'),
+  oauthLogin: () => invoke<void>('oauth_login'),
+  oauthLogout: () => invoke<void>('oauth_logout'),
+  runDoctorCheck: () => invoke<DoctorReport>('run_doctor_check'),
+  initWorkspace: () => invoke<string>('init_workspace'),
+  initClaudeMd: () => invoke<string>('init_claude_md'),
+  getMcpStatus: () => invoke<McpStatusReport>('get_mcp_status'),
+  getMcpConfig: () => invoke<Record<string, unknown>>('get_mcp_config'),
+  executeSlashCommand: (
+    sessionId: string,
+    input: string,
+    model?: string,
+    workspaceRoot?: string,
+  ) =>
+    invoke<SlashExecuteResult | null>('execute_slash_command', {
+      sessionId,
+      input,
+      model,
+      workspaceRootArg: workspaceRoot,
+    }),
 
   /** 订阅流式事件，返回取消监听函数 */
   async onStream(

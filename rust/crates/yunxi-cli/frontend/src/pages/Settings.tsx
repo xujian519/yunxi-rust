@@ -9,11 +9,13 @@ import AppearanceSettings from '@/components/settings/categories/AppearanceSetti
 import EditorSettings from '@/components/settings/categories/EditorSettings';
 import ShortcutsSettings from '@/components/settings/categories/ShortcutsSettings';
 import CostSettings from '@/components/settings/categories/CostSettings';
+import HooksSettings from '@/components/settings/categories/HooksSettings';
 import AboutSettings from '@/components/settings/categories/AboutSettings';
 
 const categoryComponents: Record<SettingsCategory, FC> = {
   general: GeneralSettings,
   model: ModelSettings,
+  hooks: HooksSettings,
   appearance: AppearanceSettings,
   editor: EditorSettings,
   shortcuts: ShortcutsSettings,

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::scorer::{default_check_level, QualityClaim, QualitySpec};
+use super::types::{default_check_level, QualityClaim, QualitySpec};
 
 /// 质量检查输入（对齐 TS `QualityCheckInput`）
 #[derive(Debug, Deserialize)]

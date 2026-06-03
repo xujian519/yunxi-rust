@@ -1,6 +1,7 @@
 //! Tool specification types and the full MVP tool manifest.
 
 mod core_specs;
+mod knowledge_specs;
 mod patent_specs;
 mod session_specs;
 mod types;
@@ -14,5 +15,6 @@ pub fn mvp_tool_specs() -> Vec<ToolSpec> {
     specs.extend(core_specs::core_tool_specs());
     specs.extend(session_specs::session_tool_specs());
     specs.extend(patent_specs::patent_tool_specs());
+    specs.extend(knowledge_specs::knowledge_tool_specs());
     specs
 }

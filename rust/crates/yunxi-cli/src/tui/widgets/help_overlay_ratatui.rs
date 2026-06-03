@@ -8,6 +8,9 @@ use crate::tui::ui_palette::{content_color, highlight, user_role_color};
 const HELP_TEXT: &[(&str, &str)] = &[
     ("Enter", "发送消息"),
     ("Shift+Enter", "换行"),
+    ("Ctrl+P / F3", "命令面板"),
+    ("Ctrl+B", "切换工具面板"),
+    ("Ctrl+D", "切换主题"),
     ("Ctrl+C / Esc", "清空输入或退出"),
     ("Ctrl+G", "人机引导（预填模板）"),
     ("Ctrl+I", "中断轮次并打开引导"),

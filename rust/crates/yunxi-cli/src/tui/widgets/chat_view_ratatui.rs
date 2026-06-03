@@ -58,20 +58,20 @@ impl Widget for ChatViewWidget<'_> {
             let spinner_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
             let spinner_char = spinner_chars[self.spinner_frame % spinner_chars.len()];
             let t = (self.spinner_frame % 8) as f32 / 8.0;
-            let r = (ui_palette::BRAND_YUNXI.0 as f32
-                + t * (ui_palette::BRAND_YUNXI_SHIMMER.0 as f32 - ui_palette::BRAND_YUNXI.0 as f32))
-                as u8;
-            let g = (ui_palette::BRAND_YUNXI.1 as f32
-                + t * (ui_palette::BRAND_YUNXI_SHIMMER.1 as f32 - ui_palette::BRAND_YUNXI.1 as f32))
-                as u8;
-            let b = (ui_palette::BRAND_YUNXI.2 as f32
-                + t * (ui_palette::BRAND_YUNXI_SHIMMER.2 as f32 - ui_palette::BRAND_YUNXI.2 as f32))
-                as u8;
+            let r = (ui_palette::active::brand_yunxi().0 as f32
+                + t * (ui_palette::active::brand_yunxi_shimmer().0 as f32
+                    - ui_palette::active::brand_yunxi().0 as f32)) as u8;
+            let g = (ui_palette::active::brand_yunxi().1 as f32
+                + t * (ui_palette::active::brand_yunxi_shimmer().1 as f32
+                    - ui_palette::active::brand_yunxi().1 as f32)) as u8;
+            let b = (ui_palette::active::brand_yunxi().2 as f32
+                + t * (ui_palette::active::brand_yunxi_shimmer().2 as f32
+                    - ui_palette::active::brand_yunxi().2 as f32)) as u8;
             let gradient = Color::Rgb(r, g, b);
             let muted = Color::Rgb(
-                ui_palette::TEXT_MUTED.0,
-                ui_palette::TEXT_MUTED.1,
-                ui_palette::TEXT_MUTED.2,
+                ui_palette::active::text_muted().0,
+                ui_palette::active::text_muted().1,
+                ui_palette::active::text_muted().2,
             );
             let spinner_line = Line::from(vec![
                 Span::styled("┃ ", Style::default().fg(gradient)),

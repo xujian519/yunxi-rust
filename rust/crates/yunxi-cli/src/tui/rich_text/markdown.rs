@@ -169,8 +169,10 @@ impl MarkdownParser {
 
         if level > 0 && level <= 6 {
             let content = line[level..].trim().to_string();
-            self.elements
-                .push(MarkdownElement::Heading { level: level as u8, content });
+            self.elements.push(MarkdownElement::Heading {
+                level: level as u8,
+                content,
+            });
         } else {
             self.elements.push(MarkdownElement::Text {
                 content: line.to_string(),

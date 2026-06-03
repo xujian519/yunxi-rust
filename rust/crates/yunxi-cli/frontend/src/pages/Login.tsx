@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router';
 import { Key, Eye, EyeOff, Loader2 } from 'lucide-react';
 import MeshGradient from '../components/MeshGradient';
+import { api, isTauriRuntime } from '@/api';
 
 type LoginMode = 'select' | 'apikey' | 'local';
 
@@ -43,25 +44,41 @@ const Login: FC = () => {
     error: '',
   });
 
-  const handleDeepSeekLogin = useCallback(() => {
+  const handleDeepSeekLogin = useCallback(async () => {
     setForm((prev) => ({ ...prev, isLoading: true, error: '' }));
-    setTimeout(() => {
-      setForm((prev) => ({ ...prev, isLoading: false }));
+    try {
+      if (isTauriRuntime()) {
+        await api.oauthLogin();
+      }
       navigate('/');
-    }, 1500);
+    } catch (e) {
+      setForm((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: e instanceof Error ? e.message : 'OAuth 登录失败',
+      }));
+    }
   }, [navigate]);
 
-  const handleApiKeySubmit = useCallback(() => {
+  const handleApiKeySubmit = useCallback(async () => {
     if (!form.apiKey.trim()) return;
     if (form.apiKey.length < 8) {
       setForm((prev) => ({ ...prev, error: 'API Key 无效，请检查后重试' }));
       return;
     }
     setForm((prev) => ({ ...prev, isLoading: true, error: '' }));
-    setTimeout(() => {
-      setForm((prev) => ({ ...prev, isLoading: false }));
+    try {
+      if (isTauriRuntime()) {
+        await api.saveLlmApiKey('deepseek-v4-pro', form.apiKey.trim());
+      }
       navigate('/');
-    }, 1500);
+    } catch (e) {
+      setForm((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: e instanceof Error ? e.message : '保存 API Key 失败',
+      }));
+    }
   }, [form.apiKey, navigate]);
 
   const handleLocalMode = useCallback(() => {

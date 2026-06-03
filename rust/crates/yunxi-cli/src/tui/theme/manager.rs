@@ -56,6 +56,25 @@ impl ThemeManager {
         });
     }
 
+    /// 按注册表顺序切换到下一个主题。
+    pub fn cycle_next(&mut self) {
+        let mut names = self.registry.list_names();
+        names.sort();
+        if names.is_empty() {
+            return;
+        }
+        let next_idx = names
+            .iter()
+            .position(|n| n == &self.current.name)
+            .map(|i| (i + 1) % names.len())
+            .unwrap_or(0);
+        self.set_theme(&names[next_idx]);
+    }
+
+    pub fn current_name(&self) -> &str {
+        &self.current.name
+    }
+
     pub fn list_presets(&self) -> Vec<String> {
         self.registry
             .themes

@@ -43,18 +43,17 @@ fn default_llm_call(system: &str, user: &str, max_tokens: u32) -> Result<String,
     };
 
     let response = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        // 已在 tokio 运行时中，直接使用当前运行时
         std::thread::scope(|s| {
             s.spawn(|| handle.block_on(async { client.send_message(&request).await }))
                 .join()
-                .map_err(|e| format!("LLM线程panic: {e:?}"))?
         })
+        .map_err(|e| format!("LLM线程panic: {e:?}"))?
+        .map_err(|e| format!("LLM请求失败: {e}"))?
     } else {
-        // 不在 tokio 运行时中，创建临时运行时
         let rt = tokio::runtime::Runtime::new().map_err(|e| format!("创建运行时失败: {e}"))?;
         rt.block_on(async { client.send_message(&request).await })
-    }
-    .map_err(|e| format!("LLM请求失败: {e}"))?;
+            .map_err(|e| format!("LLM请求失败: {e}"))?
+    };
 
     let text = response
         .content

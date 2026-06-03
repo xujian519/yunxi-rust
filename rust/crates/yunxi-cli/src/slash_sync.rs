@@ -9,8 +9,9 @@ use std::process::Command;
 use crate::cli_action::AllowedToolSet;
 use crate::format_report::{git_output, git_status_ok, recent_user_context, truncate_for_prompt};
 use crate::permission_ui::CliPermissionPrompter;
-use crate::runtime_bridge::{build_runtime, final_assistant_text};
+use crate::runtime_bridge::{build_runtime_with_workspace, final_assistant_text};
 use crate::tui::turn::SharedRuntime;
+use runtime::Session;
 
 /// `/bughunter` 对应的 agent 提示词。
 pub(crate) fn bughunter_prompt(scope: Option<&str>) -> String {
@@ -43,7 +44,33 @@ pub(crate) fn run_internal_prompt_text(
         .map_err(|_| "runtime lock poisoned")?
         .session()
         .clone();
-    let mut ephemeral = build_runtime(
+    let workspace_root = crate::session_mgr::workspace_root().unwrap_or_else(|_| {
+        env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    });
+    run_internal_prompt_text_for_session(
+        session,
+        model,
+        system_prompt,
+        allowed_tools,
+        permission_mode,
+        workspace_root,
+        prompt,
+        enable_tools,
+    )
+}
+
+/// 基于给定 Session 跑一轮 LLM（桌面斜杠 / commit 等使用）。
+pub(crate) fn run_internal_prompt_text_for_session(
+    session: Session,
+    model: String,
+    system_prompt: Vec<String>,
+    allowed_tools: Option<AllowedToolSet>,
+    permission_mode: PermissionMode,
+    workspace_root: PathBuf,
+    prompt: &str,
+    enable_tools: bool,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let mut ephemeral = build_runtime_with_workspace(
         session,
         model,
         system_prompt,
@@ -51,18 +78,24 @@ pub(crate) fn run_internal_prompt_text(
         false,
         allowed_tools,
         permission_mode,
+        workspace_root,
     )?;
     let mut permission_prompter = CliPermissionPrompter::new(permission_mode);
     let summary = ephemeral.run_turn(prompt, Some(&mut permission_prompter))?;
     Ok(final_assistant_text(&summary).trim().to_string())
 }
 
-/// 生成 git commit（返回报告文本）。
-pub(crate) fn run_commit(
-    runtime: SharedRuntime,
+fn workspace_root_or_cwd() -> PathBuf {
+    crate::session_mgr::workspace_root()
+        .unwrap_or_else(|_| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+}
+
+/// 生成 git commit（桌面端 / 给定 Session）。
+pub(crate) fn run_commit_for_session(
+    session: Session,
     model: String,
     system_prompt: Vec<String>,
-    allowed_tools: Option<AllowedToolSet>,
+    workspace_root: PathBuf,
     permission_mode: PermissionMode,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let status = git_output(&["status", "--short"])?;
@@ -75,22 +108,18 @@ pub(crate) fn run_commit(
 
     git_status_ok(&["add", "-A"])?;
     let staged_stat = git_output(&["diff", "--cached", "--stat"])?;
-    let session = runtime
-        .lock()
-        .map_err(|_| "runtime lock poisoned")?
-        .session()
-        .clone();
     let prompt = format!(
         "Generate a git commit message in plain text Lore format only. Base it on this staged diff summary:\n\n{}\n\nRecent conversation context:\n{}",
         truncate_for_prompt(&staged_stat, 8_000),
         recent_user_context(&session, 6)
     );
-    let message = sanitize_generated_message(&run_internal_prompt_text(
-        runtime,
+    let message = sanitize_generated_message(&run_internal_prompt_text_for_session(
+        session,
         model,
         system_prompt,
-        allowed_tools,
+        None,
         permission_mode,
+        workspace_root,
         &prompt,
         false,
     )?);
@@ -116,12 +145,12 @@ pub(crate) fn run_commit(
     ))
 }
 
-/// 生成 PR 草稿或创建 PR。
-pub(crate) fn run_pr(
-    runtime: SharedRuntime,
+/// 生成 PR 草稿或创建 PR（桌面端）。
+pub(crate) fn run_pr_for_session(
+    session: Session,
     model: String,
     system_prompt: Vec<String>,
-    allowed_tools: Option<AllowedToolSet>,
+    workspace_root: PathBuf,
     permission_mode: PermissionMode,
     context: Option<&str>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -131,12 +160,13 @@ pub(crate) fn run_pr(
         context.unwrap_or("none"),
         truncate_for_prompt(&staged, 10_000)
     );
-    let draft = sanitize_generated_message(&run_internal_prompt_text(
-        runtime.clone(),
+    let draft = sanitize_generated_message(&run_internal_prompt_text_for_session(
+        session,
         model.clone(),
-        system_prompt.clone(),
-        allowed_tools.clone(),
+        system_prompt,
+        None,
         permission_mode,
+        workspace_root,
         &prompt,
         false,
     )?);
@@ -166,31 +196,27 @@ pub(crate) fn run_pr(
     Ok(format!("PR draft\n  Title            {title}\n\n{body}"))
 }
 
-/// 生成 Issue 草稿或创建 Issue。
-pub(crate) fn run_issue(
-    runtime: SharedRuntime,
+/// 生成 Issue 草稿或创建 Issue（桌面端）。
+pub(crate) fn run_issue_for_session(
+    session: Session,
     model: String,
     system_prompt: Vec<String>,
-    allowed_tools: Option<AllowedToolSet>,
+    workspace_root: PathBuf,
     permission_mode: PermissionMode,
     context: Option<&str>,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let session = runtime
-        .lock()
-        .map_err(|_| "runtime lock poisoned")?
-        .session()
-        .clone();
     let prompt = format!(
         "Generate a GitHub issue title and body from this conversation. Output plain text in this format exactly:\nTITLE: <title>\nBODY:\n<body markdown>\n\nContext hint: {}\n\nConversation context:\n{}",
         context.unwrap_or("none"),
         truncate_for_prompt(&recent_user_context(&session, 10), 10_000)
     );
-    let draft = sanitize_generated_message(&run_internal_prompt_text(
-        runtime,
+    let draft = sanitize_generated_message(&run_internal_prompt_text_for_session(
+        session,
         model,
         system_prompt,
-        allowed_tools,
+        None,
         permission_mode,
+        workspace_root,
         &prompt,
         false,
     )?);
@@ -214,6 +240,79 @@ pub(crate) fn run_issue(
     }
 
     Ok(format!("Issue draft\n  Title            {title}\n\n{body}"))
+}
+
+/// 生成 git commit（返回报告文本）。
+pub(crate) fn run_commit(
+    runtime: SharedRuntime,
+    model: String,
+    system_prompt: Vec<String>,
+    allowed_tools: Option<AllowedToolSet>,
+    permission_mode: PermissionMode,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let _ = allowed_tools;
+    let session = runtime
+        .lock()
+        .map_err(|_| "runtime lock poisoned")?
+        .session()
+        .clone();
+    run_commit_for_session(
+        session,
+        model,
+        system_prompt,
+        workspace_root_or_cwd(),
+        permission_mode,
+    )
+}
+
+/// 生成 PR 草稿或创建 PR。
+pub(crate) fn run_pr(
+    runtime: SharedRuntime,
+    model: String,
+    system_prompt: Vec<String>,
+    allowed_tools: Option<AllowedToolSet>,
+    permission_mode: PermissionMode,
+    context: Option<&str>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let _ = allowed_tools;
+    let session = runtime
+        .lock()
+        .map_err(|_| "runtime lock poisoned")?
+        .session()
+        .clone();
+    run_pr_for_session(
+        session,
+        model,
+        system_prompt,
+        workspace_root_or_cwd(),
+        permission_mode,
+        context,
+    )
+}
+
+/// 生成 Issue 草稿或创建 Issue。
+pub(crate) fn run_issue(
+    runtime: SharedRuntime,
+    model: String,
+    system_prompt: Vec<String>,
+    allowed_tools: Option<AllowedToolSet>,
+    permission_mode: PermissionMode,
+    context: Option<&str>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let _ = allowed_tools;
+    let session = runtime
+        .lock()
+        .map_err(|_| "runtime lock poisoned")?
+        .session()
+        .clone();
+    run_issue_for_session(
+        session,
+        model,
+        system_prompt,
+        workspace_root_or_cwd(),
+        permission_mode,
+        context,
+    )
 }
 
 fn command_exists(name: &str) -> bool {

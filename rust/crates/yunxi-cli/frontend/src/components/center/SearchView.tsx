@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { searchResults as mockSearchResults } from '@/data/mockData';
 import type { SearchResult } from '@/data/mockData';
 import { Search, Filter, Loader2, AlertCircle } from 'lucide-react';
-import { api, isTauriRuntime } from '@/api';
+import { api, hasBackendTools, isTauriRuntime } from '@/api';
 import {
   filterByPatentType,
   parsePatentSearchResults,
@@ -36,7 +36,7 @@ const SearchView: FC = () => {
       return;
     }
 
-    if (!isTauriRuntime()) {
+    if (!hasBackendTools()) {
       const qLower = q.toLowerCase();
       const filtered = mockSearchResults.filter(
         (r) =>

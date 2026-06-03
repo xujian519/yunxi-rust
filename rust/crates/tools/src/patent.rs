@@ -5,8 +5,8 @@
 
 use patent_domain::claim_parser::ClaimParser;
 use patent_domain::models::ClaimType;
-use patent_knowledge::rule_engine::{CaseContext, QualitativeRuleEngine};
-use patent_workflow::drafting_workflow::DraftQualityReport;
+use patent_domain::drafting::DraftQualityReport;
+use patent_domain::rule_engine::{CaseContext, QualitativeRuleEngine};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -480,9 +480,9 @@ pub struct KnowledgeGraphQueryOutput {
 
 use std::sync::OnceLock;
 
-static GUIDELINE_GRAPH: OnceLock<patent_knowledge::guideline_graph::GuidelineGraph> =
+static GUIDELINE_GRAPH: OnceLock<patent_domain::guideline_graph::GuidelineGraph> =
     OnceLock::new();
-static LEGAL_GRAPH: OnceLock<patent_knowledge::guideline_graph::LegalKnowledgeGraph> =
+static LEGAL_GRAPH: OnceLock<patent_domain::guideline_graph::LegalKnowledgeGraph> =
     OnceLock::new();
 
 fn get_graph_dir(input_dir: Option<&str>) -> String {
@@ -558,7 +558,7 @@ pub fn execute_knowledge_graph_query(input: &KnowledgeGraphQueryInput) -> Result
 }
 
 fn query_sqlite_kg(input: &KnowledgeGraphQueryInput, path: &str) -> Result<Value, String> {
-    let kg = patent_knowledge::sqlite_graph::SqliteKnowledgeGraph::open(path)
+    let kg = patent_domain::sqlite_graph::SqliteKnowledgeGraph::open(path)
         .map_err(|e| e.to_string())?;
 
     let node_type = input.node_type.as_deref();
@@ -619,8 +619,8 @@ fn query_json_kg(input: &KnowledgeGraphQueryInput) -> Result<Value, String> {
             let path = format!("{graph_dir}/guideline_graph.json");
             match std::fs::read_to_string(&path) {
                 Ok(content) => serde_json::from_str(&content).unwrap_or_else(|e| {
-                    patent_knowledge::guideline_graph::GuidelineGraph {
-                        metadata: patent_knowledge::guideline_graph::GuidelineMetadata {
+                    patent_domain::guideline_graph::GuidelineGraph {
+                        metadata: patent_domain::guideline_graph::GuidelineMetadata {
                             title: "Error".into(),
                             description: e.to_string(),
                             created: String::new(),
@@ -633,8 +633,8 @@ fn query_json_kg(input: &KnowledgeGraphQueryInput) -> Result<Value, String> {
                         vectors: vec![],
                     }
                 }),
-                Err(e) => patent_knowledge::guideline_graph::GuidelineGraph {
-                    metadata: patent_knowledge::guideline_graph::GuidelineMetadata {
+                Err(e) => patent_domain::guideline_graph::GuidelineGraph {
+                    metadata: patent_domain::guideline_graph::GuidelineMetadata {
                         title: "Error".into(),
                         description: e.to_string(),
                         created: String::new(),
@@ -658,7 +658,7 @@ fn query_json_kg(input: &KnowledgeGraphQueryInput) -> Result<Value, String> {
         let graph = LEGAL_GRAPH.get_or_init(|| {
             let entities_path = format!("{graph_dir}/legal_entities.json");
             let rels_path = format!("{graph_dir}/legal_relationships.json");
-            let mut kg = patent_knowledge::guideline_graph::LegalKnowledgeGraph {
+            let mut kg = patent_domain::guideline_graph::LegalKnowledgeGraph {
                 entities: std::collections::HashMap::new(),
                 relationships: vec![],
             };

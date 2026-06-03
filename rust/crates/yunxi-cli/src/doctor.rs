@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use knowledge::KnowledgePaths;
+use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CheckStatus {
@@ -13,13 +14,45 @@ enum CheckStatus {
     Fail,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorCheck {
+    pub name: String,
+    /// ok | warn | fail
+    pub status: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorReport {
+    pub checks: Vec<DoctorCheck>,
+    pub failures: usize,
+    pub warnings: usize,
+    pub summary: String,
+}
+
 struct CheckLine {
     name: &'static str,
     status: CheckStatus,
     detail: String,
 }
 
-pub fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
+impl CheckLine {
+    fn into_check(self) -> DoctorCheck {
+        DoctorCheck {
+            name: self.name.to_string(),
+            status: match self.status {
+                CheckStatus::Ok => "ok".to_string(),
+                CheckStatus::Warn => "warn".to_string(),
+                CheckStatus::Fail => "fail".to_string(),
+            },
+            detail: self.detail,
+        }
+    }
+}
+
+/// 收集环境检查结果（供 CLI 与桌面 IPC 共用）。
+#[must_use]
+pub fn collect_doctor_report() -> DoctorReport {
     let repo_root = locate_repo_root();
     let mut lines = Vec::new();
 
@@ -31,32 +64,54 @@ pub fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
     lines.extend(check_patent_tools());
     lines.push(check_rust_tests_hint());
 
-    println!("云熙智能体 — 环境检查 (yunxi doctor)\n");
     let mut failures = 0usize;
     let mut warnings = 0usize;
-    for line in &lines {
-        let icon = match line.status {
-            CheckStatus::Ok => "✓",
-            CheckStatus::Warn => "!",
-            CheckStatus::Fail => "✗",
+    let checks = lines
+        .into_iter()
+        .map(|line| {
+            match line.status {
+                CheckStatus::Fail => failures += 1,
+                CheckStatus::Warn => warnings += 1,
+                CheckStatus::Ok => {}
+            }
+            line.into_check()
+        })
+        .collect();
+
+    let summary = if failures > 0 {
+        format!("{failures} 项未通过，{warnings} 项警告")
+    } else if warnings > 0 {
+        format!("可用，但有 {warnings} 项警告")
+    } else {
+        "本机环境检查通过".to_string()
+    };
+
+    DoctorReport {
+        checks,
+        failures,
+        warnings,
+        summary,
+    }
+}
+
+pub fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
+    let report = collect_doctor_report();
+
+    println!("云熙智能体 — 环境检查 (yunxi doctor)\n");
+    for check in &report.checks {
+        let icon = match check.status.as_str() {
+            "fail" => "✗",
+            "warn" => "!",
+            _ => "✓",
         };
-        println!("{icon} {} — {}", line.name, line.detail);
-        match line.status {
-            CheckStatus::Fail => failures += 1,
-            CheckStatus::Warn => warnings += 1,
-            CheckStatus::Ok => {}
-        }
+        println!("{icon} {} — {}", check.name, check.detail);
     }
     println!();
-    if failures > 0 {
-        println!("结果: {failures} 项未通过，{warnings} 项警告。请先修复失败项再使用完整功能。");
+    if report.failures > 0 {
+        println!("结果: {}。请先修复失败项再使用完整功能。", report.summary);
         std::process::exit(1);
     }
-    if warnings > 0 {
-        println!("结果: 可用，但有 {warnings} 项警告（部分能力可能降级）。");
-    } else {
-        println!("结果: 本机环境检查通过。");
-    }
+    println!("结果: {}。", report.summary);
     Ok(())
 }
 

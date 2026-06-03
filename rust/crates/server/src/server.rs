@@ -1,10 +1,15 @@
 //! 服务器启动入口
 
-use crate::auth::AuthConfig;
-use crate::routes;
-use knowledge::{KnowledgePaths, UnifiedSearch};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+
+use crate::auth::AuthConfig;
+use crate::permission::PermissionWaiters;
+use crate::routes;
+use crate::session_store::SessionStore;
+use knowledge::{KnowledgePaths, UnifiedSearch};
+use runtime::Session;
 use tower_http::cors::{Any, CorsLayer};
 
 /// 应用共享状态
@@ -12,6 +17,22 @@ use tower_http::cors::{Any, CorsLayer};
 pub struct AppState {
     pub search_engine: Arc<Mutex<UnifiedSearch>>,
     pub auth_config: AuthConfig,
+    pub chat_sessions: Arc<Mutex<HashMap<String, Session>>>,
+    pub session_store: Arc<SessionStore>,
+    pub permission_waiters: PermissionWaiters,
+}
+
+impl AppState {
+    #[cfg(test)]
+    pub fn default_for_test() -> Self {
+        Self {
+            search_engine: Arc::new(Mutex::new(UnifiedSearch::new(None, None, None))),
+            auth_config: AuthConfig::default(),
+            chat_sessions: Arc::new(Mutex::new(HashMap::new())),
+            session_store: Arc::new(SessionStore::new()),
+            permission_waiters: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
 }
 
 /// 服务器配置
@@ -44,6 +65,9 @@ pub async fn start(config: ServerConfig) -> Result<(), Box<dyn std::error::Error
     let state = AppState {
         search_engine: Arc::new(Mutex::new(search_engine)),
         auth_config: config.auth,
+        chat_sessions: Arc::new(Mutex::new(HashMap::new())),
+        session_store: Arc::new(SessionStore::new()),
+        permission_waiters: Arc::new(Mutex::new(HashMap::new())),
     };
 
     let cors = CorsLayer::new()

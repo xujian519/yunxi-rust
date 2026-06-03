@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { FC } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Upload, Trash2, AlertTriangle } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, Server } from 'lucide-react';
 import SelectSetting from '../SelectSetting';
 import ToggleSetting from '../ToggleSetting';
 import { useApp } from '@/context/AppProvider';
+import { api, hasBackendTools } from '@/api';
+import type { McpStatusReport } from '@/api';
 import {
   getDesktop,
   readPermissionMode,
@@ -65,6 +67,24 @@ const GeneralSettings: FC = () => {
   const [soundEffects, setSoundEffects] = useState(false);
   const [permissionMode, setPermissionMode] = useState<PermissionDefaultMode>('dontAsk');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [mcpStatus, setMcpStatus] = useState<McpStatusReport | null>(null);
+  const [mcpLoading, setMcpLoading] = useState(false);
+
+  const refreshMcp = useCallback(async () => {
+    if (!hasBackendTools()) return;
+    setMcpLoading(true);
+    try {
+      setMcpStatus(await api.getMcpStatus());
+    } catch {
+      setMcpStatus(null);
+    } finally {
+      setMcpLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshMcp();
+  }, [refreshMcp]);
 
   useEffect(() => {
     if (!settingsReady) return;
@@ -286,6 +306,49 @@ const GeneralSettings: FC = () => {
             导入数据
           </button>
         </div>
+      </motion.div>
+
+      {/* MCP */}
+      <motion.div variants={itemVariants} className="flex flex-col gap-2 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Server size={14} style={{ color: 'var(--accent-primary)' }} />
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+              MCP 服务器
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void refreshMcp()}
+            disabled={mcpLoading}
+            style={{ fontSize: 11, color: 'var(--accent-primary)' }}
+          >
+            {mcpLoading ? '刷新中…' : '刷新'}
+          </button>
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+          在 <code>.yunxi/settings.json</code> 或项目配置中设置 <code>mcpServers</code>；对话时自动发现并合并 MCP 工具。
+        </p>
+        {mcpStatus && mcpStatus.servers.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {mcpStatus.servers.map((s: McpStatusReport['servers'][number]) => (
+              <div
+                key={s.name}
+                style={{
+                  fontSize: 11,
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  backgroundColor: 'var(--bg-sidebar-active)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <strong>{s.name}</strong> — {s.status} · {s.tool_count} 工具 · {s.transport}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>未配置 MCP 服务器</p>
+        )}
       </motion.div>
 
       {/* Danger Zone */}

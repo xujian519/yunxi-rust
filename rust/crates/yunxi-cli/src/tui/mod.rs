@@ -1,3 +1,4 @@
+pub(crate) mod action_bridge;
 pub(crate) mod app;
 pub(crate) mod app_ratatui;
 pub(crate) mod banner;
@@ -44,4 +45,3 @@ pub(crate) mod theme;
 pub(crate) mod permissions;
 pub(crate) mod session;
 pub(crate) mod workspace;
-

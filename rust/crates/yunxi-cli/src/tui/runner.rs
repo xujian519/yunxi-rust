@@ -13,6 +13,7 @@ use crate::model_routing::{load_router_config, select_model_for_request};
 use crate::runtime_bridge::{build_runtime, build_system_prompt};
 use crate::session_meta::{execute_flow_resume, load_athena_meta, AthenaSessionMeta};
 use crate::session_mgr::create_managed_session_handle;
+use crate::session_mgr::list_managed_sessions;
 use crate::tui::app::{KeyEvent, MouseAction, TuiAction, TuiApp};
 use crate::tui::hitl::{
     close_human_guide, ingest_flow_tool_result, open_human_guide, sync_pending_flow_overlay,
@@ -82,7 +83,7 @@ pub(crate) fn run_tui_repl(
         &state.session_handle.id,
     );
     app.push_system_message(&banner);
-    app.push_system_message("\x1b[2mCtrl+G 引导 · Ctrl+I 中断 · Flow 挂起 y/n\x1b[0m");
+    app.push_system_message("\x1b[2mF3/Ctrl+P 命令 · Ctrl+B 工具面板 · Ctrl+D 主题 · Ctrl+G 引导 · Ctrl+I 中断\x1b[0m");
 
     refresh_status(&mut app, &state);
 
@@ -287,6 +288,30 @@ fn dispatch_action(
             open_human_guide(app);
             app.push_system_message(
                 "\x1b[38;5;183m已请求中断当前轮次。\x1b[0m 请在底栏编辑引导内容后 Enter 发送。",
+            );
+        }
+        TuiAction::SaveSession => {
+            let _ = state.persist_session(app);
+            app.push_system_message("\x1b[32m会话已保存。\x1b[0m");
+            refresh_status(app, state);
+        }
+        TuiAction::OpenSessionPicker => match list_managed_sessions() {
+            Ok(sessions) => {
+                app.open_session_picker(sessions, state.session_handle.id.clone());
+            }
+            Err(e) => {
+                app.push_system_message(&format!("\x1b[31m无法加载会话列表:\x1b[0m {e}"));
+            }
+        },
+        TuiAction::RefreshStatus => {
+            refresh_status(app, state);
+            app.push_system_message("\x1b[2m状态已刷新。\x1b[0m");
+        }
+        TuiAction::NewSession => {
+            app.clear_chat();
+            app.tools = crate::tui::components::tool_panel::ToolPanel::new();
+            app.push_system_message(
+                "\x1b[2m对话区已清空。如需全新 runtime 会话请使用 /new。\x1b[0m",
             );
         }
         TuiAction::Submit {
@@ -527,7 +552,7 @@ fn convert_key(key: CrosstermKey) -> KeyEvent {
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         if let KeyCode::Char(c) = key.code {
-            return KeyEvent::Ctrl(c);
+            return KeyEvent::Ctrl(c.to_ascii_lowercase());
         }
     }
     if key.modifiers.contains(KeyModifiers::SHIFT) && matches!(key.code, KeyCode::Enter) {

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::patent_quality::types::{
     extract_keywords, calculate_keyword_overlap, QualityScorerInput, ScorerDimensionScores,
     ScorerSpecScores, ScorerLangScores, ScorerLegalScores,

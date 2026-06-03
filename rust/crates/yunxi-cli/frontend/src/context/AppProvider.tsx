@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, isTauriRuntime } from '@/api';
+import { api, isAgentBackend, isHttpServerRuntime, isTauriRuntime } from '@/api';
 import type {
   PatentCase,
   SessionMeta,
@@ -37,7 +37,7 @@ import {
   sessionTitleFromJson,
   formatSessionTime,
 } from '@/utils/sessionParse';
-import { runSlashCommand } from '@/utils/slashCommandRunner';
+import { runSlashCommand, type SlashHandleResult } from '@/utils/slashCommandRunner';
 import type {
   BottomPanelTab,
   DocxMode,
@@ -118,7 +118,11 @@ interface AppContextValue {
   deleteSession: (sessionId: string) => Promise<void>;
 
   messages: ChatMessage[];
-  send: (content: string, caseId?: string) => Promise<void>;
+  send: (
+    content: string,
+    caseId?: string,
+    opts?: { skipSlash?: boolean; skipUserMessage?: boolean },
+  ) => Promise<void>;
   cancel: () => void;
   isStreaming: boolean;
   chatError: string | null;
@@ -202,7 +206,7 @@ interface AppContextValue {
   executeSlashCommand: (
     text: string,
     options?: { toChat?: boolean; toOutput?: boolean },
-  ) => Promise<string | null>;
+  ) => Promise<SlashHandleResult>;
 
   reorderEditorTabs: (fromIndex: number, toIndex: number) => void;
 }
@@ -289,27 +293,27 @@ function docContentFromCase(c: PatentCase | undefined, docId: string | null): st
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(!isTauriRuntime());
+  const [ready, setReady] = useState(!isAgentBackend());
   const [initError, setInitError] = useState<string | null>(null);
 
-  const [cases, setCases] = useState<MockPatentCase[]>(isTauriRuntime() ? [] : mockCases);
+  const [cases, setCases] = useState<MockPatentCase[]>(isAgentBackend() ? [] : mockCases);
   const [casesRaw, setCasesRaw] = useState<PatentCase[]>([]);
   const [casesLoading, setCasesLoading] = useState(isTauriRuntime());
   const [activeCaseId, setActiveCaseId] = useState<string | null>(
-    isTauriRuntime() ? null : 'case-1',
+    isAgentBackend() ? null : 'case-1',
   );
   const [activeDocId, setActiveDocId] = useState<string | null>(
-    isTauriRuntime() ? null : 'c1-1',
+    isAgentBackend() ? null : 'c1-1',
   );
 
   const [sessions, setSessions] = useState<SessionListItem[]>(
-    isTauriRuntime()
+    isAgentBackend()
       ? []
       : mockSessions.map((s) => ({ ...s, messageCount: 0 })),
   );
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(
-    isTauriRuntime() ? [] : chatConversation,
+    isAgentBackend() ? [] : chatConversation,
   );
   const [isStreaming, setIsStreaming] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -321,7 +325,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [budgetTotal, setBudgetTotal] = useState(50);
   const [activeView, setActiveView] = useState<ViewType>('claims');
   const [editorTabs, setEditorTabs] = useState<EditorTab[]>(() =>
-    isTauriRuntime()
+    isAgentBackend()
       ? []
       : [
           {
@@ -335,7 +339,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ],
   );
   const [activeTabId, setActiveTabId] = useState<string | null>(() =>
-    isTauriRuntime() ? null : documentTabId('case-1', 'c1-1'),
+    isAgentBackend() ? null : documentTabId('case-1', 'c1-1'),
   );
   const [sidebarActivity, setSidebarActivity] = useState<SidebarActivity>('explorer');
   const [bottomPanelVisible, setBottomPanelVisible] = useState(true);
@@ -375,6 +379,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   })
 
   const assistantIdRef = useRef<string | null>(null);
+  const sendRef = useRef<
+    (
+      content: string,
+      caseId?: string,
+      opts?: { skipSlash?: boolean; skipUserMessage?: boolean },
+    ) => Promise<void>
+  >(() => Promise.resolve());
   const unlistenRef = useRef<(() => void) | null>(null);
   const bootstrappedRef = useRef(false);
   const workspaceWatchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -648,7 +659,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateCaseDocument = useCallback(
     async (docId: string, contentMd: string) => {
-      if (!isTauriRuntime() || !activeCase) return;
+      if (!isAgentBackend() || !activeCase) return;
       const now = String(Math.floor(Date.now() / 1000));
       const next: PatentCase = {
         ...activeCase,
@@ -703,7 +714,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const reloadYunxiSettings = useCallback(async () => {
     try {
-      const settings = isTauriRuntime()
+      const settings = isAgentBackend()
         ? await api.getSettings()
         : defaultYunxiSettings(model);
       applySettingsState(settings);
@@ -718,7 +729,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const persistYunxiSettings = useCallback(
     async (next: YunxiSettings) => {
       applySettingsState(next);
-      if (!isTauriRuntime()) return;
+      if (!isAgentBackend()) return;
       try {
         await api.saveSettings(next);
       } catch (e) {
@@ -837,7 +848,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshCases = useCallback(async () => {
-    if (!isTauriRuntime()) return;
+    if (!isAgentBackend()) return;
     const showLoader = casesRaw.length === 0;
     if (showLoader) {
       setCasesLoading(true);
@@ -892,7 +903,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [appendPanelLog, casesRaw.length]);
 
   const loadSessions = useCallback(async () => {
-    if (!isTauriRuntime()) return [];
+    if (!isAgentBackend()) return [];
     const metas: SessionMeta[] = await api.sessionList();
     const items: SessionListItem[] = [];
     for (const meta of metas) {
@@ -917,7 +928,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const selectSession = useCallback(async (sessionId: string) => {
     setActiveSessionId(sessionId);
     setChatError(null);
-    if (!isTauriRuntime()) return;
+    if (!isAgentBackend()) return;
     try {
       const json = await api.sessionLoad(sessionId);
       const meta = sessions.find((s) => s.id === sessionId);
@@ -930,7 +941,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [sessions, appendPanelLog]);
 
   const createSession = useCallback(async (title = '新对话') => {
-    if (!isTauriRuntime()) {
+    if (!isAgentBackend()) {
       const id = `s-${Date.now()}`;
       setSessions((prev) => [
         { id, title, timestamp: nowLabel(), messageCount: 0 },
@@ -947,7 +958,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [loadSessions]);
 
   const deleteSession = useCallback(async (sessionId: string) => {
-    if (!isTauriRuntime()) {
+    if (!isAgentBackend()) {
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       if (activeSessionId === sessionId) {
         const remaining = sessions.filter((s) => s.id !== sessionId);
@@ -1118,11 +1129,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
       text: string,
       options?: { toChat?: boolean; toOutput?: boolean },
     ) => {
-      const reply = await runSlashCommand(text, refreshUsage, model, usage);
-      if (reply !== null) {
+      const result = await runSlashCommand(
+        text,
+        activeSessionId,
+        model,
+        usage,
+        activeWorkspaceFolder?.path,
+      );
+      if (result !== null) {
+        if (result.kind === 'agent_turn') {
+          const userMsg: ChatMessage = {
+            id: `m-${Date.now()}`,
+            role: 'user',
+            content: text.trim(),
+            timestamp: nowLabel(),
+          };
+          if (options?.toChat !== false) {
+            setMessages((prev) => [...prev, userMsg]);
+          }
+          await sendRef.current(result.prompt, activeCase?.id ?? undefined, {
+            skipSlash: true,
+            skipUserMessage: true,
+          });
+          return result;
+        }
+        const reply =
+          result.kind === 'message' || result.kind === 'session_updated'
+            ? result.content
+            : '';
         const toOutput = options?.toOutput !== false;
         const toChat = options?.toChat !== false;
-        if (toOutput) {
+        if (toOutput && reply) {
           const plain = reply.replace(/\*\*/g, '');
           appendPanelLog(
             plain.length > 500 ? `${plain.slice(0, 500)}…` : plain,
@@ -1132,7 +1169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setBottomPanelTab('output');
           setBottomPanelVisible(true);
         }
-        if (toChat) {
+        if (toChat && reply) {
           const userMsg: ChatMessage = {
             id: `m-${Date.now()}`,
             role: 'user',
@@ -1147,10 +1184,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
           setMessages((prev) => [...prev, userMsg, aiMsg]);
         }
+        if (result.kind === 'session_updated') {
+          try {
+            setMessages(parseSessionToMessages(result.session_json));
+          } catch {
+            /* ignore */
+          }
+        }
       }
-      return reply;
+      return result;
     },
-    [refreshUsage, model, usage, appendPanelLog],
+    [
+      activeSessionId,
+      activeWorkspaceFolder?.path,
+      activeCase?.id,
+      model,
+      usage,
+      appendPanelLog,
+    ],
   );
 
   const importProjectMaterials = useCallback(
@@ -1322,7 +1373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     bootstrappedRef.current = true;
 
-    if (!isTauriRuntime()) {
+    if (!isAgentBackend()) {
       api.getUsage().then(setUsage).catch(() => {});
       api
         .getSettings()
@@ -1331,11 +1382,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setSettingsReady(true);
         })
         .catch(() => {});
-      void (async () => {
-        const folders = await initWorkspaceFolders();
-        await refreshWorkspaceScan({ folders });
-      })();
-      appendPanelLog('Web 预览模式已加载', 'info', '系统');
+      if (!isHttpServerRuntime()) {
+        void (async () => {
+          const folders = await initWorkspaceFolders();
+          await refreshWorkspaceScan({ folders });
+        })();
+        appendPanelLog('Web 预览模式已加载', 'info', '系统');
+      }
       return;
     }
 
@@ -1351,8 +1404,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         applySettingsState(settings);
         setSettingsReady(true);
         setUsage(usageSummary);
-        const folders = await initWorkspaceFolders();
-        await refreshWorkspaceScan({ folders });
+        if (isTauriRuntime()) {
+          const folders = await initWorkspaceFolders();
+          await refreshWorkspaceScan({ folders });
+        }
         await refreshCases();
 
         let sid: string;
@@ -1368,7 +1423,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const json = await api.sessionLoad(sid);
         setMessages(parseSessionToMessages(json));
         setReady(true);
-        appendPanelLog('云熙桌面已就绪', 'info', '系统');
+        appendPanelLog(
+          isHttpServerRuntime() ? '云熙 HTTP Server 已就绪' : '云熙桌面已就绪',
+          'info',
+          '系统',
+        );
       } catch (e) {
         if (!cancelled) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -1390,7 +1449,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const pending = pendingPermission;
     if (!pending) return;
     setPendingPermission(null);
-    if (!isTauriRuntime()) return;
+    if (!isAgentBackend()) return;
     try {
       await api.permissionRespond(pending.requestId, outcome);
     } catch (e) {
@@ -1420,31 +1479,88 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [activeSessionId]);
 
   const send = useCallback(
-    async (content: string, caseId?: string) => {
+    async (
+      content: string,
+      caseId?: string,
+      opts?: { skipSlash?: boolean; skipUserMessage?: boolean },
+    ) => {
       const text = content.trim();
       if (!text || isStreaming) return;
 
       setChatError(null);
 
-      const slashReply = await runSlashCommand(text, refreshUsage, model, usage);
-      if (slashReply !== null) {
-        const userMsg: ChatMessage = {
-          id: `m-${Date.now()}`,
-          role: 'user',
-          content: text,
-          timestamp: nowLabel(),
-        };
-        const reply: ChatMessage = {
-          id: `m-${Date.now()}-local`,
-          role: 'ai',
-          content: slashReply,
-          timestamp: nowLabel(),
-        };
-        setMessages((prev) => [...prev, userMsg, reply]);
-        return;
+      const wsRoot = activeWorkspaceFolder?.path;
+
+      if (!opts?.skipSlash) {
+        const slashResult = await runSlashCommand(
+          text,
+          activeSessionId,
+          model,
+          usage,
+          wsRoot,
+        );
+        if (slashResult !== null) {
+          if (slashResult.kind === 'agent_turn') {
+            const userMsg: ChatMessage = {
+              id: `m-${Date.now()}`,
+              role: 'user',
+              content: text,
+              timestamp: nowLabel(),
+            };
+            setMessages((prev) => [...prev, userMsg]);
+            await sendRef.current(slashResult.prompt, caseId, {
+              skipSlash: true,
+              skipUserMessage: true,
+            });
+            return;
+          }
+
+          if (!opts?.skipUserMessage) {
+            const userMsg: ChatMessage = {
+              id: `m-${Date.now()}`,
+              role: 'user',
+              content: text,
+              timestamp: nowLabel(),
+            };
+            setMessages((prev) => [...prev, userMsg]);
+          }
+
+          if (slashResult.kind === 'message') {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `m-${Date.now()}-slash`,
+                role: 'ai',
+                content: slashResult.content,
+                timestamp: nowLabel(),
+              },
+            ]);
+            return;
+          }
+
+          if (slashResult.kind === 'session_updated') {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `m-${Date.now()}-slash`,
+                role: 'ai',
+                content: slashResult.content,
+                timestamp: nowLabel(),
+              },
+            ]);
+            try {
+              const parsed = parseSessionToMessages(slashResult.session_json);
+              setMessages(parsed);
+            } catch {
+              /* 保留文本回复 */
+            }
+            await loadSessions();
+            return;
+          }
+        }
       }
 
-      if (!isTauriRuntime()) {
+      if (!isAgentBackend()) {
         const userMsg: ChatMessage = {
           id: `m-${Date.now()}`,
           role: 'user',
@@ -1475,26 +1591,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const userMsg: ChatMessage = {
-        id: `m-${Date.now()}`,
-        role: 'user',
-        content: text,
-        timestamp: nowLabel(),
-      };
       const assistantId = `m-${Date.now()}-ai`;
       assistantIdRef.current = assistantId;
-
-      setMessages((prev) => [
-        ...prev,
-        userMsg,
-        {
-          id: assistantId,
-          role: 'ai',
-          content: '',
+      const additions: ChatMessage[] = [];
+      if (!opts?.skipUserMessage) {
+        additions.push({
+          id: `m-${Date.now()}`,
+          role: 'user',
+          content: text,
           timestamp: nowLabel(),
-          isStreaming: true,
-        },
-      ]);
+        });
+      }
+      additions.push({
+        id: assistantId,
+        role: 'ai',
+        content: '',
+        timestamp: nowLabel(),
+        isStreaming: true,
+      });
+      setMessages((prev) => [...prev, ...additions]);
+
       setIsStreaming(true);
 
       const unlisten = await api.onStream(activeSessionId, (event) => {
@@ -1575,6 +1691,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       appendPanelLog,
     ],
   );
+
+  sendRef.current = send;
 
   useEffect(
     () => () => {

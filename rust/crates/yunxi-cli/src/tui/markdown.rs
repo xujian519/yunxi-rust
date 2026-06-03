@@ -198,26 +198,57 @@ fn skip_to_end(events: &[Event], start: usize, end_tag: &TagEnd) -> usize {
 }
 
 fn code_block_to_lines(code: &str, lang: &str) -> Vec<Line<'static>> {
+    use std::sync::{LazyLock, Mutex};
+
+    use crate::tui::syntax::{SyntaxHighlighter, SyntaxLanguage};
+
+    static HIGHLIGHTER: LazyLock<Mutex<SyntaxHighlighter>> =
+        LazyLock::new(|| Mutex::new(SyntaxHighlighter::new()));
+
+    let language = if lang.is_empty() {
+        SyntaxLanguage::detect_from_content(code)
+    } else {
+        SyntaxLanguage::from_extension(lang)
+    };
+
+    let border_style = Style::default().fg(Color::Indexed(240));
     let mut lines = Vec::new();
-    let top = format!(
-        "┌─ {} ─────────────",
-        if lang.is_empty() { "code" } else { lang }
-    );
+    let label = if lang.is_empty() { "code" } else { lang };
     lines.push(Line::from(Span::styled(
-        top,
-        Style::default().fg(Color::Indexed(240)),
+        format!("┌─ {label} ─────────────"),
+        border_style,
     )));
-    for line in code.lines() {
-        lines.push(Line::from(Span::styled(
-            format!("│ {line}"),
-            Style::default().fg(Color::Indexed(250)),
-        )));
+
+    if language != SyntaxLanguage::Plain {
+        if let Ok(mut hl) = HIGHLIGHTER.lock() {
+            hl.set_language(language);
+            let highlighted = hl.highlight(code, 120);
+            for hl_line in highlighted.lines {
+                let mut spans = vec![Span::styled("│ ", border_style)];
+                spans.extend(hl_line.spans);
+                lines.push(Line::from(spans));
+            }
+        } else {
+            append_plain_code_lines(&mut lines, code, border_style);
+        }
+    } else {
+        append_plain_code_lines(&mut lines, code, border_style);
     }
+
     lines.push(Line::from(Span::styled(
         "└──────────────────",
-        Style::default().fg(Color::Indexed(240)),
+        border_style,
     )));
     lines
+}
+
+fn append_plain_code_lines(lines: &mut Vec<Line<'static>>, code: &str, border_style: Style) {
+    for line in code.lines() {
+        lines.push(Line::from(vec![
+            Span::styled("│ ", border_style),
+            Span::styled(line.to_string(), Style::default().fg(Color::Indexed(250))),
+        ]));
+    }
 }
 
 fn collect_table(events: &[Event], start: usize) -> (Vec<String>, Vec<Vec<String>>) {

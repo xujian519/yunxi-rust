@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { FC } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -117,6 +117,25 @@ function openExternal(url: string) {
 const AboutSettings: FC = () => {
   const [version, setVersion] = useState('…');
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
+  const [doctorSummary, setDoctorSummary] = useState<string | null>(null);
+  const [doctorLoading, setDoctorLoading] = useState(false);
+
+  const runDoctor = useCallback(async () => {
+    setDoctorLoading(true);
+    setDoctorSummary(null);
+    try {
+      const report = await api.runDoctorCheck();
+      const lines = report.checks.map((c) => {
+        const icon = c.status === 'fail' ? '✗' : c.status === 'warn' ? '!' : '✓';
+        return `${icon} ${c.name} — ${c.detail}`;
+      });
+      setDoctorSummary(`${report.summary}\n\n${lines.join('\n')}`);
+    } catch (e) {
+      setDoctorSummary(e instanceof Error ? e.message : '检查失败');
+    } finally {
+      setDoctorLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,6 +267,42 @@ const AboutSettings: FC = () => {
               工作区：{workspaceRoot}
             </motion.p>
           )}
+
+          <motion.div variants={itemVariants} style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              onClick={() => void runDoctor()}
+              disabled={doctorLoading}
+              className="flex items-center gap-2"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: '1px solid var(--border-primary)',
+                backgroundColor: 'var(--bg-elevated)',
+                fontSize: 12,
+                color: 'var(--text-primary)',
+              }}
+            >
+              {doctorLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+              运行环境检查 (doctor)
+            </button>
+            {doctorSummary ? (
+              <pre
+                style={{
+                  marginTop: 10,
+                  padding: 12,
+                  fontSize: 10,
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                  borderRadius: 8,
+                  backgroundColor: 'var(--bg-sidebar-active)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {doctorSummary}
+              </pre>
+            ) : null}
+          </motion.div>
 
           <motion.div
             variants={itemVariants}

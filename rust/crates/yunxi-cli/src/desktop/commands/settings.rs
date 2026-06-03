@@ -18,6 +18,8 @@ pub struct YunxiSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permissions: Option<SerdeValue>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hooks: Option<SerdeValue>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub appearance: Option<SerdeValue>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_keys: Option<SerdeValue>,
@@ -68,6 +70,7 @@ pub fn get_settings() -> Result<YunxiSettings, String> {
             .to_string(),
         model_router: obj.get("modelRouter").cloned(),
         permissions: obj.get("permissions").cloned(),
+        hooks: obj.get("hooks").cloned(),
         appearance: obj.get("appearance").cloned(),
         api_keys: obj.get("apiKeys").cloned(),
         desktop: obj.get("desktop").cloned(),
@@ -96,6 +99,9 @@ pub fn save_settings(settings: YunxiSettings) -> Result<(), String> {
     }
     if let Some(perms) = settings.permissions {
         obj.insert("permissions".to_string(), perms);
+    }
+    if let Some(hooks) = settings.hooks {
+        obj.insert("hooks".to_string(), hooks);
     }
     if let Some(appearance) = settings.appearance {
         obj.insert("appearance".to_string(), appearance);

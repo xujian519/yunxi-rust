@@ -4,6 +4,7 @@
 //! - TrueColor RGB 常量（Claude Code 风格深色主题）
 //! - 256色索引函数（向后兼容）
 
+pub mod active;
 // ── TrueColor Claude Code 风格色彩系统 ──
 
 /// 主背景色（最深）

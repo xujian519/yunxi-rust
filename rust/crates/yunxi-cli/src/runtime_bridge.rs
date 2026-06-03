@@ -1,8 +1,10 @@
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::cli_action::AllowedToolSet;
+use crate::mcp_runtime::McpRuntime;
 use crate::render::TerminalRenderer;
 use api::{
     InputContentBlock, InputMessage, MessageResponse, OutputContentBlock, ToolResultContentBlock,
@@ -15,6 +17,7 @@ use serde_json::json;
 use tools::{execute_tool, mvp_tool_specs, ToolSpec};
 
 use crate::format_tool::format_tool_result;
+use crate::memory_bridge;
 use crate::DEFAULT_DATE;
 
 pub fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -22,12 +25,18 @@ pub fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> 
 }
 
 pub fn build_system_prompt_for(root: PathBuf) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    Ok(runtime::load_system_prompt(
+    let mut sections = runtime::load_system_prompt(
         root,
         DEFAULT_DATE,
         env::consts::OS,
         "unknown",
-    )?)
+    )?;
+    if let Ok(section) = memory_bridge::build_memory_context_section() {
+        if !section.is_empty() {
+            sections.push(section);
+        }
+    }
+    Ok(sections)
 }
 
 pub(crate) fn build_runtime_feature_config(
@@ -55,14 +64,41 @@ pub fn build_runtime(
     allowed_tools: Option<AllowedToolSet>,
     permission_mode: PermissionMode,
 ) -> Result<ConversationRuntime<llm::LlmClient, CliToolExecutor>, Box<dyn std::error::Error>> {
-    Ok(ConversationRuntime::new_with_features(
+    let workspace_root = crate::session_mgr::workspace_root().unwrap_or_else(|_| PathBuf::from("."));
+    build_runtime_with_workspace(
         session,
-        llm::LlmClient::new(&model, enable_tools, emit_output, allowed_tools.clone())?,
-        CliToolExecutor::new(allowed_tools, emit_output),
-        permission_policy(permission_mode),
+        model,
         system_prompt,
-        build_runtime_feature_config()?,
-    ))
+        enable_tools,
+        emit_output,
+        allowed_tools,
+        permission_mode,
+        workspace_root,
+    )
+}
+
+fn build_llm_and_executor(
+    model: &str,
+    enable_tools: bool,
+    emit_output: bool,
+    allowed_tools: Option<AllowedToolSet>,
+    workspace_root: &PathBuf,
+) -> Result<
+    (
+        llm::LlmClient,
+        CliToolExecutor,
+        runtime::RuntimeFeatureConfig,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let runtime_config = runtime::ConfigLoader::default_for(workspace_root.clone()).load()?;
+    let mcp = Arc::new(McpRuntime::try_from_config(&runtime_config));
+    let extra_tools = mcp.extra_tool_definitions().to_vec();
+    let llm = llm::LlmClient::new(model, enable_tools, emit_output, allowed_tools.clone())?
+        .with_extra_tools(extra_tools);
+    let executor = CliToolExecutor::new(allowed_tools, emit_output, Some(mcp));
+    let features = build_runtime_feature_config_for(workspace_root.clone())?;
+    Ok((llm, executor, features))
 }
 
 pub fn build_runtime_with_workspace(
@@ -75,13 +111,20 @@ pub fn build_runtime_with_workspace(
     permission_mode: PermissionMode,
     workspace_root: PathBuf,
 ) -> Result<ConversationRuntime<llm::LlmClient, CliToolExecutor>, Box<dyn std::error::Error>> {
+    let (llm, executor, features) = build_llm_and_executor(
+        &model,
+        enable_tools,
+        emit_output,
+        allowed_tools.clone(),
+        &workspace_root,
+    )?;
     Ok(ConversationRuntime::new_with_features(
         session,
-        llm::LlmClient::new(&model, enable_tools, emit_output, allowed_tools.clone())?,
-        CliToolExecutor::new(allowed_tools, emit_output),
+        llm,
+        executor,
         permission_policy(permission_mode),
         system_prompt,
-        build_runtime_feature_config_for(workspace_root)?,
+        features,
     ))
 }
 
@@ -203,14 +246,20 @@ pub struct CliToolExecutor {
     renderer: TerminalRenderer,
     emit_output: bool,
     allowed_tools: Option<AllowedToolSet>,
+    mcp: Option<Arc<McpRuntime>>,
 }
 
 impl CliToolExecutor {
-    pub(crate) fn new(allowed_tools: Option<AllowedToolSet>, emit_output: bool) -> Self {
+    pub(crate) fn new(
+        allowed_tools: Option<AllowedToolSet>,
+        emit_output: bool,
+        mcp: Option<Arc<McpRuntime>>,
+    ) -> Self {
         Self {
             renderer: TerminalRenderer::new(),
             emit_output,
             allowed_tools,
+            mcp,
         }
     }
 }
@@ -228,6 +277,16 @@ impl ToolExecutor for CliToolExecutor {
         }
         let value = serde_json::from_str(input)
             .map_err(|error| ToolError::new(format!("invalid tool input JSON: {error}")))?;
+        if McpRuntime::is_mcp_tool(tool_name) {
+            if let Some(mcp) = &self.mcp {
+                return mcp
+                    .call_tool(tool_name, input)
+                    .map_err(ToolError::new);
+            }
+            return Err(ToolError::new(format!(
+                "MCP tool `{tool_name}` is not available (no MCP runtime)"
+            )));
+        }
         match execute_tool(tool_name, &value) {
             Ok(output) => {
                 if self.emit_output {

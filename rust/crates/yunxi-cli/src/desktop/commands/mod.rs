@@ -4,6 +4,7 @@ mod materials;
 mod session;
 mod settings;
 mod shell;
+mod system;
 mod tools;
 mod workspace;
 
@@ -13,7 +14,11 @@ pub use materials::{import_project_materials, list_project_materials};
 pub use session::{session_create, session_delete, session_list, session_load, session_save};
 pub use settings::{get_settings, get_usage, llm_auth_configured, save_llm_api_key, save_settings};
 pub use shell::shell_exec;
-pub use tools::{knowledge_search, patent_search};
+pub use system::{
+    execute_slash_command, get_mcp_config, get_mcp_status, init_claude_md, init_workspace,
+    oauth_login, oauth_logout, oauth_status, run_doctor_check,
+};
+pub use tools::{knowledge_search, memory_search, oa_parse, patent_compare, patent_search};
 pub use workspace::{
     list_directory, pick_workspace_folder, scan_workspace_roots, workspace_watch_start,
     workspace_watch_stop,

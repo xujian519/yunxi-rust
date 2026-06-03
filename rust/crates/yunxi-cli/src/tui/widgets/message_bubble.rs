@@ -57,59 +57,59 @@ impl Widget for MessageBubble<'_> {
         let (border_color, label_style, bg_color) = match self.role {
             ChatRole::User => (
                 Color::Rgb(
-                    ui_palette::LABEL_YOU.0,
-                    ui_palette::LABEL_YOU.1,
-                    ui_palette::LABEL_YOU.2,
+                    ui_palette::active::label_you().0,
+                    ui_palette::active::label_you().1,
+                    ui_palette::active::label_you().2,
                 ),
                 Style::default()
                     .fg(Color::Rgb(
-                        ui_palette::LABEL_YOU.0,
-                        ui_palette::LABEL_YOU.1,
-                        ui_palette::LABEL_YOU.2,
+                        ui_palette::active::label_you().0,
+                        ui_palette::active::label_you().1,
+                        ui_palette::active::label_you().2,
                     ))
                     .add_modifier(Modifier::BOLD),
                 Color::Rgb(
-                    ui_palette::BG_MESSAGE_USER.0,
-                    ui_palette::BG_MESSAGE_USER.1,
-                    ui_palette::BG_MESSAGE_USER.2,
+                    ui_palette::active::bg_message_user().0,
+                    ui_palette::active::bg_message_user().1,
+                    ui_palette::active::bg_message_user().2,
                 ),
             ),
             ChatRole::Assistant => (
                 Color::Rgb(
-                    ui_palette::LABEL_YUNXI.0,
-                    ui_palette::LABEL_YUNXI.1,
-                    ui_palette::LABEL_YUNXI.2,
+                    ui_palette::active::label_yunxi().0,
+                    ui_palette::active::label_yunxi().1,
+                    ui_palette::active::label_yunxi().2,
                 ),
                 Style::default()
                     .fg(Color::Rgb(
-                        ui_palette::LABEL_YUNXI.0,
-                        ui_palette::LABEL_YUNXI.1,
-                        ui_palette::LABEL_YUNXI.2,
+                        ui_palette::active::label_yunxi().0,
+                        ui_palette::active::label_yunxi().1,
+                        ui_palette::active::label_yunxi().2,
                     ))
                     .add_modifier(Modifier::BOLD),
                 Color::Rgb(
-                    ui_palette::BG_MESSAGE_AI.0,
-                    ui_palette::BG_MESSAGE_AI.1,
-                    ui_palette::BG_MESSAGE_AI.2,
+                    ui_palette::active::bg_message_ai().0,
+                    ui_palette::active::bg_message_ai().1,
+                    ui_palette::active::bg_message_ai().2,
                 ),
             ),
             ChatRole::System => (
                 Color::Rgb(
-                    ui_palette::TEXT_MUTED.0,
-                    ui_palette::TEXT_MUTED.1,
-                    ui_palette::TEXT_MUTED.2,
+                    ui_palette::active::text_muted().0,
+                    ui_palette::active::text_muted().1,
+                    ui_palette::active::text_muted().2,
                 ),
                 Style::default()
                     .fg(Color::Rgb(
-                        ui_palette::TEXT_MUTED.0,
-                        ui_palette::TEXT_MUTED.1,
-                        ui_palette::TEXT_MUTED.2,
+                        ui_palette::active::text_muted().0,
+                        ui_palette::active::text_muted().1,
+                        ui_palette::active::text_muted().2,
                     ))
                     .add_modifier(Modifier::BOLD),
                 Color::Rgb(
-                    ui_palette::BG_PRIMARY.0,
-                    ui_palette::BG_PRIMARY.1,
-                    ui_palette::BG_PRIMARY.2,
+                    ui_palette::active::bg_primary().0,
+                    ui_palette::active::bg_primary().1,
+                    ui_palette::active::bg_primary().2,
                 ),
             ),
         };
@@ -142,9 +142,9 @@ impl Widget for MessageBubble<'_> {
 
         // ── 7. 构建消息内容 ──
         let primary = Color::Rgb(
-            ui_palette::TEXT_PRIMARY.0,
-            ui_palette::TEXT_PRIMARY.1,
-            ui_palette::TEXT_PRIMARY.2,
+            ui_palette::active::text_primary().0,
+            ui_palette::active::text_primary().1,
+            ui_palette::active::text_primary().2,
         );
 
         let body = match self.role {
@@ -159,16 +159,27 @@ impl Widget for MessageBubble<'_> {
         let mut all_lines: Vec<Line> = Vec::new();
         all_lines.push(label_line);
         all_lines.extend(body.lines.into_iter().map(|l| {
-            let spans: Vec<Span> = l.spans.into_iter().collect();
+            let spans: Vec<Span> = l
+                .spans
+                .into_iter()
+                .map(|s| {
+                    let mut style = s.style;
+                    if style.fg.is_none() {
+                        style = style.fg(primary);
+                    }
+                    style = style.bg(bg_color);
+                    Span::styled(s.content, style)
+                })
+                .collect();
             Line::from(spans)
         }));
 
         // 流式光标
         if self.is_streaming {
             let brand = Color::Rgb(
-                ui_palette::BRAND_YUNXI.0,
-                ui_palette::BRAND_YUNXI.1,
-                ui_palette::BRAND_YUNXI.2,
+                ui_palette::active::brand_yunxi().0,
+                ui_palette::active::brand_yunxi().1,
+                ui_palette::active::brand_yunxi().2,
             );
             all_lines.push(Line::from(Span::styled(
                 "▎",

@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use crate::patent_quality::types::{extract_keywords, QualityScorerInput, ScorerIssue};

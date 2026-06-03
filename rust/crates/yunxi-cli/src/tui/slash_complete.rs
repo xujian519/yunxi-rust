@@ -65,11 +65,7 @@ impl SlashCompletion {
             .take(6)
             .enumerate()
             .map(|(index, item)| {
-                let label = if item.description.is_empty() {
-                    format!("{} {}", item.icon, item.display)
-                } else {
-                    format!("{} {}  {}", item.icon, item.display, item.description)
-                };
+                let label = format!("{} {}", item.icon, item.display);
                 let line = if index == self.selected {
                     input_line_padded(&input_completion_selected(&format!("▸ {label}")), width)
                 } else {
@@ -112,7 +108,7 @@ mod tests {
     }
 
     #[test]
-    fn help_has_icon_and_description() {
+    fn help_has_icon() {
         let menu = SlashCompletion::refresh("/help", true).expect("matches");
         let help = menu
             .matches
@@ -120,6 +116,5 @@ mod tests {
             .find(|item| item.display == "/help")
             .expect("help item");
         assert_eq!(help.icon, "❓");
-        assert!(!help.description.is_empty());
     }
 }

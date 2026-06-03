@@ -15,13 +15,52 @@ pub fn patent_search(query: String, limit: Option<usize>) -> Result<String, Stri
 }
 
 #[tauri::command]
+pub fn patent_compare(
+    target_title: String,
+    target_claims: Vec<String>,
+    prior_title: String,
+    prior_claims: Vec<String>,
+) -> Result<String, String> {
+    execute_tool(
+        "PatentCompare",
+        &json!({
+            "mode": "diff",
+            "target": {
+                "title": target_title,
+                "claims": target_claims,
+            },
+            "priorArt": {
+                "title": prior_title,
+                "claims": prior_claims,
+            },
+        }),
+    )
+}
+
+#[tauri::command]
 pub fn knowledge_search(query: String) -> Result<String, String> {
     execute_tool(
-        "KnowledgeGraphQuery",
+        "KnowledgeSearch",
         &json!({
             "query": query,
-            "source": "all",
             "limit": 8,
+        }),
+    )
+}
+
+#[tauri::command]
+pub fn memory_search(query: String, limit: Option<usize>) -> Result<String, String> {
+    yunxi_cli::memory_bridge::search_memory_report(&query, limit.unwrap_or(10))
+}
+
+#[tauri::command]
+pub fn oa_parse(content: String, application_number: Option<String>) -> Result<String, String> {
+    execute_tool(
+        "OaParse",
+        &json!({
+            "content": content,
+            "application_number": application_number,
+            "document_type": "cn",
         }),
     )
 }

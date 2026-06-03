@@ -432,7 +432,7 @@ pub(crate) fn render_memory_report() -> Result<String, Box<dyn std::error::Error
                 .to_string(),
         );
     } else {
-        lines.push("Discovered files".to_string());
+        lines.push("Discovered CLAUDE instruction files".to_string());
         for (index, file) in project_context.instruction_files.iter().enumerate() {
             let preview = file.content.lines().next().unwrap_or("").trim();
             let preview = if preview.is_empty() {
@@ -448,6 +448,12 @@ pub(crate) fn render_memory_report() -> Result<String, Box<dyn std::error::Error
             ));
         }
     }
+
+    if let Ok(unified) = crate::memory_bridge::search_memory_report("", 8) {
+        lines.push(String::new());
+        lines.push(unified);
+    }
+
     Ok(lines.join(
         "
 ",

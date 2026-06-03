@@ -1,6 +1,10 @@
 mod cli_action;
 mod config;
-mod doctor;
+pub mod desktop_slash;
+pub mod doctor;
+pub mod mcp_runtime;
+pub mod memory_bridge;
+pub mod oauth_flow;
 mod format_report;
 mod format_tool;
 mod help_text;

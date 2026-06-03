@@ -106,3 +106,44 @@ export function defaultReviewData(): ReviewData {
     responses: [...mockReviewData.responses],
   };
 }
+
+/** 将 OaParse 工具 JSON 输出转为 ReviewData */
+export function oaParseJsonToReviewData(raw: string): ReviewData {
+  try {
+    const parsed = JSON.parse(raw) as {
+      rejection_reasons?: Array<{
+        type?: string;
+        description?: string;
+        affected_claims?: number[];
+        cited_references?: string[];
+      }>;
+    };
+    const reasons = parsed.rejection_reasons ?? [];
+    if (reasons.length === 0) {
+      return emptyReviewData();
+    }
+    const objections: ReviewObjection[] = reasons.map((r, i) => ({
+      id: `obj-${i + 1}`,
+      type: mapRejectionType(r.type ?? ''),
+      claim:
+        r.affected_claims && r.affected_claims.length > 0
+          ? `权利要求${r.affected_claims.join('、')}`
+          : '—',
+      citation: (r.cited_references ?? []).join(' + '),
+      content: r.description ?? '',
+    }));
+    return { objections, responses: [] };
+  } catch {
+    return emptyReviewData();
+  }
+}
+
+function mapRejectionType(rejectionType: string): ObjectionType {
+  const t = rejectionType.toLowerCase();
+  if (t.includes('novelty') || t.includes('新颖')) return 'novelty';
+  if (t.includes('inventive') || t.includes('creativ') || t.includes('创造')) return 'inventive';
+  if (t.includes('support') || t.includes('clarity') || t.includes('支持') || t.includes('清楚')) {
+    return 'support';
+  }
+  return 'novelty';
+}

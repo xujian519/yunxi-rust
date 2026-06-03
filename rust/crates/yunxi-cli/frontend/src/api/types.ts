@@ -19,6 +19,10 @@ export interface YunxiSettings {
   model: string;
   model_router?: Record<string, unknown>;
   permissions?: { defaultMode: string };
+  hooks?: {
+    PreToolUse?: string[];
+    PostToolUse?: string[];
+  };
   appearance?: Record<string, unknown>;
   api_keys?: Record<string, string>;
   /** 桌面端 UI 偏好分区 */
@@ -112,4 +116,40 @@ export interface DirectoryEntry {
   path: string;
   isDir: boolean;
   size: number;
+}
+
+/** 斜杠命令执行结果（与 Rust SlashExecuteResult 对齐） */
+export type SlashExecuteResult =
+  | { kind: 'message'; content: string }
+  | { kind: 'agent_turn'; prompt: string }
+  | { kind: 'session_updated'; content: string; session_json: string };
+
+export interface DoctorCheck {
+  name: string;
+  status: string;
+  detail: string;
+}
+
+export interface DoctorReport {
+  checks: DoctorCheck[];
+  failures: number;
+  warnings: number;
+  summary: string;
+}
+
+export interface McpServerStatus {
+  name: string;
+  transport: string;
+  status: string;
+  tool_count: number;
+  detail?: string | null;
+}
+
+export interface McpStatusReport {
+  servers: McpServerStatus[];
+  total_tools: number;
+}
+
+export interface OAuthStatus {
+  configured: boolean;
 }

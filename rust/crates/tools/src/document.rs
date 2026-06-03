@@ -166,7 +166,6 @@ fn read_docx(path: &Path) -> Result<DocumentReadOutput, String> {
 fn extract_text_from_docx_xml(xml: &str) -> Result<String, String> {
     let mut text = String::new();
     let mut reader = quick_xml::Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
 
     let mut in_text_element = false;
     loop {

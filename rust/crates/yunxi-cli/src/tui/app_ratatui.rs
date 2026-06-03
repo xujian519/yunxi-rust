@@ -8,6 +8,7 @@ use ratatui::Frame;
 use crate::tui::app::TuiApp;
 
 use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
+use crate::tui::widgets::command_palette_ratatui::CommandPaletteWidget;
 use crate::tui::widgets::flow_hitl_overlay_ratatui::FlowHitlOverlayWidget;
 use crate::tui::widgets::guide_overlay_ratatui::GuideOverlayWidget;
 use crate::tui::widgets::help_overlay_ratatui::HelpOverlay;
@@ -91,6 +92,14 @@ impl TuiApp {
     }
 
     fn render_overlays(&self, frame: &mut Frame, area: ratatui::layout::Rect) {
+        if self.command_palette.is_visible() {
+            CommandPaletteWidget {
+                palette: &self.command_palette,
+            }
+            .render(area, frame.buffer_mut());
+            return;
+        }
+
         if self.show_help {
             HelpOverlay.render(area, frame.buffer_mut());
             return;

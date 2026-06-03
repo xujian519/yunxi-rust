@@ -81,6 +81,7 @@ Skill({"skill": "cap-retrieval"})
 | Skill ID | 描述 | 文件 |
 |----------|------|------|
 | `stop-slop` | 专利法律文书去冗余精简 | `stop-slop/SKILL.xml` |
+| `hanlin-academy` | 多模型集体审议（翰林院） | `technique/hanlin-academy/SKILL.xml` |
 
 ## 数据来源
 

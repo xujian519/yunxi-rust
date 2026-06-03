@@ -34,6 +34,7 @@ pub struct LlmClient {
     enable_tools: bool,
     emit_output: bool,
     allowed_tools: Option<AllowedToolSet>,
+    extra_tools: Vec<ToolDefinition>,
 }
 
 impl LlmClient {
@@ -72,7 +73,44 @@ impl LlmClient {
             enable_tools,
             emit_output,
             allowed_tools,
+            extra_tools: Vec::new(),
         })
+    }
+
+    /// 附加 MCP 等动态工具定义。
+    #[must_use]
+    pub fn with_extra_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
+        self.extra_tools = tools;
+        self
+    }
+
+    fn collect_tool_definitions(&self) -> Option<Vec<ToolDefinition>> {
+        if !self.enable_tools {
+            return None;
+        }
+        let mut tools: Vec<ToolDefinition> = tools::mvp_tool_specs()
+            .into_iter()
+            .filter(|spec| {
+                self.allowed_tools
+                    .as_ref()
+                    .is_none_or(|allowed| allowed.contains(spec.name))
+            })
+            .map(|spec| ToolDefinition {
+                name: spec.name.to_string(),
+                description: Some(spec.description.to_string()),
+                input_schema: spec.input_schema,
+            })
+            .collect();
+        for extra in &self.extra_tools {
+            if self
+                .allowed_tools
+                .as_ref()
+                .is_none_or(|allowed| allowed.contains(extra.name.as_str()))
+            {
+                tools.push(extra.clone());
+            }
+        }
+        Some(tools)
     }
 
     /// 在已有 tokio 运行时时使用 Handle，否则创建临时运行时执行 future
@@ -276,20 +314,7 @@ impl LlmClient {
             LlmClientInner::Anthropic => return Err(RuntimeError::new("expected OpenAI provider")),
         };
 
-        let tools = if self.enable_tools {
-            Some(
-                tools::mvp_tool_specs()
-                    .into_iter()
-                    .filter(|spec| {
-                        self.allowed_tools
-                            .as_ref()
-                            .is_none_or(|allowed| allowed.contains(spec.name))
-                    })
-                    .collect::<Vec<_>>(),
-            )
-        } else {
-            None
-        };
+        let tools = self.collect_tool_definitions();
 
         let openai_request = openai::build_openai_request(
             &self.model,
@@ -346,21 +371,7 @@ impl LlmClient {
             max_tokens: max_tokens_for_model(&self.model),
             messages: convert_messages_anthropic(&request.messages),
             system: (!request.system_prompt.is_empty()).then(|| request.system_prompt.join("\n\n")),
-            tools: self.enable_tools.then(|| {
-                tools::mvp_tool_specs()
-                    .into_iter()
-                    .filter(|spec| {
-                        self.allowed_tools
-                            .as_ref()
-                            .is_none_or(|allowed| allowed.contains(spec.name))
-                    })
-                    .map(|spec| ToolDefinition {
-                        name: spec.name.to_string(),
-                        description: Some(spec.description.to_string()),
-                        input_schema: spec.input_schema,
-                    })
-                    .collect()
-            }),
+            tools: self.collect_tool_definitions(),
             tool_choice: self.enable_tools.then_some(ToolChoice::Auto),
             stream: true,
         }

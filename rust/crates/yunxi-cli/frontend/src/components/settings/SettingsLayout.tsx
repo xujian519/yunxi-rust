@@ -10,12 +10,14 @@ import {
   CreditCard,
   Info,
   ChevronLeft,
+  Terminal,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 
 export type SettingsCategory =
   | 'general'
   | 'model'
+  | 'hooks'
   | 'appearance'
   | 'editor'
   | 'shortcuts'
@@ -31,6 +33,7 @@ interface CategoryDef {
 const categories: CategoryDef[] = [
   { id: 'general', label: '通用', icon: <Settings size={16} /> },
   { id: 'model', label: '模型', icon: <Cpu size={16} /> },
+  { id: 'hooks', label: 'Hooks', icon: <Terminal size={16} /> },
   { id: 'appearance', label: '外观', icon: <Palette size={16} /> },
   { id: 'editor', label: '编辑器', icon: <FileText size={16} /> },
   { id: 'shortcuts', label: '快捷键', icon: <Keyboard size={16} /> },

@@ -4,7 +4,7 @@ use std::io::{self, Read, Write};
 use std::net::TcpListener;
 use std::process::Command;
 
-use api::{AuthSource, MessagesClient};
+use api::{AnthropicClient, AuthSource};
 use runtime::{
     clear_oauth_credentials, generate_pkce_pair, generate_state,
     parse_oauth_callback_request_target, save_oauth_credentials, ConfigLoader,
@@ -30,7 +30,16 @@ pub(crate) fn default_oauth_config() -> OAuthConfig {
     }
 }
 
-pub(crate) fn run_login() -> Result<(), Box<dyn std::error::Error>> {
+/// OAuth 凭据是否已保存。
+#[must_use]
+pub fn oauth_configured() -> bool {
+    runtime::load_oauth_credentials()
+        .ok()
+        .flatten()
+        .is_some()
+}
+
+pub fn run_login() -> Result<(), Box<dyn std::error::Error>> {
     let cwd = std::env::current_dir()?;
     let config = ConfigLoader::default_for(&cwd).load()?;
     let default_oauth = default_oauth_config();
@@ -67,7 +76,7 @@ pub(crate) fn run_login() -> Result<(), Box<dyn std::error::Error>> {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "oauth state mismatch").into());
     }
 
-    let client = MessagesClient::from_auth(AuthSource::None).with_base_url(api::read_base_url());
+    let client = AnthropicClient::from_auth(AuthSource::None).with_base_url(api::read_base_url());
     let exchange_request =
         OAuthTokenExchangeRequest::from_config(oauth, code, state, pkce.verifier, redirect_uri);
     let runtime = tokio::runtime::Runtime::new()?;
@@ -82,7 +91,7 @@ pub(crate) fn run_login() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-pub(crate) fn run_logout() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_logout() -> Result<(), Box<dyn std::error::Error>> {
     clear_oauth_credentials()?;
     println!("YunXi OAuth credentials cleared.");
     Ok(())

@@ -8,9 +8,9 @@ use serde::Deserialize;
 
 use crate::agent::AgentInput;
 use crate::{
-    brief, config_tool, notebook, patent, patent_analysis, patent_compare, patent_drafting,
-    patent_formality, patent_management, patent_oa, patent_quality, patent_search, patent_strategy,
-    patent_visualization, repl, shell, skill, todo, tool_search, web,
+    brief, config_tool, knowledge_tools, notebook, patent, patent_analysis, patent_compare,
+    patent_drafting, patent_formality, patent_management, patent_oa, patent_quality, patent_search,
+    patent_strategy, patent_visualization, repl, shell, skill, todo, tool_search, web,
 };
 
 fn to_pretty_json<T: serde::Serialize>(value: T) -> Result<String, String> {
@@ -353,6 +353,34 @@ pub(super) fn run_batch_patent_download(
     input: patent_management::BatchPatentDownloadInput,
 ) -> Result<String, String> {
     to_pretty_json(patent_management::execute_batch_patent_download(input)?)
+}
+
+pub(super) fn run_knowledge_search(
+    input: &knowledge_tools::KnowledgeSearchInput,
+) -> Result<String, String> {
+    to_pretty_json(knowledge_tools::execute_knowledge_search(input)?)
+}
+
+pub(super) fn run_legal_reasoning(
+    input: &knowledge_tools::LegalReasoningInput,
+) -> Result<String, String> {
+    to_pretty_json(knowledge_tools::execute_legal_reasoning(input)?)
+}
+
+pub(super) fn run_law_query(input: &knowledge_tools::LawQueryInput) -> Result<String, String> {
+    to_pretty_json(knowledge_tools::execute_law_query(input)?)
+}
+
+pub(super) fn run_knowledge_card(
+    input: &knowledge_tools::KnowledgeCardInput,
+) -> Result<String, String> {
+    to_pretty_json(knowledge_tools::execute_knowledge_card(input)?)
+}
+
+pub(super) fn run_super_reasoning_plan(
+    input: &knowledge_tools::SuperReasoningPlanInput,
+) -> Result<String, String> {
+    to_pretty_json(knowledge_tools::execute_super_reasoning_plan(input)?)
 }
 
 // --- Input structs kept for dispatcher use ---

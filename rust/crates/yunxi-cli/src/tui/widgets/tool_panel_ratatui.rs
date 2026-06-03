@@ -14,14 +14,14 @@ pub(crate) struct ToolPanelWidget<'a> {
 impl Widget for ToolPanelWidget<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let border = Color::Rgb(
-            ui_palette::BORDER.0,
-            ui_palette::BORDER.1,
-            ui_palette::BORDER.2,
+            ui_palette::active::border().0,
+            ui_palette::active::border().1,
+            ui_palette::active::border().2,
         );
         let muted = Color::Rgb(
-            ui_palette::TEXT_MUTED.0,
-            ui_palette::TEXT_MUTED.1,
-            ui_palette::TEXT_MUTED.2,
+            ui_palette::active::text_muted().0,
+            ui_palette::active::text_muted().1,
+            ui_palette::active::text_muted().2,
         );
 
         let block = Block::default()

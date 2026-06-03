@@ -18,29 +18,29 @@ pub(crate) struct StatusBarWidget<'a> {
 impl Widget for StatusBarWidget<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let brand = Color::Rgb(
-            ui_palette::BRAND_YUNXI.0,
-            ui_palette::BRAND_YUNXI.1,
-            ui_palette::BRAND_YUNXI.2,
+            ui_palette::active::brand_yunxi().0,
+            ui_palette::active::brand_yunxi().1,
+            ui_palette::active::brand_yunxi().2,
         );
         let muted = Color::Rgb(
-            ui_palette::TEXT_MUTED.0,
-            ui_palette::TEXT_MUTED.1,
-            ui_palette::TEXT_MUTED.2,
+            ui_palette::active::text_muted().0,
+            ui_palette::active::text_muted().1,
+            ui_palette::active::text_muted().2,
         );
         let secondary = Color::Rgb(
-            ui_palette::TEXT_SECONDARY.0,
-            ui_palette::TEXT_SECONDARY.1,
-            ui_palette::TEXT_SECONDARY.2,
+            ui_palette::active::text_secondary().0,
+            ui_palette::active::text_secondary().1,
+            ui_palette::active::text_secondary().2,
         );
         let usage_fill = Color::Rgb(
-            ui_palette::USAGE_FILL.0,
-            ui_palette::USAGE_FILL.1,
-            ui_palette::USAGE_FILL.2,
+            ui_palette::active::usage_fill().0,
+            ui_palette::active::usage_fill().1,
+            ui_palette::active::usage_fill().2,
         );
         let usage_empty = Color::Rgb(
-            ui_palette::USAGE_EMPTY.0,
-            ui_palette::USAGE_EMPTY.1,
-            ui_palette::USAGE_EMPTY.2,
+            ui_palette::active::usage_empty().0,
+            ui_palette::active::usage_empty().1,
+            ui_palette::active::usage_empty().2,
         );
 
         let mut spans: Vec<Span> = Vec::new();

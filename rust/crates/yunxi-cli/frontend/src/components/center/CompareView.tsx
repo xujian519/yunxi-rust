@@ -1,10 +1,10 @@
 import type { FC } from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { diffComparison } from '@/data/mockData';
-import { GitCompare, AlertCircle } from 'lucide-react';
+import { GitCompare, AlertCircle, Loader2 } from 'lucide-react';
 import { useApp } from '@/context/AppProvider';
-import { isTauriRuntime } from '@/api';
+import { api, hasBackendTools, isTauriRuntime } from '@/api';
 import { buildSideBySideDiff, type DiffLine } from '@/utils/lineDiff';
 
 const DiffLineRow: FC<{
@@ -76,6 +76,34 @@ const DiffLineRow: FC<{
 
 const CompareView: FC = () => {
   const { getDocumentByType, activeCase } = useApp();
+  const [backendNote, setBackendNote] = useState<string | null>(null);
+  const [backendLoading, setBackendLoading] = useState(false);
+
+  const runPatentCompare = useCallback(async () => {
+    if (!hasBackendTools() || !activeCase) return;
+    const claimsDoc =
+      getDocumentByType('claims') ?? activeCase.documents.find((d) => d.type === 'claims');
+    const draftsDoc = activeCase.documents.find((d) => d.type === 'drafts');
+    if (!claimsDoc?.contentMd || !draftsDoc?.contentMd) {
+      setBackendNote('需要权利要求与修改稿文档');
+      return;
+    }
+    setBackendLoading(true);
+    setBackendNote(null);
+    try {
+      const raw = await api.patentCompare(
+        activeCase.name,
+        claimsDoc.contentMd.split('\n').filter(Boolean),
+        `${activeCase.name} 修改稿`,
+        draftsDoc.contentMd.split('\n').filter(Boolean),
+      );
+      setBackendNote(raw.length > 4000 ? `${raw.slice(0, 4000)}…` : raw);
+    } catch (e) {
+      setBackendNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBackendLoading(false);
+    }
+  }, [activeCase, getDocumentByType]);
 
   const { original, modified, notice } = useMemo(() => {
     if (!isTauriRuntime()) {
@@ -139,6 +167,22 @@ const CompareView: FC = () => {
           ) : null}
         </div>
         <div className="flex items-center" style={{ gap: 12 }}>
+          {hasBackendTools() ? (
+            <button
+              type="button"
+              onClick={() => void runPatentCompare()}
+              disabled={backendLoading}
+              style={{
+                fontSize: 10,
+                padding: '4px 10px',
+                borderRadius: 6,
+                border: '1px solid var(--border-primary)',
+                color: 'var(--accent-primary)',
+              }}
+            >
+              {backendLoading ? <Loader2 size={12} className="animate-spin" /> : 'PatentCompare'}
+            </button>
+          ) : null}
           <div className="flex items-center" style={{ gap: 4 }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: 'var(--status-success)' }} />
             <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>新增</span>
@@ -149,6 +193,22 @@ const CompareView: FC = () => {
           </div>
         </div>
       </div>
+
+      {backendNote ? (
+        <div
+          style={{
+            padding: 12,
+            fontSize: 11,
+            color: 'var(--text-secondary)',
+            borderBottom: '1px solid var(--border-primary)',
+            maxHeight: 160,
+            overflow: 'auto',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {backendNote}
+        </div>
+      ) : null}
 
       {notice ? (
         <div

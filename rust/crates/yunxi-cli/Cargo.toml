@@ -28,6 +28,8 @@ embedding = { path = "../embedding" }
 knowledge = { path = "../knowledge" }
 router = { path = "../router" }
 llm = { path = "../llm" }
+memory = { path = "../memory" }
+mcp-bridge = { path = "../mcp-bridge" }
 model-router = { path = "../model-router" }
 crossterm = "0.28"
 arboard = "3"

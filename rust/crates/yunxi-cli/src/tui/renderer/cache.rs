@@ -15,12 +15,20 @@ struct CachedItem<V> {
 
 impl<K: Hash + Eq + Clone, V: Clone> RenderCache<K, V> {
     pub fn new(max_size: usize, ttl_secs: u64) -> Self {
-        Self { cache: HashMap::new(), max_size, ttl: Duration::from_secs(ttl_secs) }
+        Self {
+            cache: HashMap::new(),
+            max_size,
+            ttl: Duration::from_secs(ttl_secs),
+        }
     }
 
     pub fn get(&self, key: &K) -> Option<V> {
         self.cache.get(key).and_then(|item| {
-            if item.created_at.elapsed() < self.ttl { Some(item.value.clone()) } else { None }
+            if item.created_at.elapsed() < self.ttl {
+                Some(item.value.clone())
+            } else {
+                None
+            }
         })
     }
 
@@ -30,17 +38,33 @@ impl<K: Hash + Eq + Clone, V: Clone> RenderCache<K, V> {
                 self.cache.remove(&oldest_key);
             }
         }
-        self.cache.insert(key, CachedItem { value, created_at: Instant::now() });
+        self.cache.insert(
+            key,
+            CachedItem {
+                value,
+                created_at: Instant::now(),
+            },
+        );
     }
 
-    pub fn invalidate(&mut self, key: &K) { self.cache.remove(key); }
-    pub fn clear(&mut self) { self.cache.clear(); }
-    pub fn len(&self) -> usize { self.cache.len() }
-    pub fn is_empty(&self) -> bool { self.cache.is_empty() }
+    pub fn invalidate(&mut self, key: &K) {
+        self.cache.remove(key);
+    }
+    pub fn clear(&mut self) {
+        self.cache.clear();
+    }
+    pub fn len(&self) -> usize {
+        self.cache.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.cache.is_empty()
+    }
 }
 
 impl<K: Hash + Eq + Clone, V: Clone> Default for RenderCache<K, V> {
-    fn default() -> Self { Self::new(128, 60) }
+    fn default() -> Self {
+        Self::new(128, 60)
+    }
 }
 
 #[cfg(test)]

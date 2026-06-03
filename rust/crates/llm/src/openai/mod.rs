@@ -4,10 +4,10 @@ pub mod types;
 use std::collections::BTreeSet;
 use std::io::Write;
 
+use api::ToolDefinition;
 use runtime::{
     AssistantEvent, ContentBlock, ConversationMessage, MessageRole, RuntimeError, TokenUsage,
 };
-use tools::ToolSpec;
 
 use types::{
     ChatCompletionChunk, ChatCompletionRequest, ChatMessage, FunctionDefinition, OpenAITool,
@@ -96,7 +96,7 @@ pub fn build_openai_request(
     model: &str,
     system_prompt: &[String],
     messages: &[ConversationMessage],
-    tools: Option<&[ToolSpec]>,
+    tools: Option<&[ToolDefinition]>,
     max_tokens: u32,
 ) -> ChatCompletionRequest {
     let mut openai_messages = Vec::new();
@@ -119,8 +119,8 @@ pub fn build_openai_request(
                 .map(|spec| OpenAITool {
                     tool_type: "function".to_string(),
                     function: FunctionDefinition {
-                        name: spec.name.to_string(),
-                        description: Some(spec.description.to_string()),
+                        name: spec.name.clone(),
+                        description: spec.description.clone(),
                         parameters: spec.input_schema.clone(),
                     },
                 })

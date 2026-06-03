@@ -243,7 +243,6 @@ fn extract_paragraphs_from_docx_xml(xml: &str) -> Result<Vec<String>, String> {
     let mut paragraphs = Vec::new();
     let mut current_paragraph = String::new();
     let mut reader = quick_xml::Reader::from_str(xml);
-    reader.config_mut().trim_text(true);
 
     let mut in_text_element = false;
     let mut in_bold = false;

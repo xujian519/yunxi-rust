@@ -137,6 +137,21 @@ export const mockApi = {
   async knowledgeSearch(query: string) {
     return `Mock 知识库：${query}`;
   },
+  async memorySearch(query: string) {
+    return `Mock 记忆：${query}`;
+  },
+  async oaParse(content: string) {
+    return JSON.stringify({
+      rejection_reasons: [
+        {
+          type: 'Novelty',
+          description: content.slice(0, 120),
+          affected_claims: [1],
+          cited_references: ['D1'],
+        },
+      ],
+    });
+  },
   shellChannel(sessionId: string) {
     return `yunxi://shell/${sessionId}`;
   },

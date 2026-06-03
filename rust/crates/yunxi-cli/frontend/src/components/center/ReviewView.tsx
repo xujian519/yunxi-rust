@@ -11,9 +11,10 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useApp } from '@/context/AppProvider';
-import { api, isTauriRuntime } from '@/api';
+import { api, hasBackendTools, isTauriRuntime } from '@/api';
 import {
   defaultReviewData,
+  oaParseJsonToReviewData,
   parseReviewDocument,
   serializeReviewData,
   type ReviewData,
@@ -28,6 +29,7 @@ const ReviewView: FC = () => {
   const [expandedObjections, setExpandedObjections] = useState<Set<string>>(new Set(['obj-1']));
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
   const [knowledgeNote, setKnowledgeNote] = useState<string | null>(null);
+  const [oaParsing, setOaParsing] = useState(false);
 
   useEffect(() => {
     if (reviewDoc?.contentMd) {
@@ -83,8 +85,8 @@ const ReviewView: FC = () => {
   };
 
   const runKnowledgeHint = async () => {
-    if (!isTauriRuntime()) {
-      setKnowledgeNote('（Mock）知识库检索需在桌面客户端运行');
+    if (!hasBackendTools()) {
+      setKnowledgeNote('（Mock）知识库检索需在桌面客户端或 HTTP Server 模式运行');
       return;
     }
     const first = data.objections[0];
@@ -99,6 +101,24 @@ const ReviewView: FC = () => {
       setKnowledgeNote(e instanceof Error ? e.message : String(e));
     } finally {
       setKnowledgeLoading(false);
+    }
+  };
+
+  const runOaParse = async () => {
+    if (!hasBackendTools() || !reviewDoc?.contentMd) return;
+    setOaParsing(true);
+    try {
+      const raw = await api.oaParse(reviewDoc.contentMd);
+      const next = oaParseJsonToReviewData(raw);
+      setData(next);
+      if (next.objections[0]?.id) {
+        setExpandedObjections(new Set([next.objections[0].id]));
+      }
+      await persistReview(next);
+    } catch (e) {
+      setKnowledgeNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOaParsing(false);
     }
   };
 
@@ -168,25 +188,48 @@ const ReviewView: FC = () => {
             {isTauriRuntime() && reviewDoc ? ' · 数据来自案件 review 文档' : ''}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void runKnowledgeHint()}
-          disabled={knowledgeLoading || data.objections.length === 0}
-          className="flex items-center"
-          style={{
-            gap: 6,
-            padding: '6px 10px',
-            fontSize: 11,
-            fontWeight: 500,
-            borderRadius: 6,
-            border: '1px solid var(--border-primary)',
-            backgroundColor: 'var(--bg-elevated)',
-            color: 'var(--accent-primary)',
-          }}
-        >
-          {knowledgeLoading ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />}
-          知识库参考
-        </button>
+        <div className="flex items-center" style={{ gap: 8 }}>
+          {hasBackendTools() && reviewDoc?.contentMd ? (
+            <button
+              type="button"
+              onClick={() => void runOaParse()}
+              disabled={oaParsing}
+              className="flex items-center"
+              style={{
+                gap: 6,
+                padding: '6px 10px',
+                fontSize: 11,
+                fontWeight: 500,
+                borderRadius: 6,
+                border: '1px solid var(--border-primary)',
+                backgroundColor: 'var(--bg-elevated)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              {oaParsing ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+              解析 OA
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void runKnowledgeHint()}
+            disabled={knowledgeLoading || data.objections.length === 0}
+            className="flex items-center"
+            style={{
+              gap: 6,
+              padding: '6px 10px',
+              fontSize: 11,
+              fontWeight: 500,
+              borderRadius: 6,
+              border: '1px solid var(--border-primary)',
+              backgroundColor: 'var(--bg-elevated)',
+              color: 'var(--accent-primary)',
+            }}
+          >
+            {knowledgeLoading ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />}
+            知识库参考
+          </button>
+        </div>
       </div>
 
       {knowledgeNote ? (

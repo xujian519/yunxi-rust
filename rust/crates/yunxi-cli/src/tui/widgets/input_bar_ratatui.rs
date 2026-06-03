@@ -15,29 +15,29 @@ impl Widget for InputBarWidget<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let mut lines: Vec<Line> = Vec::new();
         let muted = Color::Rgb(
-            ui_palette::TEXT_MUTED.0,
-            ui_palette::TEXT_MUTED.1,
-            ui_palette::TEXT_MUTED.2,
+            ui_palette::active::text_muted().0,
+            ui_palette::active::text_muted().1,
+            ui_palette::active::text_muted().2,
         );
         let primary = Color::Rgb(
-            ui_palette::TEXT_PRIMARY.0,
-            ui_palette::TEXT_PRIMARY.1,
-            ui_palette::TEXT_PRIMARY.2,
+            ui_palette::active::text_primary().0,
+            ui_palette::active::text_primary().1,
+            ui_palette::active::text_primary().2,
         );
         let accent = Color::Rgb(
-            ui_palette::BRAND_YUNXI.0,
-            ui_palette::BRAND_YUNXI.1,
-            ui_palette::BRAND_YUNXI.2,
+            ui_palette::active::brand_yunxi().0,
+            ui_palette::active::brand_yunxi().1,
+            ui_palette::active::brand_yunxi().2,
         );
         let tertiary_bg = Color::Rgb(
-            ui_palette::BG_TERTIARY.0,
-            ui_palette::BG_TERTIARY.1,
-            ui_palette::BG_TERTIARY.2,
+            ui_palette::active::bg_tertiary().0,
+            ui_palette::active::bg_tertiary().1,
+            ui_palette::active::bg_tertiary().2,
         );
         let border = Color::Rgb(
-            ui_palette::BORDER.0,
-            ui_palette::BORDER.1,
-            ui_palette::BORDER.2,
+            ui_palette::active::border().0,
+            ui_palette::active::border().1,
+            ui_palette::active::border().2,
         );
         let selected_bg = Color::Rgb(74, 74, 106);
         let description_color = Color::Rgb(160, 160, 176);

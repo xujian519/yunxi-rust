@@ -10,11 +10,13 @@ use std::sync::Arc;
 
 use commands::{
     case_create, case_delete, case_list, case_load, case_save, chat_cancel, chat_send,
-    get_settings, get_usage, get_version, get_workspace_info, greet, import_project_materials,
-    knowledge_search, list_directory, list_project_materials, llm_auth_configured, patent_search,
-    permission_respond, pick_workspace_folder, save_llm_api_key, save_settings,
-    scan_workspace_roots, session_create, session_delete, session_list, session_load, session_save,
-    shell_exec, workspace_watch_start, workspace_watch_stop,
+    execute_slash_command, get_mcp_config, get_mcp_status, get_settings, get_usage, get_version,
+    get_workspace_info, greet, import_project_materials, init_claude_md, init_workspace,
+    knowledge_search, list_directory, list_project_materials, llm_auth_configured, memory_search,
+    oauth_login, oauth_logout, oauth_status, oa_parse, patent_compare, patent_search, permission_respond,
+    pick_workspace_folder, run_doctor_check, save_llm_api_key, save_settings, scan_workspace_roots,
+    session_create, session_delete, session_list, session_load, session_save, shell_exec,
+    workspace_watch_start, workspace_watch_stop,
 };
 use paths::init_desktop_environment;
 use shell_session::{
@@ -57,7 +59,10 @@ fn main() {
             case_create,
             case_delete,
             patent_search,
+            patent_compare,
             knowledge_search,
+            memory_search,
+            oa_parse,
             chat_send,
             chat_cancel,
             permission_respond,
@@ -75,6 +80,15 @@ fn main() {
             workspace_watch_stop,
             list_project_materials,
             import_project_materials,
+            oauth_status,
+            oauth_login,
+            oauth_logout,
+            run_doctor_check,
+            init_workspace,
+            init_claude_md,
+            execute_slash_command,
+            get_mcp_status,
+            get_mcp_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

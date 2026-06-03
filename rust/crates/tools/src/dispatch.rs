@@ -8,10 +8,10 @@ use crate::runners::{
     self, EditFileInput, GlobSearchInputValue, ReadFileInput, ToolSearchInput, WriteFileInput,
 };
 use crate::{
-    brief, config_tool, document, notebook, patent, patent_analysis, patent_compare,
-    patent_document, patent_drafting, patent_formality, patent_management, patent_oa,
-    patent_quality, patent_search, patent_strategy, patent_visualization, repl, shell, skill, todo,
-    web,
+    brief, config_tool, document, knowledge_tools, notebook, patent, patent_analysis,
+    patent_compare, patent_document, patent_drafting, patent_formality, patent_management,
+    patent_oa, patent_quality, patent_search, patent_strategy, patent_visualization, repl, shell,
+    skill, todo, web,
 };
 
 /// Dispatches tool execution by name, deserializing the input JSON and returning the result.
@@ -149,6 +149,16 @@ pub fn execute_tool(name: &str, input: &Value) -> Result<String, String> {
             .and_then(runners::run_patent_download),
         "BatchPatentDownload" => from_value::<patent_management::BatchPatentDownloadInput>(input)
             .and_then(runners::run_batch_patent_download),
+        "KnowledgeSearch" => from_value::<knowledge_tools::KnowledgeSearchInput>(input)
+            .and_then(|input| runners::run_knowledge_search(&input)),
+        "LegalReasoning" => from_value::<knowledge_tools::LegalReasoningInput>(input)
+            .and_then(|input| runners::run_legal_reasoning(&input)),
+        "LawQuery" => from_value::<knowledge_tools::LawQueryInput>(input)
+            .and_then(|input| runners::run_law_query(&input)),
+        "KnowledgeCard" => from_value::<knowledge_tools::KnowledgeCardInput>(input)
+            .and_then(|input| runners::run_knowledge_card(&input)),
+        "SuperReasoningPlan" => from_value::<knowledge_tools::SuperReasoningPlanInput>(input)
+            .and_then(|input| runners::run_super_reasoning_plan(&input)),
         _ => Err(format!("unsupported tool: {name}")),
     }
 }

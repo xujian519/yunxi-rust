@@ -1,4 +1,5 @@
 pub(crate) mod chat_view_ratatui;
+pub(crate) mod command_palette_ratatui;
 pub(crate) mod flow_hitl_overlay_ratatui;
 pub(crate) mod guide_overlay_ratatui;
 pub(crate) mod help_overlay_ratatui;

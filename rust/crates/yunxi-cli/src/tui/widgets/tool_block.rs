@@ -37,19 +37,19 @@ impl ToolBlockStatus {
     fn color(self) -> Color {
         match self {
             Self::Running | Self::Thinking => Color::Rgb(
-                ui_palette::BRAND_YUNXI.0,
-                ui_palette::BRAND_YUNXI.1,
-                ui_palette::BRAND_YUNXI.2,
+                ui_palette::active::brand_yunxi().0,
+                ui_palette::active::brand_yunxi().1,
+                ui_palette::active::brand_yunxi().2,
             ),
             Self::Success => Color::Rgb(
-                ui_palette::SUCCESS.0,
-                ui_palette::SUCCESS.1,
-                ui_palette::SUCCESS.2,
+                ui_palette::active::success().0,
+                ui_palette::active::success().1,
+                ui_palette::active::success().2,
             ),
             Self::Failed => Color::Rgb(
-                ui_palette::ERROR.0,
-                ui_palette::ERROR.1,
-                ui_palette::ERROR.2,
+                ui_palette::active::error().0,
+                ui_palette::active::error().1,
+                ui_palette::active::error().2,
             ),
         }
     }
@@ -73,19 +73,19 @@ impl Widget for ToolBlock<'_> {
         }
 
         let primary = Color::Rgb(
-            ui_palette::TEXT_PRIMARY.0,
-            ui_palette::TEXT_PRIMARY.1,
-            ui_palette::TEXT_PRIMARY.2,
+            ui_palette::active::text_primary().0,
+            ui_palette::active::text_primary().1,
+            ui_palette::active::text_primary().2,
         );
         let secondary = Color::Rgb(
-            ui_palette::TEXT_SECONDARY.0,
-            ui_palette::TEXT_SECONDARY.1,
-            ui_palette::TEXT_SECONDARY.2,
+            ui_palette::active::text_secondary().0,
+            ui_palette::active::text_secondary().1,
+            ui_palette::active::text_secondary().2,
         );
         let muted = Color::Rgb(
-            ui_palette::TEXT_MUTED.0,
-            ui_palette::TEXT_MUTED.1,
-            ui_palette::TEXT_MUTED.2,
+            ui_palette::active::text_muted().0,
+            ui_palette::active::text_muted().1,
+            ui_palette::active::text_muted().2,
         );
 
         // 背景块

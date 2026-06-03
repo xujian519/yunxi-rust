@@ -498,7 +498,7 @@ pub fn execute_template_library(input: TemplateLibraryInput) -> Result<serde_jso
             // 检查必填变量
             let mut missing_vars = Vec::new();
             for var in &template.required_vars {
-                if !variables.contains_key(*var) {
+                if !variables.contains_key(var) {
                     missing_vars.push(var.to_string());
                 }
             }
@@ -511,7 +511,7 @@ pub fn execute_template_library(input: TemplateLibraryInput) -> Result<serde_jso
             }
 
             // 渲染模板
-            let mut rendered = String::from(template.content);
+            let mut rendered = template.content.clone();
             let mut unfilled_vars = Vec::new();
 
             for (key, value) in &variables {

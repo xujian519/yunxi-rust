@@ -19,29 +19,29 @@ impl<'a> TitleBar<'a> {
 impl Widget for TitleBar<'_> {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
         let bg = Color::Rgb(
-            ui_palette::BG_SECONDARY.0,
-            ui_palette::BG_SECONDARY.1,
-            ui_palette::BG_SECONDARY.2,
+            ui_palette::active::bg_secondary().0,
+            ui_palette::active::bg_secondary().1,
+            ui_palette::active::bg_secondary().2,
         );
         let muted = Color::Rgb(
-            ui_palette::TEXT_MUTED.0,
-            ui_palette::TEXT_MUTED.1,
-            ui_palette::TEXT_MUTED.2,
+            ui_palette::active::text_muted().0,
+            ui_palette::active::text_muted().1,
+            ui_palette::active::text_muted().2,
         );
         let secondary = Color::Rgb(
-            ui_palette::TEXT_SECONDARY.0,
-            ui_palette::TEXT_SECONDARY.1,
-            ui_palette::TEXT_SECONDARY.2,
+            ui_palette::active::text_secondary().0,
+            ui_palette::active::text_secondary().1,
+            ui_palette::active::text_secondary().2,
         );
         let primary = Color::Rgb(
-            ui_palette::TEXT_PRIMARY.0,
-            ui_palette::TEXT_PRIMARY.1,
-            ui_palette::TEXT_PRIMARY.2,
+            ui_palette::active::text_primary().0,
+            ui_palette::active::text_primary().1,
+            ui_palette::active::text_primary().2,
         );
         let brand = Color::Rgb(
-            ui_palette::BRAND_YUNXI.0,
-            ui_palette::BRAND_YUNXI.1,
-            ui_palette::BRAND_YUNXI.2,
+            ui_palette::active::brand_yunxi().0,
+            ui_palette::active::brand_yunxi().1,
+            ui_palette::active::brand_yunxi().2,
         );
 
         let brand_icon = Span::styled(
@@ -103,9 +103,9 @@ impl Widget for TitleBar<'_> {
             let sep = Block::default()
                 .borders(Borders::BOTTOM)
                 .border_style(Style::default().fg(Color::Rgb(
-                    ui_palette::BORDER.0,
-                    ui_palette::BORDER.1,
-                    ui_palette::BORDER.2,
+                    ui_palette::active::border().0,
+                    ui_palette::active::border().1,
+                    ui_palette::active::border().2,
                 )));
             sep.render(sep_area, buf);
         }

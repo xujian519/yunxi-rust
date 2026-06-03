@@ -9,7 +9,12 @@ pub struct DebounceConfig {
 }
 
 impl Default for DebounceConfig {
-    fn default() -> Self { Self { delay: Duration::from_millis(50), max_events: 100 } }
+    fn default() -> Self {
+        Self {
+            delay: Duration::from_millis(50),
+            max_events: 100,
+        }
+    }
 }
 
 pub struct EventHandler {
@@ -20,7 +25,11 @@ pub struct EventHandler {
 
 impl EventHandler {
     pub fn new() -> Self {
-        Self { queue: VecDeque::new(), debounce: DebounceConfig::default(), last_process: Instant::now() }
+        Self {
+            queue: VecDeque::new(),
+            debounce: DebounceConfig::default(),
+            last_process: Instant::now(),
+        }
     }
 
     pub fn with_debounce(mut self, config: DebounceConfig) -> Self {
@@ -48,13 +57,21 @@ impl EventHandler {
         self.queue.drain(..).collect()
     }
 
-    pub fn len(&self) -> usize { self.queue.len() }
-    pub fn is_empty(&self) -> bool { self.queue.is_empty() }
-    pub fn clear(&mut self) { self.queue.clear(); }
+    pub fn len(&self) -> usize {
+        self.queue.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+    pub fn clear(&mut self) {
+        self.queue.clear();
+    }
 }
 
 impl Default for EventHandler {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -76,9 +93,14 @@ mod tests {
 
     #[test]
     fn test_max_queue() {
-        let config = DebounceConfig { delay: Duration::from_millis(0), max_events: 3 };
+        let config = DebounceConfig {
+            delay: Duration::from_millis(0),
+            max_events: 3,
+        };
         let mut h = EventHandler::new().with_debounce(config);
-        for _ in 0..5 { h.push(make_event()); }
+        for _ in 0..5 {
+            h.push(make_event());
+        }
         assert_eq!(h.len(), 3);
     }
 
