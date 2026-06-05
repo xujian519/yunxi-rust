@@ -161,11 +161,31 @@ impl Component for CommandPalette {
             return;
         }
 
-        let bg = Color::Rgb(active::bg_secondary().0, active::bg_secondary().1, active::bg_secondary().2);
-        let fg = Color::Rgb(active::text_primary().0, active::text_primary().1, active::text_primary().2);
-        let muted = Color::Rgb(active::text_muted().0, active::text_muted().1, active::text_muted().2);
-        let accent = Color::Rgb(active::brand_yunxi().0, active::brand_yunxi().1, active::brand_yunxi().2);
-        let border = Color::Rgb(active::border_focus().0, active::border_focus().1, active::border_focus().2);
+        let bg = Color::Rgb(
+            active::bg_secondary().0,
+            active::bg_secondary().1,
+            active::bg_secondary().2,
+        );
+        let fg = Color::Rgb(
+            active::text_primary().0,
+            active::text_primary().1,
+            active::text_primary().2,
+        );
+        let muted = Color::Rgb(
+            active::text_muted().0,
+            active::text_muted().1,
+            active::text_muted().2,
+        );
+        let accent = Color::Rgb(
+            active::brand_yunxi().0,
+            active::brand_yunxi().1,
+            active::brand_yunxi().2,
+        );
+        let border = Color::Rgb(
+            active::border_focus().0,
+            active::border_focus().1,
+            active::border_focus().2,
+        );
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)

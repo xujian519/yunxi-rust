@@ -2,6 +2,9 @@
 //!
 //! 管理推理过程中的假设生成、去重和置信度更新。
 
+#[cfg(feature = "semantic")]
+use std::sync::Arc;
+
 /// 推理假设
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Hypothesis {
@@ -17,6 +20,12 @@ pub struct HypothesisManager {
     hypotheses: Vec<Hypothesis>,
     next_id: usize,
     max_hypotheses: usize,
+    /// 可选的 embedding 服务（用于语义去重）
+    #[cfg(feature = "semantic")]
+    embedding_svc: Option<Arc<embedding::service::EmbeddingService>>,
+    /// 余弦相似度阈值（默认 0.85）
+    #[cfg(feature = "semantic")]
+    similarity_threshold: f64,
 }
 
 impl HypothesisManager {
@@ -25,7 +34,23 @@ impl HypothesisManager {
             hypotheses: Vec::new(),
             next_id: 1,
             max_hypotheses,
+            #[cfg(feature = "semantic")]
+            embedding_svc: None,
+            #[cfg(feature = "semantic")]
+            similarity_threshold: 0.85,
         }
+    }
+
+    /// 注入 embedding 服务以启用语义去重
+    #[cfg(feature = "semantic")]
+    pub fn with_embedding(
+        mut self,
+        svc: Arc<embedding::service::EmbeddingService>,
+        threshold: f64,
+    ) -> Self {
+        self.embedding_svc = Some(svc);
+        self.similarity_threshold = threshold.clamp(0.7, 0.95);
+        self
     }
 
     /// 添加假设
@@ -80,8 +105,31 @@ impl HypothesisManager {
         })
     }
 
-    /// 检测重复假设（简化：基于 claim 文本完全匹配）
+    /// 检测重复假设
+    ///
+    /// 启用 `semantic` feature 且注入了 embedding 服务时，使用余弦相似度做语义去重；
+    /// 否则回退到精确字符串匹配。
     pub fn is_duplicate(&self, claim: &str) -> bool {
+        #[cfg(feature = "semantic")]
+        {
+            if let Some(ref svc) = self.embedding_svc {
+                if let Ok(claim_vec) = svc.encode(claim) {
+                    for h in &self.hypotheses {
+                        if let Ok(h_vec) = svc.encode(&h.claim) {
+                            let sim =
+                                f64::from(embedding::service::EmbeddingService::cosine_similarity(
+                                    &claim_vec, &h_vec,
+                                ));
+                            if sim >= self.similarity_threshold {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+        // 回退到精确字符串匹配
         self.hypotheses.iter().any(|h| h.claim == claim)
     }
 

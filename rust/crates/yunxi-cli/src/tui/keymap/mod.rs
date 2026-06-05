@@ -9,7 +9,10 @@ pub use key_sequence::{KeySequence, SequenceTracker};
 pub use keys::{Key, KeyBinding};
 
 use crate::tui::core::action::Action;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -349,6 +352,49 @@ impl KeyMap {
     pub fn get_timeout(&self) -> Duration {
         *self.tracker.timeout()
     }
+
+    pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
+        let config = KeyMapConfig {
+            bindings: self
+                .list_all_bindings()
+                .into_iter()
+                .map(|b| BindingConfig {
+                    sequence: b.sequence,
+                    command: b.command,
+                    context: b.context,
+                    description: b.description,
+                })
+                .collect(),
+        };
+        let json =
+            serde_json::to_string_pretty(&config).map_err(|e| format!("序列化失败: {}", e))?;
+        fs::write(path, json).map_err(|e| format!("写入文件失败: {}", e))?;
+        Ok(())
+    }
+
+    pub fn load_from_file(&mut self, path: &Path) -> Result<(), String> {
+        let json = fs::read_to_string(path).map_err(|e| format!("读取文件失败: {}", e))?;
+        let config: KeyMapConfig =
+            serde_json::from_str(&json).map_err(|e| format!("解析失败: {}", e))?;
+
+        for binding in config.bindings {
+            self.bind(binding.sequence, binding.command, binding.context);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BindingConfig {
+    sequence: KeySequence,
+    command: String,
+    context: KeyContext,
+    description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct KeyMapConfig {
+    bindings: Vec<BindingConfig>,
 }
 
 impl Default for KeyMap {
@@ -503,5 +549,47 @@ mod tests {
         keymap.set_context_priority(priority);
 
         assert_eq!(keymap.get_context_priority().current, KeyContext::Editor);
+    }
+
+    #[test]
+    fn test_save_and_load_keymap() {
+        let mut keymap = KeyMap::new();
+        let seq = KeySequence::single(KeyBinding::ctrl(Key::Char('t')));
+        keymap.bind(seq.clone(), "TestCommand", KeyContext::Global);
+
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("yunxi_test_keymap.json");
+
+        keymap.save_to_file(&path).expect("保存失败");
+        assert!(path.exists());
+
+        let mut loaded = KeyMap::new();
+        loaded.load_from_file(&path).expect("加载失败");
+
+        let resolved = loaded.resolve(KeyContext::Global, &seq);
+        assert_eq!(resolved, Some("TestCommand".to_string()));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_save_keymap_overrides_defaults() {
+        let mut keymap = KeyMap::new();
+        let seq = KeySequence::single(KeyBinding::ctrl(Key::Char('q')));
+
+        keymap.bind(seq.clone(), "CustomQuit", KeyContext::Global);
+
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("yunxi_test_keymap_override.json");
+
+        keymap.save_to_file(&path).expect("保存失败");
+
+        let mut loaded = KeyMap::new();
+        loaded.load_from_file(&path).expect("加载失败");
+
+        let resolved = loaded.resolve(KeyContext::Global, &seq);
+        assert_eq!(resolved, Some("CustomQuit".to_string()));
+
+        let _ = std::fs::remove_file(&path);
     }
 }

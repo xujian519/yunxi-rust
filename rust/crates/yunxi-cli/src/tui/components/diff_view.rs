@@ -2,6 +2,7 @@ use super::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
 use crate::tui::diff::{DiffChange, DiffParser};
+use crate::tui::theme::Theme;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -10,13 +11,43 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-const ADDED_BG: Color = Color::Rgb(33, 58, 43);
-const ADDED_FG: Color = Color::Rgb(152, 195, 121);
-const DELETED_BG: Color = Color::Rgb(74, 34, 29);
-const DELETED_FG: Color = Color::Rgb(224, 108, 117);
-const MODIFIED_BG: Color = Color::Rgb(89, 73, 33);
-const MODIFIED_FG: Color = Color::Rgb(229, 192, 123);
-const LINE_NUMBER_FG: Color = Color::Rgb(124, 111, 100);
+struct DiffColors {
+    added_bg: Color,
+    added_fg: Color,
+    deleted_bg: Color,
+    deleted_fg: Color,
+    modified_bg: Color,
+    modified_fg: Color,
+    line_number_fg: Color,
+}
+
+impl DiffColors {
+    fn from_theme(theme: &Theme) -> Self {
+        Self {
+            added_bg: Color::Rgb(33, 58, 43),
+            added_fg: theme.colors.success,
+            deleted_bg: Color::Rgb(74, 34, 29),
+            deleted_fg: theme.colors.error,
+            modified_bg: Color::Rgb(89, 73, 33),
+            modified_fg: theme.colors.warning,
+            line_number_fg: theme.colors.text_muted,
+        }
+    }
+
+    fn active() -> Self {
+        crate::tui::ui_palette::active::current()
+            .map(|t| Self::from_theme(&t))
+            .unwrap_or_else(|| Self {
+                added_bg: Color::Rgb(33, 58, 43),
+                added_fg: Color::Rgb(152, 195, 121),
+                deleted_bg: Color::Rgb(74, 34, 29),
+                deleted_fg: Color::Rgb(224, 108, 117),
+                modified_bg: Color::Rgb(89, 73, 33),
+                modified_fg: Color::Rgb(229, 192, 123),
+                line_number_fg: Color::Rgb(124, 111, 100),
+            })
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum DiffViewStyle {
@@ -116,22 +147,32 @@ impl DiffView {
     }
 
     fn render_line_number(&self, line_num: Option<usize>, width: u16) -> Line<'_> {
+        let colors = DiffColors::active();
         let num_str = line_num
             .map(|n| format!("{:>4}", n))
             .unwrap_or("    ".to_string());
         Line::from(Span::styled(
             format!("{} │", num_str),
-            Style::default().fg(LINE_NUMBER_FG),
+            Style::default().fg(colors.line_number_fg),
         ))
     }
 
     fn render_change_line(&self, change: &DiffChange, width: u16) -> Line<'_> {
+        let colors = DiffColors::active();
         let (text, style) = match change {
-            DiffChange::Added(s) => (s.clone(), Style::default().bg(ADDED_BG).fg(ADDED_FG)),
-            DiffChange::Deleted(s) => (s.clone(), Style::default().bg(DELETED_BG).fg(DELETED_FG)),
+            DiffChange::Added(s) => (
+                s.clone(),
+                Style::default().bg(colors.added_bg).fg(colors.added_fg),
+            ),
+            DiffChange::Deleted(s) => (
+                s.clone(),
+                Style::default().bg(colors.deleted_bg).fg(colors.deleted_fg),
+            ),
             DiffChange::Modified { old, .. } => (
                 old.clone(),
-                Style::default().bg(MODIFIED_BG).fg(MODIFIED_FG),
+                Style::default()
+                    .bg(colors.modified_bg)
+                    .fg(colors.modified_fg),
             ),
             DiffChange::Unchanged(s) => (s.clone(), Style::default()),
         };

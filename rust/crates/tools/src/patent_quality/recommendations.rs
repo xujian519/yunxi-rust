@@ -1,4 +1,6 @@
-use crate::patent_quality::types::{QualityScorerInput, ScorerIssue, ScorerRecommendation, ScorerQualityScores};
+use crate::patent_quality::types::{
+    QualityScorerInput, ScorerIssue, ScorerQualityScores, ScorerRecommendation,
+};
 
 pub(crate) fn scorer_generate_recommendations(
     input: &QualityScorerInput,

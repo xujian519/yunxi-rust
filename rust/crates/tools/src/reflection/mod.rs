@@ -3,6 +3,7 @@ use serde_json::Value;
 
 mod action_review;
 mod llm_reflection;
+pub mod reflection_llm_client;
 
 /// 反思结果。
 #[derive(Debug, Clone, Serialize)]
@@ -36,6 +37,9 @@ pub struct ReflectionConfig {
     pub enable_llm_reflection: bool,
     pub enable_action_review: bool,
     pub reflection_timeout_ms: u64,
+    /// 反思使用的 LLM 模型名称（可选）。
+    #[serde(default)]
+    pub reflection_model: Option<String>,
 }
 
 impl Default for ReflectionConfig {
@@ -46,6 +50,7 @@ impl Default for ReflectionConfig {
             enable_llm_reflection: true,
             enable_action_review: true,
             reflection_timeout_ms: 5000,
+            reflection_model: None,
         }
     }
 }

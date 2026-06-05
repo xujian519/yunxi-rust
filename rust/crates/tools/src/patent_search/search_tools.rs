@@ -70,10 +70,7 @@ fn load_db_config() -> (String, String, String, String) {
 pub fn patent_search(input: PatentSearchInput) -> Result<Value, String> {
     let limit = input.limit.unwrap_or(10).min(100);
     let offset = input.offset.unwrap_or(0);
-    let search_type = input
-        .search_type
-        .as_deref()
-        .unwrap_or("keyword");
+    let search_type = input.search_type.as_deref().unwrap_or("keyword");
 
     let (host, port, user, db) = load_db_config();
     let psql = psql_binary();
@@ -118,14 +115,7 @@ pub fn patent_search(input: PatentSearchInput) -> Result<Value, String> {
     };
 
     let output = std::process::Command::new(&psql)
-        .args([
-            "-h",
-            &host,
-            "-p",
-            &port,
-            "-U",
-            &user,
-        ])
+        .args(["-h", &host, "-p", &port, "-U", &user])
         .args(["-d", &db, "-t", "-A", "-F", "\t"])
         .arg("-c")
         .arg(&sql)

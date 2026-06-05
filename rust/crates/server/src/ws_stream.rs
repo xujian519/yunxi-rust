@@ -6,8 +6,12 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StreamEvent {
-    TextDelta { content: String },
-    ReasoningDelta { content: String },
+    TextDelta {
+        content: String,
+    },
+    ReasoningDelta {
+        content: String,
+    },
     ToolUse {
         id: String,
         name: String,
@@ -23,14 +27,18 @@ pub enum StreamEvent {
         output_tokens: u32,
     },
     MessageStop,
-    Error { message: String },
+    Error {
+        message: String,
+    },
     PermissionRequest {
         request_id: String,
         tool: String,
         input: String,
     },
     /// 非流式：完整 assistant 文本（HTTP server 回退）
-    AssistantMessage { content: String },
+    AssistantMessage {
+        content: String,
+    },
 }
 
 impl From<AssistantEvent> for StreamEvent {

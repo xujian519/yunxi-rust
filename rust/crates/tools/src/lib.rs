@@ -28,7 +28,9 @@ mod skill;
 mod spec;
 mod system_prompt;
 mod todo;
+mod tool_registry;
 mod tool_search;
+mod tool_trait;
 mod web;
 
 use serde_json::Value;
@@ -46,7 +48,9 @@ pub use constitutional_check::{
     ConstitutionalCheckTool,
 };
 pub use flow_tools::{flow_tool, lookup_flow_hitl_display, FlowHitlDisplayInfo};
-pub use spec::{ToolManifestEntry, ToolRegistry, ToolSource, ToolSpec};
+pub use spec::{ToolManifestEntry, ToolSource, ToolSpec};
+pub use tool_registry::{ToolRegistry, GLOBAL_REGISTRY};
+pub use tool_trait::ToolOutput;
 
 /// Returns the full set of tool specifications supported by YunXi.
 #[must_use]

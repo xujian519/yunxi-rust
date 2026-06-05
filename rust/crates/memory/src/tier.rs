@@ -272,6 +272,68 @@ impl TieredMemoryStore {
         })
     }
 
+    /// 带频率加权的层级迁移。
+    ///
+    /// 高频访问的记忆降级更慢：
+    ///   effective_age = actual_age / (1 + ln(access_count + 1))
+    /// access_count >= 10 的条目不会被降级。
+    pub fn run_tier_migration_with_frequency(&self) -> Result<TierMigrationReport, String> {
+        // Hot → Warm: effective_age > 1 天 AND access_count < 10
+        let hot_to_warm = self.downgrade_with_frequency(MemoryTier::Hot, 1, MemoryTier::Warm)?;
+        // Warm → Cold: effective_age > 7 天 AND access_count < 10
+        let warm_to_cold = self.downgrade_with_frequency(MemoryTier::Warm, 7, MemoryTier::Cold)?;
+        // Cold → evict: effective_age > 30 天（无频率保护）
+        let cold_evicted = self.evict_older_than(MemoryTier::Cold, 30)?;
+
+        Ok(TierMigrationReport {
+            hot_to_warm,
+            warm_to_cold,
+            cold_evicted,
+        })
+    }
+
+    /// 按频率加权执行层级降级。
+    ///
+    /// 频率保护规则：
+    /// - access_count >= 10 的条目跳过
+    /// - effective_age = actual_age / (1 + ln(access_count + 1))
+    fn downgrade_with_frequency(
+        &self,
+        from_tier: MemoryTier,
+        max_days: u32,
+        to_tier: MemoryTier,
+    ) -> Result<usize, String> {
+        let filter = TieredMemoryFilter {
+            tier: Some(from_tier),
+            ..Default::default()
+        };
+        let entries = self.query(filter)?;
+
+        let cutoff = Utc::now() - chrono::Duration::days(max_days as i64);
+        let mut to_downgrade = Vec::new();
+
+        for entry in entries {
+            // 高频保护：access_count >= 10 不降级
+            if entry.access_count >= 10 {
+                continue;
+            }
+            // 频率加权：有效年龄 = 实际年龄 / (1 + ln(access_count + 1))
+            let age_days = (Utc::now() - entry.accessed_at).num_days().max(0) as f64;
+            let freq_factor = 1.0 + (entry.access_count as f64 + 1.0).ln();
+            let effective_age = age_days / freq_factor;
+
+            if entry.accessed_at < cutoff || effective_age > max_days as f64 {
+                to_downgrade.push(entry.id.clone());
+            }
+        }
+
+        let count = to_downgrade.len();
+        for id in to_downgrade {
+            self.update_tier(&id, to_tier)?;
+        }
+        Ok(count)
+    }
+
     fn init_schema(&self) -> Result<(), String> {
         self.conn
             .execute_batch(
@@ -460,5 +522,56 @@ mod tests {
 
         let report = store.run_tier_migration().unwrap();
         assert!(report.cold_evicted > 0);
+    }
+
+    #[test]
+    fn test_frequency_migration_protects_hot_entries() {
+        let (_dir, store) = temp_db();
+
+        // 创建高频条目 (access_count = 15)
+        let mut hot_entry = make_entry("hot-freq", MemoryTier::Hot, "a");
+        hot_entry.access_count = 15;
+        store.store(&hot_entry).unwrap();
+
+        // 创建低频条目 (access_count = 2)
+        let mut cold_entry = make_entry("cold-rare", MemoryTier::Hot, "a");
+        cold_entry.access_count = 2;
+        store.store(&cold_entry).unwrap();
+
+        // 修改访问时间为很久以前
+        let old = (Utc::now() - chrono::Duration::days(100)).to_rfc3339();
+        store
+            .conn
+            .execute("UPDATE tiered_memories SET accessed_at = ?1", params![old])
+            .unwrap();
+
+        let report = store.run_tier_migration_with_frequency().unwrap();
+
+        // 高频条目应保留在 Hot
+        let loaded_freq = store.retrieve("hot-freq").unwrap().unwrap();
+        assert_eq!(loaded_freq.tier, MemoryTier::Hot, "高频条目不应被降级");
+
+        // 低频条目应已降级
+        assert!(report.hot_to_warm >= 1, "应有低频条目被降级");
+    }
+
+    #[test]
+    fn test_frequency_migration_migrates_cold_entries() {
+        let (_dir, store) = temp_db();
+
+        // 创建低频 Warm 条目
+        let mut warm_entry = make_entry("warm-old", MemoryTier::Warm, "a");
+        warm_entry.access_count = 1;
+        store.store(&warm_entry).unwrap();
+
+        // 修改访问时间为很久以前
+        let old = (Utc::now() - chrono::Duration::days(100)).to_rfc3339();
+        store
+            .conn
+            .execute("UPDATE tiered_memories SET accessed_at = ?1", params![old])
+            .unwrap();
+
+        let report = store.run_tier_migration_with_frequency().unwrap();
+        assert!(report.warm_to_cold >= 1, "低频旧条目应被降级到 Cold");
     }
 }

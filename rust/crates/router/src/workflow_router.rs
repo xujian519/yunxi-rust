@@ -2,9 +2,12 @@
 //!
 //! 根据领域和复杂度推荐工作流、工具和智能体。
 
+use std::sync::Arc;
+
 use crate::complexity::ComplexityAssessor;
 use crate::config::RoutingConfig;
 use crate::detector::DomainDetector;
+use crate::hebbian_hint::HebbianPathHint;
 use crate::types::{Complexity, Domain, RoutingDecision, WorkflowType};
 use intent::IntentClassifier;
 
@@ -13,6 +16,8 @@ pub struct WorkflowRouter {
     config: RoutingConfig,
     detector: DomainDetector,
     assessor: ComplexityAssessor,
+    /// Hebbian 路径提示（可选）
+    hebbian: Option<Arc<dyn HebbianPathHint>>,
 }
 
 impl WorkflowRouter {
@@ -21,7 +26,14 @@ impl WorkflowRouter {
             config,
             detector: DomainDetector::new(),
             assessor: ComplexityAssessor::new(),
+            hebbian: None,
         }
+    }
+
+    /// 注入 Hebbian 路径提示（builder 风格）。
+    pub fn with_hebbian(mut self, hint: Arc<dyn HebbianPathHint>) -> Self {
+        self.hebbian = Some(hint);
+        self
     }
 
     /// 对用户输入进行完整路由决策
@@ -48,6 +60,19 @@ impl WorkflowRouter {
         Self::augment_tools_for_intent(&mut suggested_tools, intent_hint.intent.to_athena_name());
         if embedding::semantic_enabled() {
             Self::augment_semantic_tools(&mut suggested_tools);
+        }
+
+        // Hebbian 增强：基于已有工具列表的协同调用模式
+        if let Some(ref hebbian) = self.hebbian {
+            for tool in suggested_tools.clone() {
+                if let Some(extra) = hebbian.optimal_path(&tool) {
+                    for (suggested, strength) in extra {
+                        if strength >= 0.3 && !suggested_tools.iter().any(|t| t == &suggested) {
+                            suggested_tools.push(suggested);
+                        }
+                    }
+                }
+            }
         }
 
         let workflow = match complexity {

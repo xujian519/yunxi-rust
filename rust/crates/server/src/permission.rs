@@ -1,7 +1,7 @@
 //! HTTP Server 权限等待与提示器。
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{mpsc, Arc, Mutex};
 
 use runtime::{PermissionPromptDecision, PermissionPrompter, PermissionRequest};
 

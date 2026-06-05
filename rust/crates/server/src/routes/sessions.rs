@@ -74,7 +74,8 @@ pub async fn save_session(
     Json(body): Json<SessionSaveBody>,
 ) -> Result<Json<SessionSaveResponse>, (StatusCode, String)> {
     let path = std::env::temp_dir().join(format!("yunxi-validate-{id}.json"));
-    std::fs::write(&path, &body.session_json).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    std::fs::write(&path, &body.session_json)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     let session = runtime::Session::load_from_path(&path)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     let _ = std::fs::remove_file(&path);

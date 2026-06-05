@@ -44,9 +44,8 @@ pub(crate) fn run_internal_prompt_text(
         .map_err(|_| "runtime lock poisoned")?
         .session()
         .clone();
-    let workspace_root = crate::session_mgr::workspace_root().unwrap_or_else(|_| {
-        env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-    });
+    let workspace_root = crate::session_mgr::workspace_root()
+        .unwrap_or_else(|_| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     run_internal_prompt_text_for_session(
         session,
         model,

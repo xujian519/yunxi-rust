@@ -10,6 +10,7 @@ publish.workspace = true
 api = { path = "../api" }
 embedding = { path = "../embedding" }
 knowledge = { path = "../knowledge" }
+memory = { path = "../memory" }
 patent-domain = { path = "../patent-domain" }
 reasoning = { path = "../reasoning" }
 runtime = { path = "../runtime" }

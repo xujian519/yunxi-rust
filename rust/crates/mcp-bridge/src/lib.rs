@@ -1,12 +1,31 @@
 //! MCP 工具发现与运行时调用（CLI / Server 共用）。
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 use api::ToolDefinition;
 use runtime::{McpServerManager, McpToolCallResult, McpTransport, RuntimeConfig};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+
+/// 全局共享 tokio Runtime。
+///
+/// 使用 OnceLock 确保整个进程只创建一个 Runtime 实例，
+/// 避免 call_tool() 每次调用都创建新 Runtime。
+static SHARED_RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+
+/// 获取全局共享 Runtime 的 handle。
+fn shared_runtime_handle() -> tokio::runtime::Handle {
+    shared_runtime().handle().clone()
+}
+
+/// 获取全局共享 Runtime。
+fn shared_runtime() -> &'static tokio::runtime::Runtime {
+    SHARED_RUNTIME.get_or_init(|| {
+        tokio::runtime::Runtime::new().expect("failed to create shared MCP runtime")
+    })
+}
 
 /// MCP 运行时：发现工具并代理调用。
 pub struct McpRuntime {
@@ -46,10 +65,17 @@ impl McpRuntime {
             })
             .collect();
 
-        let discovered = match tokio::runtime::Runtime::new() {
-            Ok(rt) => rt.block_on(manager.discover_tools()).unwrap_or_default(),
-            Err(_) => Vec::new(),
-        };
+        let rt = shared_runtime();
+        let discovered = rt
+            .block_on(async {
+                tokio::time::timeout(Duration::from_secs(30), manager.discover_tools())
+                    .await
+                    .unwrap_or_else(|_| {
+                        eprintln!("[mcp] 工具发现总超时（30s），跳过 MCP 工具加载");
+                        Ok(Vec::new())
+                    })
+            })
+            .unwrap_or_default();
 
         let mut counts: BTreeMap<String, usize> = BTreeMap::new();
         for tool in &discovered {
@@ -61,16 +87,22 @@ impl McpRuntime {
                 continue;
             }
             let count = counts.get(name).copied().unwrap_or(0);
+            let transport = cfg.transport();
+            let status = if count > 0 {
+                "ready".to_string()
+            } else if transport == McpTransport::Stdio
+                || transport == McpTransport::Sse
+                || transport == McpTransport::Http
+                || transport == McpTransport::Ws
+            {
+                "configured".to_string()
+            } else {
+                "unsupported".to_string()
+            };
             servers.push(McpServerStatus {
                 name: name.clone(),
-                transport: format!("{:?}", cfg.transport()),
-                status: if count > 0 {
-                    "ready".to_string()
-                } else if cfg.transport() == McpTransport::Stdio {
-                    "configured".to_string()
-                } else {
-                    "unsupported".to_string()
-                },
+                transport: format!("{transport:?}"),
+                status,
                 tool_count: count,
                 detail: None,
             });
@@ -107,12 +139,14 @@ impl McpRuntime {
     }
 
     /// 调用 MCP 工具并返回文本结果。
+    ///
+    /// 使用全局共享 Runtime，避免每次调用创建新 Runtime。
     pub fn call_tool(&self, name: &str, input: &str) -> Result<String, String> {
         let arguments = serde_json::from_str(input).map_err(|e| format!("invalid JSON: {e}"))?;
         let manager = Arc::clone(&self.manager);
         let name = name.to_string();
-        let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-        rt.block_on(async move {
+        let handle = shared_runtime_handle();
+        handle.block_on(async move {
             let mut guard = manager
                 .lock()
                 .map_err(|_| "MCP manager lock poisoned".to_string())?;
@@ -123,7 +157,9 @@ impl McpRuntime {
             if let Some(error) = response.error {
                 return Err(format!("MCP error: {}", error.message));
             }
-            let result = response.result.ok_or_else(|| "MCP empty result".to_string())?;
+            let result = response
+                .result
+                .ok_or_else(|| "MCP empty result".to_string())?;
             format_mcp_result(&result)
         })
     }
@@ -144,16 +180,24 @@ pub fn mcp_config_status(config: &RuntimeConfig) -> McpStatusReport {
         .mcp()
         .servers()
         .iter()
-        .map(|(name, cfg)| McpServerStatus {
-            name: name.clone(),
-            transport: format!("{:?}", cfg.transport()),
-            status: if cfg.transport() == McpTransport::Stdio {
+        .map(|(name, cfg)| {
+            let transport = cfg.transport();
+            let status = if transport == McpTransport::Stdio
+                || transport == McpTransport::Sse
+                || transport == McpTransport::Http
+                || transport == McpTransport::Ws
+            {
                 "configured".to_string()
             } else {
                 "unsupported".to_string()
-            },
-            tool_count: 0,
-            detail: None,
+            };
+            McpServerStatus {
+                name: name.clone(),
+                transport: format!("{transport:?}"),
+                status,
+                tool_count: 0,
+                detail: None,
+            }
         })
         .collect();
     McpStatusReport {

@@ -2,7 +2,7 @@
 
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::{Json, routing::post};
+use axum::{routing::post, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tools::{execute_tool, mvp_tool_specs};
@@ -53,8 +53,7 @@ pub async fn execute_tool_handler(
     State(_state): State<AppState>,
     Json(body): Json<ToolExecuteRequest>,
 ) -> Result<Json<ToolExecuteResponse>, (StatusCode, String)> {
-    let result = execute_tool(&body.name, &body.input)
-        .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    let result = execute_tool(&body.name, &body.input).map_err(|e| (StatusCode::BAD_REQUEST, e))?;
     Ok(Json(ToolExecuteResponse { result }))
 }
 

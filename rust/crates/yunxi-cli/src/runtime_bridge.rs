@@ -25,12 +25,7 @@ pub fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> 
 }
 
 pub fn build_system_prompt_for(root: PathBuf) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut sections = runtime::load_system_prompt(
-        root,
-        DEFAULT_DATE,
-        env::consts::OS,
-        "unknown",
-    )?;
+    let mut sections = runtime::load_system_prompt(root, DEFAULT_DATE, env::consts::OS, "unknown")?;
     if let Ok(section) = memory_bridge::build_memory_context_section() {
         if !section.is_empty() {
             sections.push(section);
@@ -64,7 +59,8 @@ pub fn build_runtime(
     allowed_tools: Option<AllowedToolSet>,
     permission_mode: PermissionMode,
 ) -> Result<ConversationRuntime<llm::LlmClient, CliToolExecutor>, Box<dyn std::error::Error>> {
-    let workspace_root = crate::session_mgr::workspace_root().unwrap_or_else(|_| PathBuf::from("."));
+    let workspace_root =
+        crate::session_mgr::workspace_root().unwrap_or_else(|_| PathBuf::from("."));
     build_runtime_with_workspace(
         session,
         model,
@@ -97,7 +93,7 @@ fn build_llm_and_executor(
     let llm = llm::LlmClient::new(model, enable_tools, emit_output, allowed_tools.clone())?
         .with_extra_tools(extra_tools);
     let executor = CliToolExecutor::new(allowed_tools, emit_output, Some(mcp));
-    let features = build_runtime_feature_config_for(workspace_root.clone())?;
+    let features = runtime_config.feature_config().clone();
     Ok((llm, executor, features))
 }
 
@@ -279,9 +275,7 @@ impl ToolExecutor for CliToolExecutor {
             .map_err(|error| ToolError::new(format!("invalid tool input JSON: {error}")))?;
         if McpRuntime::is_mcp_tool(tool_name) {
             if let Some(mcp) = &self.mcp {
-                return mcp
-                    .call_tool(tool_name, input)
-                    .map_err(ToolError::new);
+                return mcp.call_tool(tool_name, input).map_err(ToolError::new);
             }
             return Err(ToolError::new(format!(
                 "MCP tool `{tool_name}` is not available (no MCP runtime)"

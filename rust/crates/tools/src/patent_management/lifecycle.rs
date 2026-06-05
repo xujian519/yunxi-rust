@@ -372,12 +372,13 @@ fn handle_get_portfolio() -> Result<serde_json::Value, String> {
 
     patents.sort_by(|a, b| a.filing_date.cmp(&b.filing_date));
 
-    let status_counts: std::collections::HashMap<&str, usize> = patents
-        .iter()
-        .fold(std::collections::HashMap::new(), |mut acc, p| {
-            *acc.entry(p.status.as_str()).or_insert(0) += 1;
-            acc
-        });
+    let status_counts: std::collections::HashMap<&str, usize> =
+        patents
+            .iter()
+            .fold(std::collections::HashMap::new(), |mut acc, p| {
+                *acc.entry(p.status.as_str()).or_insert(0) += 1;
+                acc
+            });
 
     Ok(serde_json::json!({
         "total_patents": patents.len(),
@@ -433,7 +434,8 @@ struct Template {
 
 /// 内置模板
 fn get_builtin_templates() -> Vec<Template> {
-    serde_json::from_str(include_str!("builtin_templates.json")).expect("builtin templates JSON should be valid")
+    serde_json::from_str(include_str!("builtin_templates.json"))
+        .expect("builtin templates JSON should be valid")
 }
 
 /// 执行模板库操作

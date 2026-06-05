@@ -33,10 +33,7 @@ pub(crate) fn default_oauth_config() -> OAuthConfig {
 /// OAuth 凭据是否已保存。
 #[must_use]
 pub fn oauth_configured() -> bool {
-    runtime::load_oauth_credentials()
-        .ok()
-        .flatten()
-        .is_some()
+    runtime::load_oauth_credentials().ok().flatten().is_some()
 }
 
 pub fn run_login() -> Result<(), Box<dyn std::error::Error>> {

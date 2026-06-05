@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "anysearch": {
+      "command": "bash",
+      "args": [
+        ".pi/scripts/anysearch-mcp.sh"
+      ]
+    }
+  }
+}

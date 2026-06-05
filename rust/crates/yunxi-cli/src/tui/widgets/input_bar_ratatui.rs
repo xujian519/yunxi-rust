@@ -39,8 +39,16 @@ impl Widget for InputBarWidget<'_> {
             ui_palette::active::border().1,
             ui_palette::active::border().2,
         );
-        let selected_bg = Color::Rgb(74, 74, 106);
-        let description_color = Color::Rgb(160, 160, 176);
+        let selected_bg = Color::Rgb(
+            ui_palette::active::border_focus().0,
+            ui_palette::active::border_focus().1,
+            ui_palette::active::border_focus().2,
+        );
+        let description_color = Color::Rgb(
+            ui_palette::active::text_secondary().0,
+            ui_palette::active::text_secondary().1,
+            ui_palette::active::text_secondary().2,
+        );
 
         if let Some(menu) = self.slash_completion {
             for (i, item) in menu.matches.iter().take(6).enumerate() {
@@ -52,7 +60,11 @@ impl Widget for InputBarWidget<'_> {
                 };
                 let name_style = if is_selected {
                     Style::default()
-                        .fg(Color::Rgb(232, 232, 237))
+                        .fg(Color::Rgb(
+                            ui_palette::active::text_primary().0,
+                            ui_palette::active::text_primary().1,
+                            ui_palette::active::text_primary().2,
+                        ))
                         .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(primary)

@@ -13,4 +13,7 @@ pub use executor::{
 };
 pub use hypothesis::HypothesisManager;
 pub use monitor::{MetaCognitiveMonitor, ReasoningBudget};
-pub use pipeline::{PipelineConfig, ReasoningPhase, ReasoningPipeline, ReasoningStepOutput};
+pub use pipeline::{
+    PhaseReflectionResult, PhaseReflector, PipelineConfig, ReasoningPhase, ReasoningPipeline,
+    ReasoningStepOutput, ReflectionMemory,
+};

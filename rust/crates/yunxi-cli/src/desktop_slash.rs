@@ -14,14 +14,15 @@ use crate::format_report::{
     format_compact_report, format_cost_report, format_model_report, format_model_switch_report,
     format_permissions_report, format_permissions_switch_report, format_resume_report,
     format_status_report, init_claude_md, render_config_report, render_connect_report,
-    render_conversation_search, render_diff_report, render_export_text, render_memory_report,
-    render_session_list, render_teleport_report, render_last_tool_debug_report,
-    resolve_export_path, status_context, undo_last_interaction, StatusUsage,
+    render_conversation_search, render_diff_report, render_export_text,
+    render_last_tool_debug_report, render_memory_report, render_session_list,
+    render_teleport_report, resolve_export_path, status_context, undo_last_interaction,
+    StatusUsage,
 };
 use crate::init::initialize_repo;
 use crate::routing;
 use crate::runtime_bridge::build_system_prompt_for;
-use crate::session_mgr::{resolve_session_reference};
+use crate::session_mgr::resolve_session_reference;
 use crate::slash_sync::{
     bughunter_prompt, run_commit_for_session, run_issue_for_session, run_pr_for_session,
     ultraplan_prompt,
@@ -156,7 +157,11 @@ pub fn execute_desktop_slash(
             if let Some(model) = model {
                 let resolved = resolve_model_alias(&model).to_string();
                 SlashExecuteResult::Message {
-                    content: format_model_switch_report(&ctx.model, &resolved, session.messages.len()),
+                    content: format_model_switch_report(
+                        &ctx.model,
+                        &resolved,
+                        session.messages.len(),
+                    ),
                 }
             } else {
                 SlashExecuteResult::Message {
@@ -212,8 +217,8 @@ pub fn execute_desktop_slash(
             content: render_memory_report().map_err(|e| e.to_string())?,
         },
         SlashCommand::Export { path } => {
-            let export_path = resolve_export_path(path.as_deref(), &session)
-                .map_err(|e| e.to_string())?;
+            let export_path =
+                resolve_export_path(path.as_deref(), &session).map_err(|e| e.to_string())?;
             let text = render_export_text(&session);
             let count = session.messages.len();
             std::fs::write(&export_path, text).map_err(|e| e.to_string())?;
@@ -247,7 +252,8 @@ pub fn execute_desktop_slash(
             }
         }
         SlashCommand::Session { action, target } => {
-            let content = handle_session_subcommand(&ctx.session_id, action.as_deref(), target.as_deref())?;
+            let content =
+                handle_session_subcommand(&ctx.session_id, action.as_deref(), target.as_deref())?;
             SlashExecuteResult::Message { content }
         }
         SlashCommand::Resume { session_path } => {
@@ -396,7 +402,9 @@ pub fn run_init_claude_md() -> Result<String, String> {
 }
 
 /// 加载 MCP 配置状态。
-pub fn load_mcp_status(workspace_root: &PathBuf) -> Result<crate::mcp_runtime::McpStatusReport, String> {
+pub fn load_mcp_status(
+    workspace_root: &PathBuf,
+) -> Result<crate::mcp_runtime::McpStatusReport, String> {
     let config = ConfigLoader::default_for(workspace_root)
         .load()
         .map_err(|e| e.to_string())?;
@@ -404,21 +412,24 @@ pub fn load_mcp_status(workspace_root: &PathBuf) -> Result<crate::mcp_runtime::M
 }
 
 fn aggregate_session_usage(session: &Session) -> TokenUsage {
-    session.messages.iter().fold(TokenUsage::default(), |acc, msg| {
-        let Some(u) = msg.usage else {
-            return acc;
-        };
-        TokenUsage {
-            input_tokens: acc.input_tokens.saturating_add(u.input_tokens),
-            output_tokens: acc.output_tokens.saturating_add(u.output_tokens),
-            cache_creation_input_tokens: acc
-                .cache_creation_input_tokens
-                .saturating_add(u.cache_creation_input_tokens),
-            cache_read_input_tokens: acc
-                .cache_read_input_tokens
-                .saturating_add(u.cache_read_input_tokens),
-        }
-    })
+    session
+        .messages
+        .iter()
+        .fold(TokenUsage::default(), |acc, msg| {
+            let Some(u) = msg.usage else {
+                return acc;
+            };
+            TokenUsage {
+                input_tokens: acc.input_tokens.saturating_add(u.input_tokens),
+                output_tokens: acc.output_tokens.saturating_add(u.output_tokens),
+                cache_creation_input_tokens: acc
+                    .cache_creation_input_tokens
+                    .saturating_add(u.cache_creation_input_tokens),
+                cache_read_input_tokens: acc
+                    .cache_read_input_tokens
+                    .saturating_add(u.cache_read_input_tokens),
+            }
+        })
 }
 
 fn count_assistant_turns(session: &Session) -> u32 {

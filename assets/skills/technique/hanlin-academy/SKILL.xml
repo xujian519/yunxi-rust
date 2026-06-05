@@ -1,0 +1,52 @@
+<skill id="hanlin-academy" layer="technique" version="1.0">
+  <identity>
+    多模型集体审议：将用户的问题同时交给多位国产顶尖 LLM「学士」，
+    匿名互评后由「大学士」综合提炼，输出高质量、多角度验证的最终答案。
+    命名取自古代汇聚天下学者的最高学术机构——翰林院。
+  </identity>
+
+  <parameters>
+    <param name="scholars" default="4">学士数量（2-6），每位学士来自不同的国产 LLM</param>
+    <param name="chairman_model" default="deepseek-ai/DeepSeek-V4-Pro">大学士模型，负责综合裁决</param>
+    <param name="timeout" default="120">单模型请求超时秒数</param>
+  </parameters>
+
+  <models>
+    <scholar id="S1" model="deepseek-ai/DeepSeek-V4-Flash" alias="DeepSeek V4 Flash" role="学士" strength="速度快、性价比高" />
+    <scholar id="S2" model="deepseek-ai/DeepSeek-V4-Pro" alias="DeepSeek V4 Pro" role="学士" strength="推理深度强、逻辑严密" />
+    <scholar id="S3" model="Pro/zai-org/GLM-5.1" alias="GLM-5.1" role="学士" strength="中文理解出色、知识面广" />
+    <scholar id="S4" model="Qwen/Qwen3.6-27B" alias="Qwen 3.6" role="学士" strength="通用能力强、均衡表现" />
+    <chairman model="deepseek-ai/DeepSeek-V4-Pro" alias="大学士" />
+  </models>
+
+  <process>
+    <step n="1" name="各抒己见">
+      将用户 query 原封不动并行发给所有学士模型。
+      收集各自的独立回答，任何学士失败不影响整体。
+    </step>
+    <step n="2" name="匿名互评">
+      将各学士的回答匿名化为 Response A/B/C/D。
+      每位学士评价其他学士的回答（不含自己），按准确性和洞察力排名。
+      计算 aggregate ranking（平均排名）。
+    </step>
+    <step n="3" name="综合定论">
+      大学士审阅所有回答 + 所有排名 + 综合排名。
+      综合考虑各学士观点、共识与分歧、排名权重。
+      输出单一的最终答案，代表翰林院的集体智慧。
+    </step>
+  </process>
+
+  <constraints>
+    - 学士数量不足 2 人时拒绝启动审议，提示用户调整配置
+    - Stage 1 失败的学士不参与 Stage 2 互评
+    - Stage 2 匿名化必须完整：学士无法识别其他回答的来源
+    - 大学士不得复制任何单个学士的回答，必须综合提炼
+    - 所有 API 调用使用硅基流动（SiliconFlow）平台，Base URL: https://api.siliconflow.cn/v1
+  </constraints>
+
+  <fallback>
+    若仅 1 位学士成功返回 → 直接输出该学士的回答，附带说明"审议不充分"
+    若大学士失败 → 选择 aggregate ranking 最高的学士回答作为最终答案
+    若所有学士失败 → 返回错误信息，建议用户检查 API Key 和网络
+  </fallback>
+</skill>

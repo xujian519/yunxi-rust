@@ -20,6 +20,8 @@ pub(crate) struct MessageBubble<'a> {
     pub role: ChatRole,
     pub content: &'a str,
     pub is_streaming: bool,
+    /// 思考过程内容（仅 Assistant 消息）
+    pub reasoning: Option<&'a str>,
 }
 
 impl Widget for MessageBubble<'_> {
@@ -158,6 +160,39 @@ impl Widget for MessageBubble<'_> {
         // ── 8. 组合所有行 ──
         let mut all_lines: Vec<Line> = Vec::new();
         all_lines.push(label_line);
+
+        // 渲染思考过程（如果存在）
+        if let Some(reasoning) = self.reasoning {
+            if !reasoning.is_empty() {
+                let thinking_color = Color::Rgb(
+                    ui_palette::active::text_muted().0,
+                    ui_palette::active::text_muted().1,
+                    ui_palette::active::text_muted().2,
+                );
+                let thinking_style = Style::default()
+                    .fg(thinking_color)
+                    .add_modifier(Modifier::ITALIC);
+
+                // 思考过程标题
+                all_lines.push(Line::from(vec![
+                    Span::styled("🧠 ", thinking_style),
+                    Span::styled("Thinking", thinking_style.add_modifier(Modifier::BOLD)),
+                ]));
+
+                // 思考过程内容
+                for line in reasoning.lines() {
+                    all_lines.push(Line::from(Span::styled(line, thinking_style)));
+                }
+
+                // 分隔线
+                let sep_c = ui_palette::active::border();
+                all_lines.push(Line::from(Span::styled(
+                    "─".repeat(inner_area.width as usize),
+                    Style::default().fg(Color::Rgb(sep_c.0, sep_c.1, sep_c.2)),
+                )));
+            }
+        }
+
         all_lines.extend(body.lines.into_iter().map(|l| {
             let spans: Vec<Span> = l
                 .spans
@@ -194,5 +229,63 @@ impl Widget for MessageBubble<'_> {
             .style(Style::default().bg(bg_color));
 
         paragraph.render(inner_area, buf);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    #[test]
+    fn renders_assistant_message_with_reasoning() {
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                MessageBubble {
+                    role: ChatRole::Assistant,
+                    content: "Final answer",
+                    is_streaming: false,
+                    reasoning: Some("Let me think...\nStep 1: Analyze\nStep 2: Solve"),
+                }
+                .render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn renders_message_without_reasoning() {
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                MessageBubble {
+                    role: ChatRole::Assistant,
+                    content: "Simple answer",
+                    is_streaming: false,
+                    reasoning: None,
+                }
+                .render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn ignores_empty_reasoning() {
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                MessageBubble {
+                    role: ChatRole::Assistant,
+                    content: "Answer",
+                    is_streaming: false,
+                    reasoning: Some(""),
+                }
+                .render(f.area(), f.buffer_mut());
+            })
+            .unwrap();
     }
 }

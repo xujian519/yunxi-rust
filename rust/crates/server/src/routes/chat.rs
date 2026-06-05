@@ -18,9 +18,7 @@ pub async fn ws_handler(State(state): State<AppState>, ws: WebSocketUpgrade) -> 
 }
 
 async fn handle_socket(mut socket: WebSocket, state: AppState) {
-    let _ = socket
-        .send(Message::Text(json_connect_msg().into()))
-        .await;
+    let _ = socket.send(Message::Text(json_connect_msg().into())).await;
 
     while let Some(result) = socket.recv().await {
         match result {
@@ -125,11 +123,9 @@ async fn handle_text_message(text: &str, state: &AppState) -> Option<Vec<String>
                 }
                 let assistant = final_assistant_text(&summary);
                 if !assistant.is_empty() {
-                    out.push(
-                        stream_event_json(&StreamEvent::AssistantMessage {
-                            content: assistant,
-                        }),
-                    );
+                    out.push(stream_event_json(&StreamEvent::AssistantMessage {
+                        content: assistant,
+                    }));
                 }
             }
 
@@ -148,13 +144,11 @@ async fn handle_text_message(text: &str, state: &AppState) -> Option<Vec<String>
             }
             None
         }
-        _ => Some(vec![
-            serde_json::json!({
-                "type": "error",
-                "message": format!("未知的消息类型: {msg_type}")
-            })
-            .to_string(),
-        ]),
+        _ => Some(vec![serde_json::json!({
+            "type": "error",
+            "message": format!("未知的消息类型: {msg_type}")
+        })
+        .to_string()]),
     }
 }
 

@@ -100,3 +100,8 @@ assets/knowledge_graph/
 # --- 桌面 / 工具链本地产物 ---
 *.app
 .bundle/
+
+# --- 额外工具目录（勿提交） ---
+.omo/
+.workbuddy/
+llm-council-research/

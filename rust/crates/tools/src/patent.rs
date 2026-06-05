@@ -4,8 +4,8 @@
 //! 封装为 LLM 可调用的工具。
 
 use patent_domain::claim_parser::ClaimParser;
-use patent_domain::models::ClaimType;
 use patent_domain::drafting::DraftQualityReport;
+use patent_domain::models::ClaimType;
 use patent_domain::rule_engine::{CaseContext, QualitativeRuleEngine};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -480,10 +480,8 @@ pub struct KnowledgeGraphQueryOutput {
 
 use std::sync::OnceLock;
 
-static GUIDELINE_GRAPH: OnceLock<patent_domain::guideline_graph::GuidelineGraph> =
-    OnceLock::new();
-static LEGAL_GRAPH: OnceLock<patent_domain::guideline_graph::LegalKnowledgeGraph> =
-    OnceLock::new();
+static GUIDELINE_GRAPH: OnceLock<patent_domain::guideline_graph::GuidelineGraph> = OnceLock::new();
+static LEGAL_GRAPH: OnceLock<patent_domain::guideline_graph::LegalKnowledgeGraph> = OnceLock::new();
 
 fn get_graph_dir(input_dir: Option<&str>) -> String {
     if let Some(dir) = input_dir {
@@ -558,8 +556,8 @@ pub fn execute_knowledge_graph_query(input: &KnowledgeGraphQueryInput) -> Result
 }
 
 fn query_sqlite_kg(input: &KnowledgeGraphQueryInput, path: &str) -> Result<Value, String> {
-    let kg = patent_domain::sqlite_graph::SqliteKnowledgeGraph::open(path)
-        .map_err(|e| e.to_string())?;
+    let kg =
+        patent_domain::sqlite_graph::SqliteKnowledgeGraph::open(path).map_err(|e| e.to_string())?;
 
     let node_type = input.node_type.as_deref();
     let nodes = kg

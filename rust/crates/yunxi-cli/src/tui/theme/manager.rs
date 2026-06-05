@@ -11,13 +11,16 @@ pub struct ThemeManager {
 
 impl ThemeManager {
     pub fn new(registry: ThemeRegistry) -> Self {
-        let current = registry.get("default_dark");
-
         let config_path = std::env::var("HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("."))
             .join(".yunxi")
             .join("theme.toml");
+        Self::new_with_path(registry, config_path)
+    }
+
+    pub fn new_with_path(registry: ThemeRegistry, config_path: PathBuf) -> Self {
+        let current = registry.get("default_dark");
 
         let mut manager = Self {
             registry,
@@ -81,6 +84,14 @@ impl ThemeManager {
             .iter()
             .map(|t| t.name.clone())
             .collect()
+    }
+
+    pub fn preview_all(&self) -> Vec<String> {
+        self.registry.themes.iter().map(|t| t.preview()).collect()
+    }
+
+    pub fn preview_current(&self) -> String {
+        self.current.preview()
     }
 
     pub fn detect_system_theme() -> Option<bool> {
@@ -175,7 +186,10 @@ mod tests {
         registry.register(Theme::solarized_light());
         registry.register(Theme::monokai());
         registry.register(Theme::catppuccin());
-        ThemeManager::new(registry)
+        let temp_path =
+            std::env::temp_dir().join(format!("yunxi_test_theme_{}.toml", std::process::id()));
+        let _ = std::fs::remove_file(&temp_path);
+        ThemeManager::new_with_path(registry, temp_path)
     }
 
     #[test]
@@ -229,5 +243,23 @@ mod tests {
     fn test_default_manager() {
         let manager = ThemeManager::default();
         assert!(!manager.list_presets().is_empty());
+    }
+
+    #[test]
+    fn test_preview_current() {
+        let manager = create_test_manager();
+        let preview = manager.preview_current();
+        assert!(preview.contains("default_dark"));
+        assert!(preview.contains("\x1b[48;2;"));
+    }
+
+    #[test]
+    fn test_preview_all() {
+        let manager = create_test_manager();
+        let previews = manager.preview_all();
+        assert!(!previews.is_empty());
+        for preview in &previews {
+            assert!(preview.contains("\x1b[48;2;"));
+        }
     }
 }

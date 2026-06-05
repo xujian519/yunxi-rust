@@ -24,6 +24,8 @@ fn display_body(role: ChatRole, text: &str, plain: bool, renderer: &TerminalRend
 pub(crate) struct ChatEntry {
     pub role: ChatRole,
     pub text: String,
+    /// AI 推理过程（reasoning_delta），与最终回答分离存储。
+    pub reasoning: Option<String>,
 }
 
 /// 消息角色。
@@ -73,12 +75,30 @@ impl ChatView {
         }
     }
 
+    /// 追加 reasoning 文本到最新 assistant 条目（用于流式推理增量）。
+    pub(crate) fn append_reasoning_to_last(&mut self, text: &str) {
+        if let Some(last) = self.entries.last_mut() {
+            if last.role == ChatRole::Assistant {
+                match &mut last.reasoning {
+                    Some(r) => r.push_str(text),
+                    None => last.reasoning = Some(text.to_string()),
+                }
+            }
+        }
+    }
+
     #[must_use]
     pub(crate) fn last_assistant_has_content(&self) -> bool {
         self.entries
             .last()
             .filter(|entry| entry.role == ChatRole::Assistant)
-            .is_some_and(|entry| !entry.text.is_empty())
+            .is_some_and(|entry| {
+                !entry.text.is_empty() || entry.reasoning.as_ref().is_some_and(|r| !r.is_empty())
+            })
+    }
+
+    pub(crate) fn last_entry(&self) -> Option<&ChatEntry> {
+        self.entries.last()
     }
 
     pub(crate) fn set_last_assistant_text(&mut self, text: String) {
@@ -276,10 +296,12 @@ mod tests {
         view.push(ChatEntry {
             role: ChatRole::User,
             text: "你好".to_string(),
+            reasoning: None,
         });
         view.push(ChatEntry {
             role: ChatRole::Assistant,
             text: "你好！有什么可以帮你的？".to_string(),
+            reasoning: None,
         });
         assert_eq!(view.len(), 2);
 
@@ -294,10 +316,12 @@ mod tests {
         view.push(ChatEntry {
             role: ChatRole::User,
             text: "你好".to_string(),
+            reasoning: None,
         });
         view.push(ChatEntry {
             role: ChatRole::Assistant,
             text: "你好！".to_string(),
+            reasoning: None,
         });
         let text = view.transcript_text();
         assert!(text.contains("你: 你好"));
@@ -311,6 +335,7 @@ mod tests {
             view.push(ChatEntry {
                 role: ChatRole::User,
                 text: format!("消息 {i}"),
+                reasoning: None,
             });
         }
         view.scroll_down(5);
@@ -327,6 +352,7 @@ mod tests {
         view.push(ChatEntry {
             role: ChatRole::Assistant,
             text: "你好".to_string(),
+            reasoning: None,
         });
         view.append_to_last("世界");
         assert_eq!(view.entries[0].text, "你好世界");
@@ -350,6 +376,7 @@ mod tests {
         view.push(ChatEntry {
             role: ChatRole::Assistant,
             text: "# Title\n\n**bold** text".to_string(),
+            reasoning: None,
         });
         let rendered = view.render(Rect::new(0, 0, 80, 20));
         assert!(rendered.contains('\u{1b}'), "expected ANSI styling");
@@ -371,6 +398,7 @@ mod tests {
         view.push(ChatEntry {
             role: ChatRole::Assistant,
             text: banner,
+            reasoning: None,
         });
         let rendered = view.render(Rect::new(0, 0, 20, 10));
         assert!(

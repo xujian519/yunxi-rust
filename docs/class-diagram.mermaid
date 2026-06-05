@@ -1,0 +1,240 @@
+classDiagram
+    %% Phase 1: 反思引擎
+    class LLMReflectionReflector {
+        -config: ReflectionConfig
+        -llm_client: Option~Arc~Mutex~LlmClient~~
+        -memory: Option~Arc~UnifiedMemory~
+        +new(config, llm_client, memory) LLMReflectionReflector
+        +build_reflection_prompt(task, draft, criteria) String
+        +parse_reflection_output(llm_output) Tuple
+        -reflect_on_llm_output(draft, context) ReflectionResult
+    }
+    LLMReflectionReflector ..|> Reflector : implements
+
+    class Reflector {
+        <<trait>>
+        +reflect(action_result: Value, action_type: str) Result~ReflectionResult, String~
+        +should_retry(reflection, config) bool
+    }
+
+    class ReflectionConfig {
+        +max_retries: usize
+        +score_threshold: f64
+        +enable_llm_reflection: bool
+        +enable_action_review: bool
+        +reflection_timeout_ms: u64
+        +reflection_model: Option~String~
+    }
+
+    class ReflectionResult {
+        +action_type: String
+        +success: bool
+        +score: f64
+        +issues: Vec~ActionIssue~
+        +improvement_suggestions: Vec~String~
+        +should_retry: bool
+        +retry_strategy: Option~String~
+    }
+
+    class ReasoningPipeline {
+        -config: PipelineConfig
+        -reflector: Option~Arc~dyn Reflector~~
+        -memory: Option~Arc~UnifiedMemory~
+        +new(config) ReasoningPipeline
+        +with_reflector(reflector) ReasoningPipeline
+        +with_memory(memory) ReasoningPipeline
+        +plan(problem) Vec~ReasoningStepOutput~
+        +execute(problem, executor, budget) ReasoningExecutionResult
+        +execute_with_reflection(problem, executor, budget) ReasoningExecutionResult
+    }
+
+    class ConstitutionalEngine {
+        -rules: HashMap~String, ConstitutionalRules~
+        -llm_analyzer: Option~Arc~dyn ConstitutionalLlmAnalyzer~~
+        -llm_cache: HashMap~String, CachedLlmResult~
+        +new(rules) ConstitutionalEngine
+        +with_llm_analyzer(analyzer) ConstitutionalEngine
+        +check_all(tool_name, input_text, output_text, phase) Vec~RuleCheckResult~
+        -evaluate_rule(rule, tool_name, input_text, output_text) RuleCheckResult
+    }
+
+    class ConstitutionalLlmAnalyzer {
+        <<trait>>
+        +analyze(rule: ConstitutionalRule, input_text: str, output_text: Option~str~) Result~LlmAnalysisResult, String~
+    }
+
+    class CachedLlmResult {
+        +result: RuleCheckResult
+        +cached_at: DateTime~Utc~
+        +is_expired() bool
+    }
+
+    class LlmAnalysisResult {
+        +passed: bool
+        +details: Vec~String~
+        +confidence: f64
+    }
+
+    ConstitutionalEngine --> ConstitutionalLlmAnalyzer : uses
+    ConstitutionalEngine --> CachedLlmResult : caches
+
+    %% Phase 2: 闭环
+    class WorkflowRouter {
+        -config: RoutingConfig
+        -detector: DomainDetector
+        -assessor: ComplexityAssessor
+        -hebbian: Option~Arc~HebbianOptimizer~~
+        +new(config) WorkflowRouter
+        +with_hebbian(hebbian) WorkflowRouter
+        +route(input) RoutingDecision
+        -suggest_resources(domain, complexity) Tuple
+        -apply_hebbian_boost(tools, domain) Vec~String~
+    }
+
+    class IntentClassifier {
+        -use_embedding: bool
+        -memory: Option~Arc~UnifiedMemory~
+        -active_intents_config: Vec~IntentType~
+        +new(use_embedding) IntentClassifier
+        +with_memory(memory) IntentClassifier
+        +from_config(config_path) IntentClassifier
+        +classify(text) IntentResult
+        -classify_by_keywords(text) IntentResult
+        -classify_by_embedding(text) Option~IntentResult~
+        -apply_user_preference(result) IntentResult
+        +active_intents() Vec~IntentType~
+    }
+
+    class UnifiedMemory {
+        -file_store: Option~MemoryStore~
+        -tier_store: Option~TieredMemoryStore~
+        -vector_store: Option~VectorStore~
+        +new(file_store, tier_store, vector_store) UnifiedMemory
+        +remember(id, agent_id, content, session_id) Result
+        +retrieve(id) Result~Option~String~~
+        +search(query, limit) Vec~UnifiedMemoryEntry~
+        +search_semantic(query, limit) Vec~UnifiedMemoryEntry~
+        +search_combined(query, limit) Vec~UnifiedMemoryEntry~
+        +migrate() Result
+    }
+
+    WorkflowRouter --> HebbianOptimizer : reads
+    IntentClassifier --> UnifiedMemory : reads/writes
+    ReasoningPipeline --> UnifiedMemory : writes
+    UnifiedMemory --> VectorStore : delegates semantic search
+
+    %% Phase 3: MCP 远程传输
+    class McpTransportConnection {
+        <<trait>>
+        +connect() Result~()~
+        +send(request: JsonRpcRequest) Result~()~
+        +receive() Result~JsonRpcResponse~
+        +disconnect() Result~()~
+        +is_connected() bool
+    }
+
+    class SseTransport {
+        -url: String
+        -headers: BTreeMap~String, String~
+        -client: reqwest::Client
+        -event_stream: Option~EventStream~
+        +new(url, headers) SseTransport
+    }
+    SseTransport ..|> McpTransportConnection : implements
+
+    class HttpTransport {
+        -url: String
+        -headers: BTreeMap~String, String~
+        -client: reqwest::Client
+        +new(url, headers) HttpTransport
+    }
+    HttpTransport ..|> McpTransportConnection : implements
+
+    class WsTransport {
+        -url: String
+        -headers: BTreeMap~String, String~
+        -stream: Option~WebSocketStream~
+        +new(url, headers) WsTransport
+    }
+    WsTransport ..|> McpTransportConnection : implements
+
+    class ReconnectingTransport {
+        -inner: Box~dyn McpTransportConnection~
+        -max_retries: u32
+        -backoff: ExponentialBackoff
+        -state: ConnectionState
+        +new(inner, max_retries) ReconnectingTransport
+    }
+    ReconnectingTransport ..|> McpTransportConnection : implements
+    ReconnectingTransport --> McpTransportConnection : decorates
+
+    class McpConnectionPool {
+        -connections: HashMap~String, PooledConnection~
+        -runtime: tokio::runtime::Handle
+        -idle_timeout: Duration
+        +new(runtime, idle_timeout) McpConnectionPool
+        +get_or_create(server_name, config) Result~PooledConnection~
+        +release(server_name) Result
+    }
+
+    McpConnectionPool --> McpTransportConnection : manages
+
+    class McpServerManager {
+        -servers: BTreeMap~String, ManagedMcpServer~
+        -unsupported_servers: Vec~UnsupportedMcpServer~
+        -tool_index: BTreeMap~String, ToolRoute~
+        -connection_pool: Option~McpConnectionPool~
+        +from_runtime_config(config) McpServerManager
+        +discover_tools() Result~Vec~ManagedMcpTool~~
+        +call_tool(name, arguments) Result
+    }
+
+    McpServerManager --> McpConnectionPool : uses
+    McpServerManager --> McpTransportConnection : creates
+
+    %% Phase 4: P1 质量
+    class Tool {
+        <<trait>>
+        +name() &'static str
+        +execute(input: Value) Result~ToolOutput, ToolError~
+        +input_schema() Value
+        +output_schema() Option~Value~
+    }
+
+    class ToolOutput {
+        +code: ResultCode
+        +data: Value
+        +error: Option~String~
+        +metadata: HashMap~String, Value~
+        +to_string() String
+    }
+    ToolOutput ..|> Display : implements
+
+    class ToolError {
+        +message: String
+        +code: Option~String~
+    }
+
+    class ToolRegistry {
+        -tools: HashMap~String, Arc~dyn Tool~~
+        +register(tool: dyn Tool)
+        +get(name: str) Option~Arc~dyn Tool~~
+        +all() Vec~&'static str~
+    }
+
+    class HypothesisManager {
+        -hypotheses: Vec~Hypothesis~
+        -next_id: usize
+        -max_hypotheses: usize
+        -embedding_svc: Option~Arc~EmbeddingService~~
+        -similarity_threshold: f64
+        +new(max_hypotheses) HypothesisManager
+        +with_embedding(svc, threshold) HypothesisManager
+        +add(claim, confidence, round) Option~usize~
+        +is_duplicate(claim) bool
+        -is_duplicate_by_embedding(claim) bool
+        -is_duplicate_by_string(claim) bool
+    }
+
+    ToolRegistry --> Tool : stores
+    HypothesisManager --> EmbeddingService : uses for dedup

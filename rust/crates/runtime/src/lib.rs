@@ -9,6 +9,9 @@ mod hooks;
 mod json;
 mod mcp;
 mod mcp_client;
+mod mcp_pool;
+mod mcp_reconnect;
+mod mcp_remote;
 mod mcp_stdio;
 mod oauth;
 mod permissions;
@@ -49,6 +52,12 @@ pub use mcp::{
 pub use mcp_client::{
     McpClaudeAiProxyTransport, McpClientAuth, McpClientBootstrap, McpClientTransport,
     McpRemoteTransport, McpSdkTransport, McpStdioTransport,
+};
+pub use mcp_pool::{McpConnectionPool, SharedConnectionPool};
+pub use mcp_reconnect::ReconnectingTransport;
+pub use mcp_remote::{
+    build_jsonrpc_request, create_remote_transport, is_remote_transport, next_request_id,
+    transport_variant_name, McpTransportConnection,
 };
 pub use mcp_stdio::{
     spawn_mcp_stdio_process, JsonRpcError, JsonRpcId, JsonRpcRequest, JsonRpcResponse,

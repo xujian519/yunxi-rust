@@ -12,8 +12,10 @@ use ratatui::widgets::{Block, Paragraph, Widget};
 
 use crate::tui::ui_palette;
 
-/// 工具块背景色
-const TOOL_BLOCK_BG: Color = Color::Rgb(20, 20, 30);
+fn tool_block_bg() -> Color {
+    let c = ui_palette::active::bg_tertiary();
+    Color::Rgb(c.0, c.1, c.2)
+}
 
 /// 工具调用状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +66,7 @@ pub(crate) struct ToolBlock<'a> {
     pub error: Option<&'a str>,
     pub expanded: bool,
     pub output: Option<&'a str>,
+    pub focused: bool,
 }
 
 impl Widget for ToolBlock<'_> {
@@ -77,6 +80,11 @@ impl Widget for ToolBlock<'_> {
             ui_palette::active::text_primary().1,
             ui_palette::active::text_primary().2,
         );
+        let accent = Color::Rgb(
+            ui_palette::active::brand_yunxi().0,
+            ui_palette::active::brand_yunxi().1,
+            ui_palette::active::brand_yunxi().2,
+        );
         let secondary = Color::Rgb(
             ui_palette::active::text_secondary().0,
             ui_palette::active::text_secondary().1,
@@ -89,7 +97,13 @@ impl Widget for ToolBlock<'_> {
         );
 
         // 背景块
-        let block = Block::default().style(Style::default().bg(TOOL_BLOCK_BG));
+        let bg_color = if self.focused {
+            let c = ui_palette::active::border();
+            Color::Rgb(c.0, c.1, c.2)
+        } else {
+            tool_block_bg()
+        };
+        let block = Block::default().style(Style::default().bg(bg_color));
         block.render(area, buf);
 
         // 状态后缀
@@ -104,8 +118,14 @@ impl Widget for ToolBlock<'_> {
         let args = truncate_arguments(self.arguments);
 
         // 构建工具行
+        let focus_indicator = if self.focused {
+            Span::styled("▸ ", Style::default().fg(accent))
+        } else {
+            Span::styled("  ", Style::default())
+        };
+
         let tool_line = Line::from(vec![
-            Span::styled("  ", Style::default()),
+            focus_indicator,
             Span::styled(self.status.icon(), Style::default().fg(self.status.color())),
             Span::styled(" ", Style::default()),
             Span::styled(
@@ -117,7 +137,7 @@ impl Widget for ToolBlock<'_> {
             Span::styled(status_suffix, Style::default().fg(muted)),
         ]);
 
-        let paragraph = Paragraph::new(tool_line).style(Style::default().bg(TOOL_BLOCK_BG));
+        let paragraph = Paragraph::new(tool_line).style(Style::default().bg(bg_color));
         paragraph.render(area, buf);
 
         // 展开时显示输出
@@ -141,8 +161,8 @@ impl Widget for ToolBlock<'_> {
                             })
                             .collect();
 
-                        let output_para =
-                            Paragraph::new(output_lines).style(Style::default().bg(TOOL_BLOCK_BG));
+                        let output_para = Paragraph::new(output_lines)
+                            .style(Style::default().bg(tool_block_bg()));
                         output_para.render(output_area, buf);
                     }
                 }

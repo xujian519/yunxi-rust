@@ -4,7 +4,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
-use crate::{auth::AuthConfig, routes::build_routes, session_store::SessionStore, AppState, ServerConfig};
+use crate::{
+    auth::AuthConfig, routes::build_routes, session_store::SessionStore, AppState, ServerConfig,
+};
 use knowledge::UnifiedSearch;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -210,8 +212,12 @@ async fn sessions_create_and_load() {
         .await
         .unwrap();
     assert_eq!(create_res.status(), StatusCode::OK);
-    let created: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(create_res.into_body(), usize::MAX).await.unwrap()).unwrap();
+    let created: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(create_res.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     let id = created.get("id").and_then(|v| v.as_str()).unwrap();
 
     let load_res = app

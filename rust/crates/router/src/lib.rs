@@ -6,7 +6,9 @@
 pub mod complexity;
 pub mod config;
 pub mod detector;
+pub mod hebbian_hint;
 pub mod types;
 pub mod workflow_router;
 
+pub use hebbian_hint::HebbianPathHint;
 pub use types::{Complexity, Domain, RoutingDecision, WorkflowType};

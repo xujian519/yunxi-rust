@@ -1,9 +1,29 @@
 use super::keys::{Key, KeyBinding};
+use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeySequence {
     keys: Vec<KeyBinding>,
+}
+
+impl Serialize for KeySequence {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for KeySequence {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        KeySequence::from_str(&s).map_err(serde::de::Error::custom)
+    }
 }
 
 impl KeySequence {
@@ -72,20 +92,21 @@ impl KeySequence {
         use crossterm::event::KeyModifiers;
 
         let mut modifiers = KeyModifiers::empty();
-        let key_str = s;
+        let mut key_str = s;
 
-        if key_str.starts_with("Ctrl+") {
-            modifiers |= KeyModifiers::CONTROL;
-            let key_str = &key_str[5..];
-            return Ok(KeyBinding::new(Self::parse_key(key_str)?, modifiers));
-        } else if key_str.starts_with("Alt+") {
-            modifiers |= KeyModifiers::ALT;
-            let key_str = &key_str[4..];
-            return Ok(KeyBinding::new(Self::parse_key(key_str)?, modifiers));
-        } else if key_str.starts_with("Shift+") {
-            modifiers |= KeyModifiers::SHIFT;
-            let key_str = &key_str[6..];
-            return Ok(KeyBinding::new(Self::parse_key(key_str)?, modifiers));
+        while key_str.contains('+') {
+            if key_str.starts_with("Ctrl+") {
+                modifiers |= KeyModifiers::CONTROL;
+                key_str = &key_str[5..];
+            } else if key_str.starts_with("Alt+") {
+                modifiers |= KeyModifiers::ALT;
+                key_str = &key_str[4..];
+            } else if key_str.starts_with("Shift+") {
+                modifiers |= KeyModifiers::SHIFT;
+                key_str = &key_str[6..];
+            } else {
+                break;
+            }
         }
 
         Ok(KeyBinding::new(Self::parse_key(key_str)?, modifiers))
@@ -286,6 +307,32 @@ mod tests {
 
         let seq = KeySequence::from_str("g g").unwrap();
         assert_eq!(seq.len(), 2);
+    }
+
+    #[test]
+    fn test_key_sequence_combined_modifiers() {
+        use crossterm::event::KeyModifiers;
+
+        let seq = KeySequence::from_str("Ctrl+Alt+s").unwrap();
+        assert_eq!(seq.len(), 1);
+        let binding = seq.iter().next().unwrap();
+        assert_eq!(binding.key, Key::Char('s'));
+        assert!(binding.modifiers.contains(KeyModifiers::CONTROL));
+        assert!(binding.modifiers.contains(KeyModifiers::ALT));
+
+        let seq = KeySequence::from_str("Alt+Ctrl+s").unwrap();
+        assert_eq!(seq.len(), 1);
+        let binding = seq.iter().next().unwrap();
+        assert_eq!(binding.key, Key::Char('s'));
+        assert!(binding.modifiers.contains(KeyModifiers::CONTROL));
+        assert!(binding.modifiers.contains(KeyModifiers::ALT));
+
+        let seq = KeySequence::from_str("Ctrl+Shift+A").unwrap();
+        assert_eq!(seq.len(), 1);
+        let binding = seq.iter().next().unwrap();
+        assert_eq!(binding.key, Key::Char('A'));
+        assert!(binding.modifiers.contains(KeyModifiers::CONTROL));
+        assert!(binding.modifiers.contains(KeyModifiers::SHIFT));
     }
 
     #[test]

@@ -6,8 +6,8 @@ use std::sync::Arc;
 use llm::LlmClient;
 use memory::{build_context_section, DEFAULT_CONTEXT_LIMIT};
 use runtime::{
-    AssistantEvent, ConfigLoader, ContentBlock, ConversationRuntime, PermissionMode, PermissionPolicy,
-    PermissionPrompter, Session, ToolError, ToolExecutor, TurnSummary,
+    AssistantEvent, ConfigLoader, ContentBlock, ConversationRuntime, PermissionMode,
+    PermissionPolicy, PermissionPrompter, Session, ToolError, ToolExecutor, TurnSummary,
 };
 use serde_json::Value;
 use tools::{execute_tool, mvp_tool_specs};
@@ -25,10 +25,7 @@ pub struct ServerToolExecutor {
 impl ToolExecutor for ServerToolExecutor {
     fn execute(&mut self, tool_name: &str, input: &str) -> Result<String, ToolError> {
         if McpRuntime::is_mcp_tool(tool_name) {
-            return self
-                .mcp
-                .call_tool(tool_name, input)
-                .map_err(ToolError::new);
+            return self.mcp.call_tool(tool_name, input).map_err(ToolError::new);
         }
         let value: Value = serde_json::from_str(input)
             .map_err(|error| ToolError::new(format!("invalid tool input JSON: {error}")))?;
@@ -59,12 +56,8 @@ pub fn workspace_root() -> PathBuf {
 
 pub fn build_system_prompt(root: &PathBuf) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let working_date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let mut sections = runtime::load_system_prompt(
-        root.clone(),
-        &working_date,
-        std::env::consts::OS,
-        "unknown",
-    )?;
+    let mut sections =
+        runtime::load_system_prompt(root.clone(), &working_date, std::env::consts::OS, "unknown")?;
     let memory = memory_context_section();
     if !memory.is_empty() {
         sections.push(memory);

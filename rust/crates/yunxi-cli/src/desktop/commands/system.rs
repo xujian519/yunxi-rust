@@ -70,7 +70,8 @@ pub fn execute_slash_command(
         .unwrap_or_else(|| workspace_root().unwrap_or_else(|_| PathBuf::from(".")));
     let handle = yunxi_cli::session_mgr::resolve_session_reference(&session_id)
         .map_err(|e| e.to_string())?;
-    let configured_model = model.unwrap_or_else(|| yunxi_cli::model_routing::default_model_from_config());
+    let configured_model =
+        model.unwrap_or_else(|| yunxi_cli::model_routing::default_model_from_config());
     let ctx = DesktopSlashContext {
         session_id,
         session_path: handle.path,

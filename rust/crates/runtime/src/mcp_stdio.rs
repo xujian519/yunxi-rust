@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::io;
 use std::process::Stdio;
+use std::time::Duration;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -291,10 +292,25 @@ struct ToolRoute {
     raw_name: String,
 }
 
+/// 远程连接包装器（实现 Debug 以满足 ManagedMcpServer 的 derive 要求）。
+struct RemoteConn {
+    inner: Box<dyn crate::mcp_remote::McpTransportConnection>,
+}
+
+impl std::fmt::Debug for RemoteConn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RemoteConn")
+            .field("connected", &self.inner.is_connected())
+            .finish()
+    }
+}
+
 #[derive(Debug)]
 struct ManagedMcpServer {
     bootstrap: McpClientBootstrap,
     process: Option<McpStdioProcess>,
+    /// 远程传输连接（SSE/HTTP/WS）。与 process 互斥。
+    remote: Option<RemoteConn>,
     initialized: bool,
 }
 
@@ -303,8 +319,14 @@ impl ManagedMcpServer {
         Self {
             bootstrap,
             process: None,
+            remote: None,
             initialized: false,
         }
+    }
+
+    /// 判断此服务器是否使用远程传输。
+    fn is_remote(&self) -> bool {
+        crate::mcp_remote::is_remote_transport(&self.bootstrap.transport)
     }
 }
 
@@ -328,18 +350,22 @@ impl McpServerManager {
         let mut unsupported_servers = Vec::new();
 
         for (server_name, server_config) in servers {
-            if server_config.transport() == McpTransport::Stdio {
-                let bootstrap = McpClientBootstrap::from_scoped_config(server_name, server_config);
-                managed_servers.insert(server_name.clone(), ManagedMcpServer::new(bootstrap));
-            } else {
-                unsupported_servers.push(UnsupportedMcpServer {
-                    server_name: server_name.clone(),
-                    transport: server_config.transport(),
-                    reason: format!(
-                        "transport {:?} is not supported by McpServerManager",
-                        server_config.transport()
-                    ),
-                });
+            let transport = server_config.transport();
+            match transport {
+                McpTransport::Stdio | McpTransport::Sse | McpTransport::Http | McpTransport::Ws => {
+                    let bootstrap =
+                        McpClientBootstrap::from_scoped_config(server_name, server_config);
+                    managed_servers.insert(server_name.clone(), ManagedMcpServer::new(bootstrap));
+                }
+                _ => {
+                    unsupported_servers.push(UnsupportedMcpServer {
+                        server_name: server_name.clone(),
+                        transport,
+                        reason: format!(
+                            "transport {transport:?} is not supported by McpServerManager"
+                        ),
+                    });
+                }
             }
         }
 
@@ -372,65 +398,96 @@ impl McpServerManager {
             self.ensure_server_ready(&server_name).await?;
             self.clear_routes_for_server(&server_name);
 
+            let is_remote = self
+                .servers
+                .get(&server_name)
+                .map(|s| s.is_remote())
+                .unwrap_or(false);
+
             let mut cursor = None;
             loop {
-                let request_id = self.take_request_id();
-                let response = {
-                    let server = self.server_mut(&server_name)?;
-                    let process = server.process.as_mut().ok_or_else(|| {
-                        McpServerManagerError::InvalidResponse {
+                if is_remote {
+                    let response = self.remote_tools_list(&server_name, cursor.clone()).await?;
+                    let result = self.extract_tools_result(&server_name, response)?;
+                    for tool in result.tools {
+                        let qualified_name = mcp_tool_name(&server_name, &tool.name);
+                        self.tool_index.insert(
+                            qualified_name.clone(),
+                            ToolRoute {
+                                server_name: server_name.clone(),
+                                raw_name: tool.name.clone(),
+                            },
+                        );
+                        discovered_tools.push(ManagedMcpTool {
                             server_name: server_name.clone(),
-                            method: "tools/list",
-                            details: "server process missing after initialization".to_string(),
-                        }
-                    })?;
-                    process
-                        .list_tools(
-                            request_id,
-                            Some(McpListToolsParams {
-                                cursor: cursor.clone(),
-                            }),
-                        )
-                        .await?
-                };
-
-                if let Some(error) = response.error {
-                    return Err(McpServerManagerError::JsonRpc {
-                        server_name: server_name.clone(),
-                        method: "tools/list",
-                        error,
-                    });
-                }
-
-                let result =
-                    response
-                        .result
-                        .ok_or_else(|| McpServerManagerError::InvalidResponse {
-                            server_name: server_name.clone(),
-                            method: "tools/list",
-                            details: "missing result payload".to_string(),
-                        })?;
-
-                for tool in result.tools {
-                    let qualified_name = mcp_tool_name(&server_name, &tool.name);
-                    self.tool_index.insert(
-                        qualified_name.clone(),
-                        ToolRoute {
-                            server_name: server_name.clone(),
+                            qualified_name,
                             raw_name: tool.name.clone(),
-                        },
-                    );
-                    discovered_tools.push(ManagedMcpTool {
-                        server_name: server_name.clone(),
-                        qualified_name,
-                        raw_name: tool.name.clone(),
-                        tool,
-                    });
-                }
+                            tool,
+                        });
+                    }
+                    match result.next_cursor {
+                        Some(next_cursor) => cursor = Some(next_cursor),
+                        None => break,
+                    }
+                } else {
+                    let request_id = self.take_request_id();
+                    let response = {
+                        let server = self.server_mut(&server_name)?;
+                        let process = server.process.as_mut().ok_or_else(|| {
+                            McpServerManagerError::InvalidResponse {
+                                server_name: server_name.clone(),
+                                method: "tools/list",
+                                details: "server process missing after initialization".to_string(),
+                            }
+                        })?;
+                        process
+                            .list_tools(
+                                request_id,
+                                Some(McpListToolsParams {
+                                    cursor: cursor.clone(),
+                                }),
+                            )
+                            .await?
+                    };
 
-                match result.next_cursor {
-                    Some(next_cursor) => cursor = Some(next_cursor),
-                    None => break,
+                    if let Some(error) = response.error {
+                        return Err(McpServerManagerError::JsonRpc {
+                            server_name: server_name.clone(),
+                            method: "tools/list",
+                            error,
+                        });
+                    }
+
+                    let result =
+                        response
+                            .result
+                            .ok_or_else(|| McpServerManagerError::InvalidResponse {
+                                server_name: server_name.clone(),
+                                method: "tools/list",
+                                details: "missing result payload".to_string(),
+                            })?;
+
+                    for tool in result.tools {
+                        let qualified_name = mcp_tool_name(&server_name, &tool.name);
+                        self.tool_index.insert(
+                            qualified_name.clone(),
+                            ToolRoute {
+                                server_name: server_name.clone(),
+                                raw_name: tool.name.clone(),
+                            },
+                        );
+                        discovered_tools.push(ManagedMcpTool {
+                            server_name: server_name.clone(),
+                            qualified_name,
+                            raw_name: tool.name.clone(),
+                            tool,
+                        });
+                    }
+
+                    match result.next_cursor {
+                        Some(next_cursor) => cursor = Some(next_cursor),
+                        None => break,
+                    }
                 }
             }
         }
@@ -460,9 +517,32 @@ impl McpServerManager {
             })?;
 
         self.ensure_server_ready(&route.server_name).await?;
-        let request_id = self.take_request_id();
-        let response =
-            {
+
+        let is_remote = self
+            .servers
+            .get(&route.server_name)
+            .map(|s| s.is_remote())
+            .unwrap_or(false);
+
+        if is_remote {
+            let _request_id = self.take_request_id();
+            let response_value = self
+                .remote_call_tool(&route.server_name, &route.raw_name, arguments)
+                .await?;
+
+            // 解析为 JsonRpcResponse<McpToolCallResult>
+            let rpc_response: JsonRpcResponse<McpToolCallResult> =
+                serde_json::from_value(response_value).map_err(|e| {
+                    McpServerManagerError::InvalidResponse {
+                        server_name: route.server_name.clone(),
+                        method: "tools/call",
+                        details: format!("JSON parse error: {e}"),
+                    }
+                })?;
+            Ok(rpc_response)
+        } else {
+            let request_id = self.take_request_id();
+            let response = {
                 let server = self.server_mut(&route.server_name)?;
                 let process = server.process.as_mut().ok_or_else(|| {
                     McpServerManagerError::InvalidResponse {
@@ -482,7 +562,8 @@ impl McpServerManager {
                     )
                     .await?
             };
-        Ok(response)
+            Ok(response)
+        }
     }
 
     /// 关闭所有 MCP 服务器
@@ -498,6 +579,9 @@ impl McpServerManager {
                 process.shutdown().await?;
             }
             server.process = None;
+            if let Some(mut remote) = server.remote.take() {
+                let _ = remote.inner.disconnect().await;
+            }
             server.initialized = false;
         }
         Ok(())
@@ -529,6 +613,23 @@ impl McpServerManager {
         &mut self,
         server_name: &str,
     ) -> Result<(), McpServerManagerError> {
+        let is_remote = self
+            .servers
+            .get(server_name)
+            .map(|s| s.is_remote())
+            .ok_or_else(|| McpServerManagerError::UnknownServer {
+                server_name: server_name.to_string(),
+            })?;
+
+        if is_remote {
+            self.ensure_remote_ready(server_name).await
+        } else {
+            self.ensure_stdio_ready(server_name).await
+        }
+    }
+
+    /// 确保 stdio 服务器已启动并初始化。
+    async fn ensure_stdio_ready(&mut self, server_name: &str) -> Result<(), McpServerManagerError> {
         let needs_spawn = self
             .servers
             .get(server_name)
@@ -543,6 +644,46 @@ impl McpServerManager {
             server.initialized = false;
         }
 
+        self.initialize_if_needed_stdio(server_name).await
+    }
+
+    /// 确保远程服务器已连接并初始化。
+    async fn ensure_remote_ready(
+        &mut self,
+        server_name: &str,
+    ) -> Result<(), McpServerManagerError> {
+        let needs_connect = self
+            .servers
+            .get(server_name)
+            .map(|server| {
+                server.remote.is_none() || !server.remote.as_ref().unwrap().inner.is_connected()
+            })
+            .ok_or_else(|| McpServerManagerError::UnknownServer {
+                server_name: server_name.to_string(),
+            })?;
+
+        if needs_connect {
+            let server = self.server_mut(server_name)?;
+            let transport_type =
+                crate::mcp_remote::transport_variant_name(&server.bootstrap.transport);
+            let mut conn = crate::mcp_remote::create_remote_transport(&server.bootstrap.transport)
+                .map_err(io::Error::other)?;
+            conn.connect().await.map_err(io::Error::other)?;
+            eprintln!(
+                "[mcp] 远程连接: {server_name} [{transport_type}] [connected via McpServerManager]"
+            );
+            server.remote = Some(RemoteConn { inner: conn });
+            server.initialized = false;
+        }
+
+        self.initialize_if_needed_remote(server_name).await
+    }
+
+    /// 对 stdio 服务器执行 initialize（如果尚未初始化）。
+    async fn initialize_if_needed_stdio(
+        &mut self,
+        server_name: &str,
+    ) -> Result<(), McpServerManagerError> {
         let needs_initialize = self
             .servers
             .get(server_name)
@@ -589,6 +730,184 @@ impl McpServerManager {
 
         Ok(())
     }
+
+    /// 对远程服务器执行 initialize（如果尚未初始化）。
+    async fn initialize_if_needed_remote(
+        &mut self,
+        server_name: &str,
+    ) -> Result<(), McpServerManagerError> {
+        let needs_initialize = self
+            .servers
+            .get(server_name)
+            .map(|server| !server.initialized)
+            .ok_or_else(|| McpServerManagerError::UnknownServer {
+                server_name: server_name.to_string(),
+            })?;
+
+        if needs_initialize {
+            let _request_id = self.take_request_id();
+            let init_params_json = serde_json::to_value(default_initialize_params())
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            let init_request =
+                crate::mcp_remote::build_jsonrpc_request("initialize", Some(init_params_json));
+
+            {
+                let server = self.server_mut(server_name)?;
+                let remote = server.remote.as_mut().ok_or_else(|| {
+                    McpServerManagerError::InvalidResponse {
+                        server_name: server_name.to_string(),
+                        method: "initialize",
+                        details: "remote connection missing before initialize".to_string(),
+                    }
+                })?;
+                remote
+                    .inner
+                    .send(init_request)
+                    .await
+                    .map_err(|e| McpServerManagerError::Io(io::Error::other(e)))?;
+                let resp = remote
+                    .inner
+                    .receive()
+                    .await
+                    .map_err(|e| McpServerManagerError::Io(io::Error::other(e)))?;
+
+                if let Some(error) = resp.get("error") {
+                    let rpc_error = serde_json::from_value::<JsonRpcError>(error.clone())
+                        .unwrap_or(JsonRpcError {
+                            code: -1,
+                            message: format!("{error}"),
+                            data: None,
+                        });
+                    return Err(McpServerManagerError::JsonRpc {
+                        server_name: server_name.to_string(),
+                        method: "initialize",
+                        error: rpc_error,
+                    });
+                }
+
+                if resp.get("result").is_none() {
+                    return Err(McpServerManagerError::InvalidResponse {
+                        server_name: server_name.to_string(),
+                        method: "initialize",
+                        details: "missing result payload".to_string(),
+                    });
+                }
+            }
+
+            let server = self.server_mut(server_name)?;
+            server.initialized = true;
+        }
+
+        Ok(())
+    }
+
+    /// 通过远程传输发送 tools/list 请求。
+    async fn remote_tools_list(
+        &mut self,
+        server_name: &str,
+        cursor: Option<String>,
+    ) -> Result<JsonValue, McpServerManagerError> {
+        let params = serde_json::json!({
+            "cursor": cursor,
+        });
+        let request = crate::mcp_remote::build_jsonrpc_request("tools/list", Some(params));
+
+        let server = self.server_mut(server_name)?;
+        let remote =
+            server
+                .remote
+                .as_mut()
+                .ok_or_else(|| McpServerManagerError::InvalidResponse {
+                    server_name: server_name.to_string(),
+                    method: "tools/list",
+                    details: "remote connection missing".to_string(),
+                })?;
+        remote
+            .inner
+            .send(request)
+            .await
+            .map_err(|e| McpServerManagerError::Io(io::Error::other(e)))?;
+        let resp = remote
+            .inner
+            .receive()
+            .await
+            .map_err(|e| McpServerManagerError::Io(io::Error::other(e)))?;
+        Ok(resp)
+    }
+
+    /// 通过远程传输发送 tools/call 请求。
+    async fn remote_call_tool(
+        &mut self,
+        server_name: &str,
+        raw_name: &str,
+        arguments: Option<JsonValue>,
+    ) -> Result<JsonValue, McpServerManagerError> {
+        let params = serde_json::json!({
+            "name": raw_name,
+            "arguments": arguments,
+        });
+        let request = crate::mcp_remote::build_jsonrpc_request("tools/call", Some(params));
+
+        let server = self.server_mut(server_name)?;
+        let remote =
+            server
+                .remote
+                .as_mut()
+                .ok_or_else(|| McpServerManagerError::InvalidResponse {
+                    server_name: server_name.to_string(),
+                    method: "tools/call",
+                    details: "remote connection missing".to_string(),
+                })?;
+        remote
+            .inner
+            .send(request)
+            .await
+            .map_err(|e| McpServerManagerError::Io(io::Error::other(e)))?;
+        let resp = remote
+            .inner
+            .receive()
+            .await
+            .map_err(|e| McpServerManagerError::Io(io::Error::other(e)))?;
+        Ok(resp)
+    }
+
+    /// 从 tools/list 响应中提取 McpListToolsResult，处理错误。
+    fn extract_tools_result(
+        &self,
+        server_name: &str,
+        response: JsonValue,
+    ) -> Result<McpListToolsResult, McpServerManagerError> {
+        if let Some(error) = response.get("error") {
+            let rpc_error =
+                serde_json::from_value::<JsonRpcError>(error.clone()).unwrap_or(JsonRpcError {
+                    code: -1,
+                    message: format!("{error}"),
+                    data: None,
+                });
+            return Err(McpServerManagerError::JsonRpc {
+                server_name: server_name.to_string(),
+                method: "tools/list",
+                error: rpc_error,
+            });
+        }
+
+        let result_value =
+            response
+                .get("result")
+                .ok_or_else(|| McpServerManagerError::InvalidResponse {
+                    server_name: server_name.to_string(),
+                    method: "tools/list",
+                    details: "missing result payload".to_string(),
+                })?;
+
+        serde_json::from_value::<McpListToolsResult>(result_value.clone()).map_err(|e| {
+            McpServerManagerError::InvalidResponse {
+                server_name: server_name.to_string(),
+                method: "tools/list",
+                details: format!("JSON parse error: {e}"),
+            }
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -611,7 +930,7 @@ impl McpStdioProcess {
             .args(&transport.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit());
+            .stderr(Stdio::null());
         apply_env(&mut command, &transport.env);
 
         let mut child = command.spawn()?;
@@ -804,7 +1123,14 @@ impl McpStdioProcess {
     ) -> io::Result<JsonRpcResponse<TResult>> {
         let request = JsonRpcRequest::new(id, method, params);
         self.send_request(&request).await?;
-        self.read_response().await
+        tokio::time::timeout(Duration::from_secs(10), self.read_response())
+            .await
+            .map_err(|_| {
+                io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "MCP stdio request timed out after 10s".to_string(),
+                )
+            })?
     }
 
     /// 初始化 MCP 连接
@@ -1729,10 +2055,9 @@ mod tests {
         let manager = McpServerManager::from_servers(&servers);
         let unsupported = manager.unsupported_servers();
 
-        assert_eq!(unsupported.len(), 3);
-        assert_eq!(unsupported[0].server_name, "http");
-        assert_eq!(unsupported[1].server_name, "sdk");
-        assert_eq!(unsupported[2].server_name, "ws");
+        // HTTP and WS are now supported (remote transport), only SDK is unsupported
+        assert_eq!(unsupported.len(), 1);
+        assert_eq!(unsupported[0].server_name, "sdk");
     }
 
     #[test]

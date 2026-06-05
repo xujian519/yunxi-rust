@@ -1,23 +1,40 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
+    // ── Navigation ──
     Navigate(String),
     GoBack,
     GoForward,
+
+    // ── Dialog / Overlay ──
     ShowDialog(String),
     HideDialog,
     Close,
+
+    // ── UI Toggle ──
     ToggleSidebar,
+    ShowHelp,
+    ShowGuide,
+    ShowSessionPicker,
+    OpenSessionPicker,
     SwitchTab(usize),
+
+    // ── Session ──
     NewSession,
     SwitchSession(String),
     DeleteSession(String),
     RenameSession(String, String),
     SaveSession,
+
+    // ── Commands ──
     ExecuteCommand(String),
     ShowCommandPalette,
     HideCommandPalette,
+
+    // ── Theme ──
     SwitchTheme(String),
     ToggleDarkMode,
+
+    // ── Editing / Clipboard ──
     CopySelection,
     Paste,
     EditorCopy,
@@ -25,10 +42,22 @@ pub enum Action {
     EditorCut,
     EditorUndo,
     EditorRedo,
+
+    // ── Turn / LLM ──
+    Submit(String, bool),
+    InterruptTurn,
+    PermissionDecision(bool),
+    FlowResume(String, String),
+
+    // ── Lifecycle ──
     Quit,
     Refresh,
+
+    // ── Menu ──
     ShowSubmenu(String, usize),
     ShowParentMenu(String),
+
+    // ── Custom ──
     Custom(String),
 }
 
@@ -40,6 +69,8 @@ impl std::fmt::Display for Action {
             Action::ShowSubmenu(id, idx) => write!(f, "ShowSubmenu({}, {})", id, idx),
             Action::ShowParentMenu(id) => write!(f, "ShowParentMenu({})", id),
             Action::ExecuteCommand(cmd) => write!(f, "ExecuteCommand({})", cmd),
+            Action::Submit(text, _) => write!(f, "Submit({}…)", &text[..text.len().min(30)]),
+            Action::FlowResume(id, _) => write!(f, "FlowResume({})", id),
             Action::Custom(cmd) => write!(f, "Custom({})", cmd),
             _ => write!(f, "{:?}", self),
         }

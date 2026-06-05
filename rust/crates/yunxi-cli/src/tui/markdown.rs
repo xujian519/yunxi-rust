@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
@@ -8,8 +11,39 @@ const CODE_BG: Color = Color::Indexed(236);
 const LINK_COLOR: Color = Color::Indexed(39);
 const QUOTE_COLOR: Color = Color::Indexed(245);
 const TABLE_BORDER_COLOR: Color = Color::Indexed(240);
+const CACHE_SIZE_LIMIT: usize = 64;
+
+thread_local! {
+    static MARKDOWN_CACHE: RefCell<HashMap<String, Text<'static>>> = RefCell::new(HashMap::new());
+}
 
 pub(crate) fn markdown_to_text(input: &str) -> Text<'static> {
+    if input.is_empty() {
+        return Text::default();
+    }
+
+    let cached = MARKDOWN_CACHE.with(|cache| cache.borrow().get(input).cloned());
+
+    if let Some(text) = cached {
+        return text;
+    }
+
+    let text = parse_markdown(input);
+
+    MARKDOWN_CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= CACHE_SIZE_LIMIT {
+            if let Some(key) = cache.keys().next().cloned() {
+                cache.remove(&key);
+            }
+        }
+        cache.insert(input.to_string(), text.clone());
+    });
+
+    text
+}
+
+fn parse_markdown(input: &str) -> Text<'static> {
     let options =
         Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
 

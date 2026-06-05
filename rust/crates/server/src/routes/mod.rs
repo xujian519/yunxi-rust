@@ -25,8 +25,14 @@ pub fn build_routes(state: AppState) -> Router {
         .route("/api/tools/execute", tools::execute_route())
         .route("/api/mcp/status", get(mcp::mcp_status))
         .route("/api/memory/search", get(memory::search))
-        .route("/api/settings", get(settings::get_settings_handler).put(settings::put_settings_handler))
-        .route("/api/cases", get(cases::list_cases).post(cases::create_case))
+        .route(
+            "/api/settings",
+            get(settings::get_settings_handler).put(settings::put_settings_handler),
+        )
+        .route(
+            "/api/cases",
+            get(cases::list_cases).post(cases::create_case),
+        )
         .route(
             "/api/cases/{id}",
             get(cases::load_case)
@@ -34,7 +40,10 @@ pub fn build_routes(state: AppState) -> Router {
                 .delete(cases::delete_case),
         )
         .route("/api/chat/permission", post(permission::permission_respond))
-        .route("/api/sessions", get(sessions::list_sessions).post(sessions::create_session))
+        .route(
+            "/api/sessions",
+            get(sessions::list_sessions).post(sessions::create_session),
+        )
         .route(
             "/api/sessions/{id}",
             get(sessions::load_session)

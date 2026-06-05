@@ -128,19 +128,70 @@ impl IntentClassifier {
         let svc = shared_optional()?;
         let text_vec = svc.encode(text).ok()?;
 
-        // 为每个有描述性标签的意图计算嵌入相似度
+        // 为每个有描述性标签的意图计算嵌入相似度（覆盖全部 50 种意图）
         let intent_labels = [
+            // 专利撰写
             (IntentType::PatentDrafting, "撰写专利申请文件"),
-            (IntentType::PatentSearch, "检索相关专利技术文献"),
-            (IntentType::NoveltyApplication, "分析专利的新颖性"),
-            (IntentType::CreativityApplication, "判断专利的创造性"),
-            (IntentType::OpinionResponse, "答复审查意见通知书"),
-            (IntentType::LiteralInfringement, "分析专利侵权风险"),
-            (IntentType::InvalidationGrounds, "提出专利无效宣告请求"),
-            (IntentType::LegalQuery, "查询知识产权法律法规"),
-            (IntentType::GuidelineQuery, "查询专利审查指南"),
             (IntentType::ClaimDraftingStrategy, "制定权利要求撰写策略"),
+            (IntentType::DefensiveDrafting, "防御性专利撰写保护策略"),
+            (IntentType::BroadScopeProtection, "宽范围权利要求保护"),
+            (IntentType::ClaimAmendment, "修改权利要求"),
+            // 专利检索
+            (IntentType::PatentSearch, "检索相关专利技术文献"),
+            (IntentType::CaseSearchInvalidation, "搜索无效宣告案例"),
+            // 新颖性
+            (IntentType::NoveltyApplication, "分析专利的新颖性"),
+            (IntentType::NoveltyRejection, "新颖性驳回分析"),
+            // 创造性
+            (IntentType::CreativityApplication, "判断专利的创造性"),
+            (IntentType::CreativityRejection, "创造性驳回分析"),
+            // 审查意见
+            (IntentType::OpinionResponse, "答复审查意见通知书"),
+            (IntentType::ArgumentDrafting, "撰写答辩意见"),
+            // 侵权分析
+            (IntentType::LiteralInfringement, "分析专利侵权风险"),
+            (IntentType::EquivalentInfringement, "等同侵权分析"),
+            (IntentType::AllElementsRule, "全面覆盖原则分析"),
+            (IntentType::DoctrineOfEquivalents, "等同原则判定"),
+            (IntentType::ProsecutionHistoryEstoppel, "禁止反悔原则"),
+            (IntentType::LiteralInterpretation, "权利要求字面解释"),
+            // 权利要求解释
+            (IntentType::ScopeClaimOnly, "权利要求保护范围限定"),
+            (IntentType::ScopeWithSpecification, "结合说明书解释权利要求"),
+            (IntentType::ScopeWithProsecution, "结合审查档案解释权利要求"),
+            (IntentType::DefinitionClarity, "权利要求术语定义清晰度"),
+            (IntentType::SpecificationSupport, "说明书对权利要求的支持"),
+            (IntentType::SupportDisclosure, "充分公开要求分析"),
+            // 无效宣告
+            (IntentType::InvalidationGrounds, "提出专利无效宣告请求"),
+            (IntentType::InvalidationDefense, "无效宣告答辩"),
+            (IntentType::InvalidationDrafting, "撰写无效宣告请求书"),
+            // 审查标准
+            (IntentType::ExaminationStandard, "专利审查标准查询"),
+            (IntentType::GuidelineComparison, "审查指南对比分析"),
+            (IntentType::GuidelineQuery, "查询专利审查指南"),
+            (IntentType::RuleInterpretation, "法条规则解释"),
+            (IntentType::SectionLookup, "查询具体法条条款"),
+            // 法律分析
+            (IntentType::LegalQuery, "查询知识产权法律法规"),
+            (IntentType::LegalResearch, "法律研究与案例检索"),
             (IntentType::JudgmentPrediction, "预测案件判决结果"),
+            (IntentType::AddedSubjectMatter, "超范围修改分析"),
+            (IntentType::EvidenceCollection, "证据收集与举证"),
+            (IntentType::DefenseAnalysis, "抗辩分析"),
+            // 通用
+            (IntentType::CodeGeneration, "生成编程代码"),
+            (IntentType::CodeReview, "代码审查"),
+            (IntentType::CreativeWriting, "创意写作"),
+            (IntentType::DataAnalysis, "数据分析统计"),
+            (IntentType::ProblemSolving, "解决问题方案"),
+            (IntentType::Emotional, "情感情绪交流"),
+            (IntentType::LifestyleService, "生活服务推荐"),
+            (IntentType::WeatherQuery, "天气查询"),
+            (IntentType::MapNavigation, "地图导航路线"),
+            (IntentType::TrafficQuery, "交通路况查询"),
+            (IntentType::SystemControl, "系统设置控制"),
+            (IntentType::CrimeAnalysis, "犯罪量刑分析"),
         ];
 
         let mut scored = Vec::new();
@@ -177,22 +228,72 @@ impl IntentClassifier {
         })
     }
 
-    /// 活跃意图列表（仅包含有对应关键词的意图）
+    /// 活跃意图列表（包含所有 50 种有对应关键词的意图，排除 Unknown）
     fn active_intents(&self) -> Vec<IntentType> {
         use IntentType::*;
         vec![
+            // 专利撰写 (5)
             PatentDrafting,
             ClaimDraftingStrategy,
+            DefensiveDrafting,
+            BroadScopeProtection,
+            ClaimAmendment,
+            // 专利检索 (2)
             PatentSearch,
+            CaseSearchInvalidation,
+            // 新颖性 (2)
             NoveltyApplication,
             NoveltyRejection,
+            // 创造性 (2)
             CreativityApplication,
             CreativityRejection,
+            // 审查意见 (2)
             OpinionResponse,
+            ArgumentDrafting,
+            // 侵权分析 (6)
             LiteralInfringement,
+            EquivalentInfringement,
+            AllElementsRule,
+            DoctrineOfEquivalents,
+            ProsecutionHistoryEstoppel,
+            LiteralInterpretation,
+            // 权利要求解释 (6)
+            ScopeClaimOnly,
+            ScopeWithSpecification,
+            ScopeWithProsecution,
+            DefinitionClarity,
+            SpecificationSupport,
+            SupportDisclosure,
+            // 无效宣告 (3)
             InvalidationGrounds,
-            LegalQuery,
+            InvalidationDefense,
+            InvalidationDrafting,
+            // 审查标准 (5)
+            ExaminationStandard,
+            GuidelineComparison,
             GuidelineQuery,
+            RuleInterpretation,
+            SectionLookup,
+            // 法律分析 (6)
+            LegalQuery,
+            LegalResearch,
+            JudgmentPrediction,
+            AddedSubjectMatter,
+            EvidenceCollection,
+            DefenseAnalysis,
+            // 通用 (11)
+            CodeGeneration,
+            CodeReview,
+            CreativeWriting,
+            DataAnalysis,
+            ProblemSolving,
+            Emotional,
+            LifestyleService,
+            WeatherQuery,
+            MapNavigation,
+            TrafficQuery,
+            SystemControl,
+            CrimeAnalysis,
         ]
     }
 }

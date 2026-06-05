@@ -293,14 +293,12 @@ pub(crate) fn scorer_rule_legal_001(input: &QualityScorerInput) -> Vec<ScorerIss
         return Vec::new();
     }
     let first_kw = extract_keywords(&independent[0].content);
-    let has_unity = independent[1..]
-        .iter()
-        .all(|c| {
-            crate::patent_quality::types::calculate_keyword_overlap(
-                &first_kw,
-                &extract_keywords(&c.content),
-            ) >= 0.3
-        });
+    let has_unity = independent[1..].iter().all(|c| {
+        crate::patent_quality::types::calculate_keyword_overlap(
+            &first_kw,
+            &extract_keywords(&c.content),
+        ) >= 0.3
+    });
     if has_unity {
         return Vec::new();
     }

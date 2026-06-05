@@ -33,7 +33,8 @@ struct ResponseTemplate {
 
 /// 内置模板库
 fn builtin_templates() -> Vec<ResponseTemplate> {
-    serde_json::from_str(include_str!("builtin_templates.json")).expect("builtin templates JSON should be valid")
+    serde_json::from_str(include_str!("builtin_templates.json"))
+        .expect("builtin templates JSON should be valid")
 }
 
 pub fn execute_response_template(input: &ResponseTemplateInput) -> Result<Value, String> {

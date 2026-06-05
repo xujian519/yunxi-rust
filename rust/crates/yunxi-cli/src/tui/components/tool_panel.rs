@@ -11,6 +11,30 @@ pub(crate) struct ToolEntry {
     pub collapsed: bool,
 }
 
+impl ToolEntry {
+    /// 创建一个新的工具条目，默认折叠。
+    pub(crate) fn new(name: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            detail: detail.into(),
+            is_error: false,
+            collapsed: true,
+        }
+    }
+
+    /// 创建错误状态的工具条目。
+    pub(crate) fn with_error(mut self) -> Self {
+        self.is_error = true;
+        self
+    }
+
+    /// 设置折叠状态。
+    pub(crate) fn with_collapsed(mut self, collapsed: bool) -> Self {
+        self.collapsed = collapsed;
+        self
+    }
+}
+
 /// 工具输出面板。
 pub(crate) struct ToolPanel {
     entries: Vec<ToolEntry>,
@@ -34,6 +58,30 @@ impl ToolPanel {
     pub(crate) fn toggle_collapse(&mut self, index: usize) {
         if let Some(entry) = self.entries.get_mut(index) {
             entry.collapsed = !entry.collapsed;
+        }
+    }
+
+    /// 展开所有条目。
+    pub(crate) fn expand_all(&mut self) {
+        for entry in &mut self.entries {
+            entry.collapsed = false;
+        }
+    }
+
+    /// 折叠所有条目。
+    pub(crate) fn collapse_all(&mut self) {
+        for entry in &mut self.entries {
+            entry.collapsed = true;
+        }
+    }
+
+    /// 切换所有条目的折叠状态（全部展开如果当前有折叠的，否则全部折叠）。
+    pub(crate) fn toggle_all(&mut self) {
+        let all_expanded = self.entries.iter().all(|e| !e.collapsed);
+        if all_expanded {
+            self.collapse_all();
+        } else {
+            self.expand_all();
         }
     }
 
@@ -265,5 +313,67 @@ mod tests {
         });
         assert_eq!(panel.entry_at_rendered_line(0, 40), Some(0));
         assert_eq!(panel.entry_at_rendered_line(2, 40), Some(1));
+    }
+
+    #[test]
+    fn tool_entry_new_defaults_collapsed() {
+        let entry = ToolEntry::new("bash", "output");
+        assert_eq!(entry.name, "bash");
+        assert_eq!(entry.detail, "output");
+        assert!(entry.collapsed);
+        assert!(!entry.is_error);
+    }
+
+    #[test]
+    fn tool_entry_with_error() {
+        let entry = ToolEntry::new("bash", "error msg").with_error();
+        assert!(entry.is_error);
+        assert!(entry.collapsed);
+    }
+
+    #[test]
+    fn tool_panel_expand_all() {
+        let mut panel = ToolPanel::new();
+        panel.push(ToolEntry::new("a", "detail"));
+        panel.push(ToolEntry::new("b", "detail"));
+        panel.expand_all();
+        assert!(!panel.entries()[0].collapsed);
+        assert!(!panel.entries()[1].collapsed);
+    }
+
+    #[test]
+    fn tool_panel_collapse_all() {
+        let mut panel = ToolPanel::new();
+        panel.push(ToolEntry::new("a", "detail").with_collapsed(false));
+        panel.push(ToolEntry::new("b", "detail").with_collapsed(false));
+        panel.collapse_all();
+        assert!(panel.entries()[0].collapsed);
+        assert!(panel.entries()[1].collapsed);
+    }
+
+    #[test]
+    fn tool_panel_toggle_all() {
+        let mut panel = ToolPanel::new();
+        panel.push(ToolEntry::new("a", "detail"));
+        panel.push(ToolEntry::new("b", "detail"));
+        // 初始全部折叠 -> toggle_all 应该全部展开
+        panel.toggle_all();
+        assert!(!panel.entries()[0].collapsed);
+        assert!(!panel.entries()[1].collapsed);
+        // 全部展开 -> toggle_all 应该全部折叠
+        panel.toggle_all();
+        assert!(panel.entries()[0].collapsed);
+        assert!(panel.entries()[1].collapsed);
+    }
+
+    #[test]
+    fn tool_panel_toggle_all_partial() {
+        let mut panel = ToolPanel::new();
+        panel.push(ToolEntry::new("a", "detail"));
+        panel.push(ToolEntry::new("b", "detail").with_collapsed(false));
+        // 部分折叠 -> toggle_all 应该全部展开
+        panel.toggle_all();
+        assert!(!panel.entries()[0].collapsed);
+        assert!(!panel.entries()[1].collapsed);
     }
 }

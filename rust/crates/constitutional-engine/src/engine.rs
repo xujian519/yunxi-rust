@@ -1,6 +1,9 @@
+use crate::cache::LlmAnalysisCache;
+use crate::llm_analyzer::{ConstitutionalLlmAnalyzer, LlmAnalysisResult};
 use crate::model::{ConstitutionalRule, ConstitutionalRules, RuleAction, RuleCheck, RuleSeverity};
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct RuleCheckResult {
@@ -16,11 +19,25 @@ pub struct RuleCheckResult {
 
 pub struct ConstitutionalEngine {
     rules: HashMap<String, ConstitutionalRules>,
+    /// LLM 深度分析器（可选）
+    llm_analyzer: Option<Arc<dyn ConstitutionalLlmAnalyzer>>,
+    /// LLM 分析结果缓存
+    llm_cache: LlmAnalysisCache,
 }
 
 impl ConstitutionalEngine {
     pub fn new(rules: HashMap<String, ConstitutionalRules>) -> Self {
-        Self { rules }
+        Self {
+            rules,
+            llm_analyzer: None,
+            llm_cache: LlmAnalysisCache::new(),
+        }
+    }
+
+    /// Builder: 注入 LLM 分析器。
+    pub fn with_llm_analyzer(mut self, analyzer: Arc<dyn ConstitutionalLlmAnalyzer>) -> Self {
+        self.llm_analyzer = Some(analyzer);
+        self
     }
 
     pub fn check_all(
@@ -40,6 +57,37 @@ impl ConstitutionalEngine {
                 results.push(result);
             }
         }
+        results
+    }
+
+    /// 带缓存的 check_all，LLM 分析结果会被缓存。
+    pub fn check_all_cached(
+        &mut self,
+        tool_name: &str,
+        input_text: &str,
+        output_text: Option<&str>,
+        phase: &str,
+    ) -> Vec<RuleCheckResult> {
+        // 先收集需要评估的规则（避免与 self.llm_cache 的借用冲突）
+        let rules_to_check: Vec<ConstitutionalRule> = self
+            .rules
+            .values()
+            .flat_map(|ruleset| ruleset.rules.values().cloned())
+            .filter(|rule| rule.phase.is_empty() || rule.phase == phase)
+            .collect();
+
+        let mut results = Vec::new();
+        for rule in &rules_to_check {
+            let result = self.evaluate_rule_cached(rule, tool_name, input_text, output_text);
+            results.push(result);
+        }
+
+        // 定期清理过期缓存
+        let evicted = self.llm_cache.evict_expired();
+        if evicted > 0 {
+            eprintln!("[constitutional-engine] 清理过期 LLM 缓存: {} 条", evicted);
+        }
+
         results
     }
 
@@ -193,11 +241,30 @@ impl ConstitutionalEngine {
                     )
                 }
             }
-            _ => (
-                true,
-                vec![format!("规则 '{}' 需要深度 LLM 辅助检查", rule.name)],
-                0.5,
-            ),
+            _ => {
+                // Fallback 分支：尝试使用 LLM 深度分析
+                self.evaluate_with_llm(rule, input_text, _output_text)
+            }
+        };
+
+        // P1-6: confidence < 0.6 的结果调用 LLM 深度分析
+        let (final_passed, final_details, final_confidence) = if confidence < 0.6 {
+            if let Some(ref analyzer) = self.llm_analyzer {
+                match analyzer.analyze(rule, input_text, _output_text, "") {
+                    Ok(llm_result) => {
+                        eprintln!(
+                                "[constitutional-engine] LLM 增强: rule={}, keyword_conf={:.2}, llm_conf={:.2}",
+                                rule.id, confidence, llm_result.confidence
+                            );
+                        (llm_result.passed, llm_result.details, llm_result.confidence)
+                    }
+                    Err(_) => (passed, details, confidence),
+                }
+            } else {
+                (passed, details, confidence)
+            }
+        } else {
+            (passed, details, confidence)
         };
 
         RuleCheckResult {
@@ -206,9 +273,123 @@ impl ConstitutionalEngine {
             severity,
             action,
             legal_basis: rule.legal_basis.clone(),
-            passed,
-            details,
-            confidence,
+            passed: final_passed,
+            details: final_details,
+            confidence: final_confidence,
         }
+    }
+
+    /// 使用 LLM 深度分析评估规则（_ 分支的增强实现）。
+    ///
+    /// LLM 不可用时降级为关键词匹配，保持现有行为。
+    fn evaluate_with_llm(
+        &self,
+        rule: &ConstitutionalRule,
+        input_text: &str,
+        output_text: Option<&str>,
+    ) -> (bool, Vec<String>, f64) {
+        match self.llm_analyzer {
+            Some(ref analyzer) => {
+                eprintln!(
+                    "[constitutional-engine] LLM 深度分析规则 '{}' (id={})",
+                    rule.name, rule.id
+                );
+                match analyzer.analyze(rule, input_text, output_text, "") {
+                    Ok(result) => {
+                        eprintln!(
+                            "[constitutional-engine] LLM 分析完成: passed={}, confidence={:.2}",
+                            result.passed, result.confidence
+                        );
+                        (result.passed, result.details, result.confidence)
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "[constitutional-engine] LLM 分析失败: {}，降级为关键词匹配",
+                            e
+                        );
+                        // 降级为原有行为
+                        (
+                            true,
+                            vec![format!(
+                                "规则 '{}' 需要深度 LLM 辅助检查（LLM 调用失败）",
+                                rule.name
+                            )],
+                            0.5,
+                        )
+                    }
+                }
+            }
+            None => {
+                // LLM 不可用，保持当前关键词匹配逻辑
+                (
+                    true,
+                    vec![format!("规则 '{}' 需要深度 LLM 辅助检查", rule.name)],
+                    0.5,
+                )
+            }
+        }
+    }
+
+    /// 带缓存的规则评估（用于 `check_all_cached`）。
+    fn evaluate_rule_cached(
+        &mut self,
+        rule: &ConstitutionalRule,
+        tool_name: &str,
+        input_text: &str,
+        output_text: Option<&str>,
+    ) -> RuleCheckResult {
+        // 对于 _ 分支的规则，尝试使用缓存
+        if rule.check.is_some() && !self.is_keyword_matchable(rule) {
+            let cache_key = LlmAnalysisCache::make_cache_key(&rule.id, input_text, output_text);
+
+            if let Some(cached_result) = self.llm_cache.get(&cache_key) {
+                let severity =
+                    RuleSeverity::from_str(&rule.severity).unwrap_or(RuleSeverity::Minor);
+                let action = RuleAction::from_str(&rule.action).unwrap_or(RuleAction::Warn);
+                eprintln!("[constitutional-engine] LLM 缓存命中: rule={}", rule.id);
+                return RuleCheckResult {
+                    rule_id: rule.id.clone(),
+                    rule_name: rule.name.clone(),
+                    severity,
+                    action,
+                    legal_basis: rule.legal_basis.clone(),
+                    passed: cached_result.passed,
+                    details: cached_result.details.clone(),
+                    confidence: cached_result.confidence,
+                };
+            }
+
+            // 缓存未命中，执行评估
+            let result = self.evaluate_rule(rule, tool_name, input_text, output_text);
+
+            // 如果使用了 LLM 分析，缓存结果
+            if result.confidence > 0.5 || !result.details.is_empty() {
+                let llm_result = LlmAnalysisResult {
+                    passed: result.passed,
+                    confidence: result.confidence,
+                    details: result.details.clone(),
+                    reasoning: format!("Cached for rule {}", rule.id),
+                };
+                self.llm_cache.put(cache_key, llm_result);
+            }
+
+            return result;
+        }
+
+        // 非缓存规则直接评估
+        self.evaluate_rule(rule, tool_name, input_text, output_text)
+    }
+
+    /// 判断规则是否可以通过关键词匹配处理（不需要 LLM）。
+    fn is_keyword_matchable(&self, rule: &ConstitutionalRule) -> bool {
+        matches!(
+            &rule.check,
+            None | Some(RuleCheck::StructuralAnalysis { .. })
+                | Some(RuleCheck::KeywordBlocklist { .. })
+                | Some(RuleCheck::PatternAnalysis { .. })
+                | Some(RuleCheck::CategoryDetection { .. })
+                | Some(RuleCheck::SpecificationAnalysis { .. })
+                | Some(RuleCheck::SectionStructure { .. })
+        )
     }
 }

@@ -33,6 +33,10 @@ pub fn current_name() -> Option<String> {
         .and_then(|g| g.as_ref().map(|t| t.name.clone()))
 }
 
+pub fn current() -> Option<Theme> {
+    ACTIVE.read().ok().and_then(|g| g.clone())
+}
+
 fn color_rgb(c: Color) -> (u8, u8, u8) {
     match c {
         Color::Rgb(r, g, b) => (r, g, b),

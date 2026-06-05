@@ -5,6 +5,86 @@
 
 use serde_json::Value;
 
+/// 工具执行结果 — 替代裸 `Result<String, String>`
+#[derive(Debug, Clone)]
+pub struct ToolOutput {
+    /// 主要输出内容（文本/JSON）
+    pub content: String,
+    /// 结构化数据（可选，供下游消费）
+    pub data: Option<serde_json::Value>,
+    /// 执行时长（毫秒）
+    pub duration_ms: Option<u64>,
+    /// 是否成功
+    pub success: bool,
+    /// 附加元数据
+    pub metadata: std::collections::HashMap<String, String>,
+}
+
+impl ToolOutput {
+    /// 成功的文本输出
+    pub fn ok(content: impl Into<String>) -> Self {
+        Self {
+            content: content.into(),
+            data: None,
+            duration_ms: None,
+            success: true,
+            metadata: std::collections::HashMap::new(),
+        }
+    }
+
+    /// 成功的结构化输出
+    pub fn ok_with_data(content: impl Into<String>, data: serde_json::Value) -> Self {
+        Self {
+            content: content.into(),
+            data: Some(data),
+            duration_ms: None,
+            success: true,
+            metadata: std::collections::HashMap::new(),
+        }
+    }
+
+    /// 错误输出
+    pub fn err(msg: impl Into<String>) -> Self {
+        Self {
+            content: msg.into(),
+            data: None,
+            duration_ms: None,
+            success: false,
+            metadata: std::collections::HashMap::new(),
+        }
+    }
+
+    /// 记录执行时长
+    pub fn with_duration(mut self, ms: u64) -> Self {
+        self.duration_ms = Some(ms);
+        self
+    }
+
+    /// 添加元数据
+    pub fn with_metadata(mut self, key: impl Into<String>, val: impl Into<String>) -> Self {
+        self.metadata.insert(key.into(), val.into());
+        self
+    }
+
+    /// 转换为 `Result<String, String>` 以兼容现有 API
+    pub fn to_result(self) -> Result<String, String> {
+        if self.success {
+            Ok(self.content)
+        } else {
+            Err(self.content)
+        }
+    }
+}
+
+impl From<Result<String, String>> for ToolOutput {
+    fn from(r: Result<String, String>) -> Self {
+        match r {
+            Ok(s) => Self::ok(s),
+            Err(e) => Self::err(e),
+        }
+    }
+}
+
 /// 工具元数据 — 用于 LLM function calling 和工具发现
 #[derive(Debug, Clone)]
 pub struct ToolSpec {
@@ -59,6 +139,14 @@ pub trait Tool {
 
     /// 执行工具
     fn execute(&self, input: &Value) -> Result<String, String>;
+
+    /// 执行工具并返回结构化结果（可选覆盖）
+    fn execute_typed(&self, input: &Value) -> ToolOutput {
+        match self.execute(input) {
+            Ok(s) => ToolOutput::ok(s),
+            Err(e) => ToolOutput::err(e),
+        }
+    }
 
     /// 检查输入是否合法（可选覆盖，默认不做校验）
     fn validate(&self, _input: &Value) -> bool {

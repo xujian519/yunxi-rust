@@ -9,6 +9,7 @@ use crate::tui::widgets::tool_block::{ToolBlock, ToolBlockStatus};
 
 pub(crate) struct ToolPanelWidget<'a> {
     pub(crate) tools: &'a ToolPanel,
+    pub(crate) focus_index: usize,
 }
 
 impl Widget for ToolPanelWidget<'_> {
@@ -42,7 +43,7 @@ impl Widget for ToolPanelWidget<'_> {
 
         // 渲染每个工具条目为 ToolBlock
         let mut current_y = inner.y;
-        for entry in self.tools.entries() {
+        for (idx, entry) in self.tools.entries().iter().enumerate() {
             // 估算高度：标题1行 + 展开时的输出
             let estimated_height = if entry.collapsed {
                 2u16 // 标题行 + 摘要行
@@ -84,6 +85,7 @@ impl Widget for ToolPanelWidget<'_> {
                 } else {
                     Some(&entry.detail)
                 },
+                focused: idx == self.focus_index,
             }
             .render(entry_area, buf);
 

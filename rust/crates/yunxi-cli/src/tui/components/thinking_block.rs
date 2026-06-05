@@ -239,7 +239,7 @@ impl Widget for ThinkingBlock {
                 height: step_height.max(3),
             };
 
-            Widget::render(&collapsible.clone(), collapsible_area, buf);
+            collapsible.clone().render(collapsible_area, buf);
             current_y += step_height;
 
             if i < self.collapsibles.len() - 1 && current_y < area.y + area.height {

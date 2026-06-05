@@ -42,26 +42,26 @@ impl Theme {
             name: "default_dark".to_string(),
             is_dark: true,
             colors: ColorPalette {
-                primary: Color::Rgb(139, 176, 240),
-                secondary: Color::Rgb(200, 182, 255),
-                accent: Color::Rgb(232, 200, 124),
-                success: Color::Rgb(123, 200, 156),
-                warning: Color::Rgb(232, 200, 124),
-                error: Color::Rgb(232, 132, 124),
-                info: Color::Rgb(139, 176, 240),
-                bg_primary: Color::Rgb(13, 13, 18),
-                bg_secondary: Color::Rgb(22, 22, 30),
-                bg_tertiary: Color::Rgb(30, 30, 46),
-                bg_input: Color::Rgb(26, 35, 50),
-                text_primary: Color::Rgb(232, 232, 237),
-                text_secondary: Color::Rgb(160, 160, 176),
-                text_muted: Color::Rgb(106, 106, 128),
-                text_accent: Color::Rgb(200, 182, 255),
-                border: Color::Rgb(42, 42, 58),
-                border_focus: Color::Rgb(74, 74, 106),
-                border_active: Color::Rgb(139, 176, 240),
-                brand: Color::Rgb(107, 141, 214),
-                brand_shimmer: Color::Rgb(139, 176, 240),
+                primary: Color::Rgb(120, 175, 240),
+                secondary: Color::Rgb(180, 160, 220),
+                accent: Color::Rgb(230, 185, 105),
+                success: Color::Rgb(130, 200, 160),
+                warning: Color::Rgb(230, 185, 105),
+                error: Color::Rgb(230, 130, 125),
+                info: Color::Rgb(120, 175, 240),
+                bg_primary: Color::Rgb(20, 20, 24),
+                bg_secondary: Color::Rgb(27, 27, 32),
+                bg_tertiary: Color::Rgb(35, 35, 40),
+                bg_input: Color::Rgb(35, 35, 40),
+                text_primary: Color::Rgb(235, 235, 240),
+                text_secondary: Color::Rgb(168, 168, 175),
+                text_muted: Color::Rgb(115, 115, 122),
+                text_accent: Color::Rgb(180, 160, 220),
+                border: Color::Rgb(45, 45, 51),
+                border_focus: Color::Rgb(80, 80, 90),
+                border_active: Color::Rgb(120, 175, 240),
+                brand: Color::Rgb(100, 150, 215),
+                brand_shimmer: Color::Rgb(130, 178, 235),
             },
         }
     }
@@ -93,6 +93,33 @@ impl Theme {
                 brand_shimmer: Color::Rgb(100, 149, 237),
             },
         }
+    }
+
+    pub fn preview(&self) -> String {
+        let c = &self.colors;
+        let colors = [
+            ("主色", c.primary),
+            ("次色", c.secondary),
+            ("强调", c.accent),
+            ("成功", c.success),
+            ("警告", c.warning),
+            ("错误", c.error),
+            ("信息", c.info),
+            ("品牌", c.brand),
+        ];
+
+        let mut preview = format!("{} ", self.name);
+        for (label, color) in colors {
+            let rgb = match color {
+                Color::Rgb(r, g, b) => (r, g, b),
+                _ => continue,
+            };
+            preview.push_str(&format!(
+                "\x1b[48;2;{};{};{}m {} \x1b[0m ",
+                rgb.0, rgb.1, rgb.2, label
+            ));
+        }
+        preview
     }
 }
 
@@ -165,5 +192,15 @@ mod tests {
         let names = registry.list_names();
         assert!(names.contains(&"default_dark".to_string()));
         assert!(names.contains(&"default_light".to_string()));
+    }
+
+    #[test]
+    fn test_theme_preview() {
+        let theme = Theme::default_dark();
+        let preview = theme.preview();
+        assert!(preview.contains("default_dark"));
+        assert!(preview.contains("\x1b[48;2;"));
+        assert!(preview.contains("主色"));
+        assert!(preview.contains("次色"));
     }
 }

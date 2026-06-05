@@ -1,0 +1,186 @@
+%% Phase 1: 反思引擎核心流程
+sequenceDiagram
+    participant User as 用户
+    participant Pipeline as ReasoningPipeline
+    participant Executor as ReasoningExecutor
+    participant Reflector as LLMReflectionReflector
+    participant LLM as LlmClient
+    participant Memory as UnifiedMemory
+
+    User->>Pipeline: execute_with_reflection(problem, executor, budget)
+    Pipeline->>Pipeline: plan(problem) → 6 阶段计划
+
+    loop Phase 1-5: Engagement → Testing
+        Pipeline->>Executor: execute_phase(phase, problem, instructions, previous)
+        Executor-->>Pipeline: llm_output
+    end
+
+    Note over Pipeline: Phase 6: Correction
+    Pipeline->>Executor: execute_phase(Correction, ...)
+    Executor-->>Pipeline: correction_output
+
+    Pipeline->>Reflector: reflect(correction_output, "llm_generation")
+    Reflector->>Reflector: build_reflection_prompt(context, draft, criteria)
+    Reflector->>LLM: stream(ApiRequest{reflection_prompt})
+    LLM-->>Reflector: reflection_response
+
+    alt LLM 调用成功
+        Reflector->>Reflector: parse_reflection_output(llm_output)
+        Reflector-->>Pipeline: ReflectionResult{score, issues, should_retry}
+    else LLM 调用失败/超时
+        Reflector-->>Pipeline: ReflectionResult{score=75.0, should_retry=false}
+    end
+
+    Pipeline->>Memory: remember("reflection:{session_id}", "system", reflection_summary, session_id)
+
+    alt should_retry && retries < max_retries
+        Pipeline->>Executor: execute_phase(Correction, ..., retry_instructions)
+        Executor-->>Pipeline: improved_output
+    end
+
+    Pipeline-->>User: ReasoningExecutionResult
+
+---
+
+%% Phase 1: 宪法引擎 LLM 增强
+sequenceDiagram
+    participant Engine as ConstitutionalEngine
+    participant Rule as ConstitutionalRule
+    participant LLM as ConstitutionalLlmAnalyzer
+    participant Cache as LlmCache
+
+    Engine->>Rule: evaluate_rule(rule, tool_name, input_text, output_text)
+
+    alt rule.check 匹配已知类型 (StructuralAnalysis/KeywordBlocklist/...)
+        Engine->>Engine: 关键词/模式匹配
+        Engine-->>Engine: RuleCheckResult{confidence: 0.7~0.95}
+    else rule.check 为 None 或未知类型 (_)
+        Engine->>Cache: get(rule.id)
+        alt 缓存命中且未过期
+            Cache-->>Engine: CachedLlmResult
+        else 缓存未命中
+            Engine->>LLM: analyze(rule, input_text, output_text)
+            alt LLM 可用
+                LLM-->>Engine: LlmAnalysisResult{passed, details, confidence}
+                Engine->>Cache: put(rule.id, CachedLlmResult)
+            else LLM 不可用
+                Engine-->>Engine: 降级：confidence=0.5, passed=true
+            end
+        end
+    end
+
+    Engine-->>Engine: RuleCheckResult
+
+---
+
+%% Phase 2: 闭环核心流程
+sequenceDiagram
+    participant Router as WorkflowRouter
+    participant Hebbian as HebbianOptimizer
+    participant Classifier as IntentClassifier
+    participant Memory as UnifiedMemory
+    participant Pipeline as ReasoningPipeline
+
+    Note over Router: P0-5: Hebbian 反馈到路由
+    Router->>Router: suggest_resources(domain, complexity)
+    Router->>Router: default_resources(domain, complexity) → base_tools
+    Router->>Hebbian: find_optimal_path(source_tool)
+    Hebbian-->>Router: OptimizationPath{suggestions}
+    Router->>Router: apply_hebbian_boost(base_tools, hebbian_suggestions)
+    Note over Router: final_score = base_score * (1 + hebbian_strength * 0.5)
+    Router-->>Router: RoutingDecision{suggested_tools with Hebbian boost}
+
+    Note over Classifier: P0-7: 意图分类器读记忆
+    Classifier->>Memory: search("user_preference:{user_id}", limit=5)
+    Memory-->>Classifier: preference_entries
+    Classifier->>Classifier: classify_by_keywords(text)
+    Classifier->>Classifier: apply_user_preference(keyword_result, preferences)
+    Classifier-->>Classifier: IntentResult{adjusted confidence}
+
+    Note over Pipeline: P0-6: 推理结论写记忆
+    Pipeline->>Pipeline: execute_with_reflection(...)
+    Pipeline->>Memory: remember("reasoning:{session_id}:{hash}", "system", final_conclusion, session_id)
+
+    Note over Memory: P0-8: 语义检索
+    Memory->>Memory: search_combined(query, limit)
+    Memory->>Memory: search(query, limit) → keyword_results
+    Memory->>Memory: search_semantic(query, limit) → semantic_results
+    Memory->>Memory: merge + dedup + rank → combined_results
+    Memory-->>Memory: Vec~UnifiedMemoryEntry~
+
+---
+
+%% Phase 3: MCP 远程传输
+sequenceDiagram
+    participant Runtime as McpRuntime
+    participant Pool as McpConnectionPool
+    participant Manager as McpServerManager
+    participant SSE as SseTransport
+    participant Reconnect as ReconnectingTransport
+    participant Server as Remote MCP Server
+
+    Note over Runtime: P0-13: 连接池
+    Runtime->>Manager: discover_tools()
+    Manager->>Pool: get_or_create("remote-search", SseTransport)
+    Pool->>SSE: connect()
+    SSE->>Server: GET /sse (建立事件流)
+    Server-->>SSE: SSE stream opened
+    SSE-->>Pool: connected
+    Pool-->>Manager: PooledConnection
+    Manager->>Manager: initialize + tools/list
+    Manager-->>Runtime: Vec~ManagedMcpTool~
+
+    Note over Runtime: 工具调用
+    Runtime->>Manager: call_tool("mcp__remote-search__echo", args)
+    Manager->>Pool: get_or_create("remote-search")
+    Pool-->>Manager: PooledConnection (复用)
+    Manager->>SSE: send(tools/call request)
+    SSE->>Server: POST /message (JSON-RPC)
+    Server-->>SSE: SSE event: tools/call response
+    SSE-->>Manager: JsonRpcResponse
+    Manager-->>Runtime: McpToolCallResult
+
+    Note over Reconnect: P0-12: 断线重连
+    SSE->>Server: heartbeat
+    alt 连接断开
+        Server--xSSE: connection lost
+        Reconnect->>Reconnect: 指数退避 (1s, 2s, 4s...)
+        Reconnect->>SSE: connect()
+        SSE->>Server: GET /sse (重连)
+        Server-->>SSE: SSE stream restored
+        Reconnect->>Manager: 重新 initialize + tools/list
+    else 3 次重连失败
+        Reconnect-->>Manager: ConnectionState::Disconnected
+        Manager-->>Runtime: 通知上层
+    end
+
+---
+
+%% Phase 4: dispatch 重构 + 异步化
+sequenceDiagram
+    participant Caller as 上层调用
+    participant Dispatch as dispatch::execute_tool
+    participant Registry as ToolRegistry
+    participant Tool as dyn Tool
+    participant Output as ToolOutput
+
+    Caller->>Dispatch: execute_tool("ClaimParse", input_json)
+    Dispatch->>Registry: get("ClaimParse")
+    Registry-->>Dispatch: Arc~dyn Tool~
+
+    Dispatch->>Tool: execute(input_json)
+    Tool->>Tool: 反序列化输入 + 执行业务逻辑
+    Tool-->>Dispatch: Result~ToolOutput, ToolError~
+
+    alt Ok(ToolOutput)
+        Dispatch->>Output: Display::to_string()
+        Output-->>Dispatch: JSON 字符串
+        Dispatch-->>Caller: Ok(json_string)
+    else Err(ToolError)
+        Dispatch-->>Caller: Err(error_message)
+    end
+
+    Note over Dispatch: 旧同步 API (deprecated)
+    Caller->>Dispatch: execute_tool_sync(name, input) [deprecated]
+    Dispatch->>Dispatch: spawn_blocking(|| execute_tool(name, input))
+    Dispatch-->>Caller: Result~String, String~

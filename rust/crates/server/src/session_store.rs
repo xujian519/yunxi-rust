@@ -109,9 +109,7 @@ impl SessionStore {
     }
 
     pub fn exists(&self, id: &str) -> bool {
-        self.session_path(id)
-            .ok()
-            .is_some_and(|p| p.exists())
+        self.session_path(id).ok().is_some_and(|p| p.exists())
     }
 }
 

@@ -8,52 +8,52 @@ pub mod active;
 // ── TrueColor Claude Code 风格色彩系统 ──
 
 /// 主背景色（最深）
-pub(crate) const BG_PRIMARY: (u8, u8, u8) = (13, 13, 18);
+pub(crate) const BG_PRIMARY: (u8, u8, u8) = (20, 20, 24);
 /// 次级背景色（标题栏 / 状态栏）
-pub(crate) const BG_SECONDARY: (u8, u8, u8) = (22, 22, 30);
+pub(crate) const BG_SECONDARY: (u8, u8, u8) = (27, 27, 32);
 /// 三级背景色（输入框）
-pub(crate) const BG_TERTIARY: (u8, u8, u8) = (30, 30, 46);
+pub(crate) const BG_TERTIARY: (u8, u8, u8) = (35, 35, 40);
 /// 用户消息背景
-pub(crate) const BG_MESSAGE_USER: (u8, u8, u8) = (26, 35, 50);
+pub(crate) const BG_MESSAGE_USER: (u8, u8, u8) = (30, 32, 38);
 /// AI 消息背景
-pub(crate) const BG_MESSAGE_AI: (u8, u8, u8) = (30, 30, 40);
+pub(crate) const BG_MESSAGE_AI: (u8, u8, u8) = (24, 24, 29);
 /// 代码块背景
-pub(crate) const BG_CODE: (u8, u8, u8) = (18, 18, 25);
+pub(crate) const BG_CODE: (u8, u8, u8) = (16, 16, 20);
 /// 边框色
-pub(crate) const BORDER: (u8, u8, u8) = (42, 42, 58);
+pub(crate) const BORDER: (u8, u8, u8) = (45, 45, 51);
 /// 焦点边框色
-pub(crate) const BORDER_FOCUS: (u8, u8, u8) = (74, 74, 106);
+pub(crate) const BORDER_FOCUS: (u8, u8, u8) = (80, 80, 90);
 
 /// 主文字色
-pub(crate) const TEXT_PRIMARY: (u8, u8, u8) = (232, 232, 237);
+pub(crate) const TEXT_PRIMARY: (u8, u8, u8) = (235, 235, 240);
 /// 次级文字色
-pub(crate) const TEXT_SECONDARY: (u8, u8, u8) = (160, 160, 176);
+pub(crate) const TEXT_SECONDARY: (u8, u8, u8) = (168, 168, 175);
 /// 弱化文字色
-pub(crate) const TEXT_MUTED: (u8, u8, u8) = (106, 106, 128);
+pub(crate) const TEXT_MUTED: (u8, u8, u8) = (115, 115, 122);
 /// 强调文字色（淡紫）
-pub(crate) const TEXT_ACCENT: (u8, u8, u8) = (200, 182, 255);
+pub(crate) const TEXT_ACCENT: (u8, u8, u8) = (180, 160, 220);
 
 /// 品牌色（yunxi 蓝）
-pub(crate) const BRAND_YUNXI: (u8, u8, u8) = (107, 141, 214);
+pub(crate) const BRAND_YUNXI: (u8, u8, u8) = (100, 150, 215);
 /// 品牌闪烁色
-pub(crate) const BRAND_YUNXI_SHIMMER: (u8, u8, u8) = (139, 176, 240);
+pub(crate) const BRAND_YUNXI_SHIMMER: (u8, u8, u8) = (130, 178, 235);
 
 /// 成功色
-pub(crate) const SUCCESS: (u8, u8, u8) = (123, 200, 156);
+pub(crate) const SUCCESS: (u8, u8, u8) = (130, 200, 160);
 /// 错误色
-pub(crate) const ERROR: (u8, u8, u8) = (232, 132, 124);
+pub(crate) const ERROR: (u8, u8, u8) = (230, 130, 125);
 /// 警告色
-pub(crate) const WARNING: (u8, u8, u8) = (232, 200, 124);
+pub(crate) const WARNING: (u8, u8, u8) = (230, 185, 105);
 
 /// "You" 标签色（蓝）
-pub(crate) const LABEL_YOU: (u8, u8, u8) = (107, 141, 214);
+pub(crate) const LABEL_YOU: (u8, u8, u8) = (100, 150, 215);
 /// "yunxi" 标签色（紫）
-pub(crate) const LABEL_YUNXI: (u8, u8, u8) = (200, 182, 255);
+pub(crate) const LABEL_YUNXI: (u8, u8, u8) = (180, 160, 220);
 
 /// 用量条填充色
-pub(crate) const USAGE_FILL: (u8, u8, u8) = (107, 141, 214);
+pub(crate) const USAGE_FILL: (u8, u8, u8) = (100, 150, 215);
 /// 用量条空槽色
-pub(crate) const USAGE_EMPTY: (u8, u8, u8) = (42, 42, 58);
+pub(crate) const USAGE_EMPTY: (u8, u8, u8) = (45, 45, 51);
 
 /// 品牌标识（樱花）。
 pub(crate) const BRAND_MARK: &str = "🌸";

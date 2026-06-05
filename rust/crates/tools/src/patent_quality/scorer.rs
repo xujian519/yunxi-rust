@@ -1,11 +1,11 @@
-use crate::patent_quality::types::{QualityScorerInput, ScorerOutput, ScorerQualityScores};
 use crate::patent_quality::dimensions::{
-    scorer_check_completeness, scorer_assess_claims_quality, scorer_assess_specification_quality,
-    scorer_assess_language_quality, scorer_assess_legal_quality,
+    scorer_assess_claims_quality, scorer_assess_language_quality, scorer_assess_legal_quality,
+    scorer_assess_specification_quality, scorer_check_completeness,
 };
-use crate::patent_quality::rules::scorer_apply_rules;
 use crate::patent_quality::recommendations::scorer_generate_recommendations;
+use crate::patent_quality::rules::scorer_apply_rules;
 use crate::patent_quality::types::{scorer_generate_comparison, scorer_get_quality_level};
+use crate::patent_quality::types::{QualityScorerInput, ScorerOutput, ScorerQualityScores};
 
 pub(crate) fn scorer_score(input: &QualityScorerInput) -> ScorerOutput {
     let completeness = scorer_check_completeness(input);

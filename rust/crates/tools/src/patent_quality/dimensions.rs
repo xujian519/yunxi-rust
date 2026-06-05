@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use crate::patent_quality::types::{
-    extract_keywords, calculate_keyword_overlap, QualityScorerInput, ScorerDimensionScores,
-    ScorerSpecScores, ScorerLangScores, ScorerLegalScores,
+    calculate_keyword_overlap, extract_keywords, QualityScorerInput, ScorerDimensionScores,
+    ScorerLangScores, ScorerLegalScores, ScorerSpecScores,
 };
 
 /// 完整性评分（满分 100）。

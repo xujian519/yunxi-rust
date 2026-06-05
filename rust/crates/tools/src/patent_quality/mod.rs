@@ -11,10 +11,10 @@
 mod checker;
 mod scorer;
 
-mod types;
-mod rules;
 mod dimensions;
 mod recommendations;
+mod rules;
+mod types;
 
 pub use checker::*;
 pub use scorer::*;
