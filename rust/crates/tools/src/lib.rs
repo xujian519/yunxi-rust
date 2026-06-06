@@ -213,6 +213,9 @@ mod tests {
 
     #[test]
     fn web_search_extracts_and_filters_results() {
+        let _guard = env_lock()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         ensure_no_proxy();
         let server = TestServer::spawn(Arc::new(|request_line: &str| {
             if !request_line.contains("GET /search?q=rust+web+search ") {
