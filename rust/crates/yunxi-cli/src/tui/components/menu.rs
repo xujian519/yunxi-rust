@@ -352,12 +352,12 @@ impl Component for Menu {
 
                     if let Some(ref shortcut) = item.shortcut {
                         let spaces = menu_width as usize - item.label.len() - shortcut.len() - 4;
-                        text.push_str(&" ".repeat(spaces.max(0)));
+                        text.push_str(&" ".repeat(spaces));
                         text.push(' ');
                         text.push_str(shortcut);
                     } else if matches!(item.item_type, MenuItemType::Submenu(_)) {
                         let spaces = menu_width as usize - item.label.len() - 3;
-                        text.push_str(&" ".repeat(spaces.max(0)));
+                        text.push_str(&" ".repeat(spaces));
                         text.push('▶');
                     }
 

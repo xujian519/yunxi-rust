@@ -89,10 +89,8 @@ pub(crate) fn run_tui_repl(
             crossterm::event::Event::Resize(_, _) => {
                 app.needs_render = true;
             }
-            crossterm::event::Event::Paste(text) => {
-                if !app.has_blocking_modal() {
-                    app.input.set_content(text);
-                }
+            crossterm::event::Event::Paste(text) if !app.has_blocking_modal() => {
+                app.input.set_content(text);
             }
             _ => {}
         }

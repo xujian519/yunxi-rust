@@ -230,10 +230,8 @@ impl App {
                     self.handle_mouse(mouse_event);
                 }
                 CrosstermEvent::Resize(_, _) => {}
-                CrosstermEvent::Paste(text) => {
-                    if !self.has_blocking_modal() {
-                        self.input.set_content(text);
-                    }
+                CrosstermEvent::Paste(text) if !self.has_blocking_modal() => {
+                    self.input.set_content(text);
                 }
                 _ => {}
             }

@@ -50,6 +50,7 @@ secrets.json
 .claude/
 .claude.json
 .claude/settings.local.json
+**/.yunxi/
 .yunxi/settings.local.json
 .yunxi/settings.local.json.*
 !.yunxi/settings.local.json.example

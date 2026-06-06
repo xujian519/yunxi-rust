@@ -133,14 +133,14 @@ impl Component for Button {
 
         match event {
             Event::Input(InputEvent::Key(key))
-                if key.code == KeyCode::Enter && key.modifiers == KeyModifiers::NONE =>
+                if key.code == KeyCode::Enter
+                    && key.modifiers == KeyModifiers::NONE
+                    && self.state.focused =>
             {
-                if self.state.focused {
-                    if let Some(ref callback) = self.on_click {
-                        return callback();
-                    }
-                    return ActionResult::Action(Action::Navigate("/home".to_string()));
+                if let Some(ref callback) = self.on_click {
+                    return callback();
                 }
+                return ActionResult::Action(Action::Navigate("/home".to_string()));
             }
             _ => {}
         }

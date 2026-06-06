@@ -294,7 +294,7 @@ impl KeyMap {
             }
         }
 
-        bindings.sort_by(|a, b| a.sequence.display().cmp(&b.sequence.display()));
+        bindings.sort_by_key(|b| b.sequence.display());
         bindings
     }
 
