@@ -13,7 +13,7 @@ pub struct SlashCompletionItem {
     pub icon: String,
     /// 显示文本（如 "/help"）。
     pub display: String,
-    /// 整行替换文本（如 "/help" 或 "/model [模型]"）。
+    /// 整行替换文本（如 "/help" 或 "/model \<模型\>"）。
     pub replacement: String,
     /// 命令描述（如 "显示可用斜杠命令"）。
     pub description: String,

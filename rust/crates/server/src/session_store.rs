@@ -78,7 +78,7 @@ impl SessionStore {
                 modified_at,
             });
         }
-        metas.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+        metas.sort_by_key(|b| std::cmp::Reverse(b.modified_at));
         Ok(metas)
     }
 
