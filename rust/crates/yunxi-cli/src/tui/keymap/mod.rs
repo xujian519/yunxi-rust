@@ -38,7 +38,7 @@ impl Binding {
         self
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn display(&self) -> String {
         if let Some(desc) = &self.description {
             format!("{}: {} ({})", self.sequence, self.command, desc)
         } else {
@@ -294,7 +294,7 @@ impl KeyMap {
             }
         }
 
-        bindings.sort_by(|a, b| a.sequence.to_string().cmp(&b.sequence.to_string()));
+        bindings.sort_by(|a, b| a.sequence.display().cmp(&b.sequence.display()));
         bindings
     }
 

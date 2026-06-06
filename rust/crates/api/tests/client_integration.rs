@@ -2,6 +2,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+// Prevent system proxy from intercepting localhost mock servers
+static _NO_PROXY: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+fn ensure_no_proxy() {
+    _NO_PROXY.get_or_init(|| {
+        std::env::set_var("NO_PROXY", "127.0.0.1,localhost");
+    });
+}
+
 use api::{
     AnthropicClient, ApiError, ContentBlockDelta, ContentBlockDeltaEvent, ContentBlockStartEvent,
     InputContentBlock, InputMessage, MessageDeltaEvent, MessageRequest, OutputContentBlock,
@@ -14,6 +22,7 @@ use tokio::sync::Mutex;
 
 #[tokio::test]
 async fn send_message_posts_json_and_parses_response() {
+    ensure_no_proxy();
     let state = Arc::new(Mutex::new(Vec::<CapturedRequest>::new()));
     let body = concat!(
         "{",
@@ -77,6 +86,7 @@ async fn send_message_posts_json_and_parses_response() {
 
 #[tokio::test]
 async fn stream_message_parses_sse_events_with_tool_use() {
+    ensure_no_proxy();
     let state = Arc::new(Mutex::new(Vec::<CapturedRequest>::new()));
     let sse = concat!(
         "event: message_start\n",
@@ -164,6 +174,7 @@ async fn stream_message_parses_sse_events_with_tool_use() {
 
 #[tokio::test]
 async fn retries_retryable_failures_before_succeeding() {
+    ensure_no_proxy();
     let state = Arc::new(Mutex::new(Vec::<CapturedRequest>::new()));
     let server = spawn_server(
         state.clone(),
@@ -197,6 +208,7 @@ async fn retries_retryable_failures_before_succeeding() {
 
 #[tokio::test]
 async fn surfaces_retry_exhaustion_for_persistent_retryable_errors() {
+    ensure_no_proxy();
     let state = Arc::new(Mutex::new(Vec::<CapturedRequest>::new()));
     let server = spawn_server(
         state.clone(),

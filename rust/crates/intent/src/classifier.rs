@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_unknown() {
-        let result = classifier().classify("今天天气怎么样");
+        let result = classifier().classify("随便说点什么吧");
         assert_eq!(result.intent, IntentType::Unknown);
     }
 

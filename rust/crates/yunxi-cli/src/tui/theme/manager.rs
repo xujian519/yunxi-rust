@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use super::{presets::*, ThemeRegistry};
+use super::ThemeRegistry;
 use crate::tui::theme::Theme;
 
 pub struct ThemeManager {

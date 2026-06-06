@@ -6,9 +6,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::symbols;
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, Row, Table as RatatuiTable, TableState};
+use ratatui::widgets::{Block, Borders, Row, Table as RatatuiTable};
 
 pub struct Table {
     state: ComponentState,

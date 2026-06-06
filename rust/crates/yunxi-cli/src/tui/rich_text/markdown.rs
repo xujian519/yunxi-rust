@@ -150,7 +150,7 @@ impl MarkdownParser {
             if self
                 .code_block_language
                 .as_ref()
-                .map_or(false, |s| s.is_empty())
+                .is_some_and(|s| s.is_empty())
             {
                 self.code_block_language = None;
             }
@@ -316,7 +316,7 @@ impl MarkdownParser {
         let delimiter_chars: Vec<char> = delimiter.chars().collect();
         let mut match_pos = 0;
 
-        while let Some(c) = chars.next() {
+        for c in chars.by_ref() {
             if c == delimiter_chars[match_pos] {
                 match_pos += 1;
                 if match_pos == delimiter_chars.len() {
@@ -324,8 +324,8 @@ impl MarkdownParser {
                 }
             } else {
                 if match_pos > 0 {
-                    for i in 0..match_pos {
-                        result.push(delimiter_chars[i]);
+                    for &dc in &delimiter_chars[..match_pos] {
+                        result.push(dc);
                     }
                     match_pos = 0;
                 }

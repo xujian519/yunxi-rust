@@ -4,7 +4,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crossterm::event::{self, Event as CrosstermEvent, KeyCode};
+use crossterm::event::Event as CrosstermEvent;
 
 use runtime::PermissionMode;
 
@@ -20,9 +20,9 @@ use crate::tui::components::session_picker::SessionPicker;
 use crate::tui::components::tool_panel::{ToolEntry, ToolPanel};
 use crate::tui::core::action::{Action, ActionResult};
 use crate::tui::core::event::{Event, EventDispatcher, InputEvent};
-use crate::tui::keymap::{Command, KeyMap};
+use crate::tui::keymap::KeyMap;
 use crate::tui::state::global::GlobalState;
-use crate::tui::theme::{Theme, ThemeManager};
+use crate::tui::theme::ThemeManager;
 use crate::tui::turn::{spawn_turn, ActiveTurn, SharedRuntime, TurnEvent};
 use crate::VERSION;
 
@@ -264,11 +264,7 @@ impl App {
             TurnEvent::Done(result) => {
                 let is_streamed = self.turn_was_streamed();
                 self.end_turn_stream();
-                if !self
-                    .active_turn
-                    .as_ref()
-                    .map_or(false, |t| t.is_cancelled())
-                {
+                if !self.active_turn.as_ref().is_some_and(|t| t.is_cancelled()) {
                     match result {
                         Ok(summary) => self.ingest_turn_summary(&summary, is_streamed),
                         Err(error) => {

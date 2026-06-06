@@ -148,6 +148,7 @@ where
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub struct CustomValidator<T>
 where
     T: Send + Sync,

@@ -141,6 +141,7 @@ impl McpRuntime {
     /// 调用 MCP 工具并返回文本结果。
     ///
     /// 使用全局共享 Runtime，避免每次调用创建新 Runtime。
+    #[allow(clippy::await_holding_lock)]
     pub fn call_tool(&self, name: &str, input: &str) -> Result<String, String> {
         let arguments = serde_json::from_str(input).map_err(|e| format!("invalid JSON: {e}"))?;
         let manager = Arc::clone(&self.manager);

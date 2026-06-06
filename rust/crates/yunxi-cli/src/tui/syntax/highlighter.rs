@@ -1,8 +1,8 @@
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span, Text};
 use std::sync::Arc;
 use syntect::easy::HighlightLines;
-use syntect::highlighting::{Theme as SyntectTheme, ThemeSet};
+use syntect::highlighting::ThemeSet;
 use syntect::parsing::{SyntaxReference, SyntaxSet};
 use syntect::util::LinesWithEndings;
 
@@ -96,7 +96,7 @@ impl SyntaxHighlighter {
             let ranges = highlighter.highlight_line(line, &self.syntax_set);
             let mut spans = Vec::new();
 
-            for range_vec in &ranges {
+            if let Ok(range_vec) = &ranges {
                 for &(style, text) in range_vec {
                     let color = self.syntect_color_to_ratatui_color(style.foreground);
                     let span = Span::styled(text.to_string(), Style::default().fg(color));

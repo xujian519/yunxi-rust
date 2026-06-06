@@ -2,13 +2,13 @@ use super::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::Action;
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
-use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyModifiers, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Alignment;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Borders, Clear};
 
 pub struct Modal {
     state: ComponentState,

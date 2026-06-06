@@ -80,7 +80,7 @@ impl CommandPalette {
         }
 
         let mut matches = 0;
-        let mut pattern_chars = pattern.chars();
+        let pattern_chars = pattern.chars();
         let mut text_chars = text.chars();
 
         for p_char in pattern_chars {

@@ -1,13 +1,13 @@
 use super::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::{Action, ActionResult};
 use crate::tui::core::event::{Event, InputEvent};
-use crate::tui::error::{ErrorReport, YunXiError};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crate::tui::error::ErrorReport;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::prelude::{StatefulWidget, Widget};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span, Text};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarState, Wrap};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -190,7 +190,7 @@ impl Component for ErrorDialog {
 
         let action_style = Style::default().fg(Color::Rgb(150, 150, 150));
 
-        let mut action_spans = vec![
+        let action_spans = vec![
             Span::raw("操作: "),
             Span::styled("[B]", action_style),
             Span::raw("切换堆栈 "),
@@ -250,7 +250,9 @@ impl Component for ErrorDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tui::error::{ErrorLevel, ErrorType};
+    use crate::tui::error::types::{ErrorType, YunXiError};
+    use crate::tui::error::ErrorLevel;
+    use crossterm::event::KeyModifiers;
 
     #[test]
     fn test_error_dialog_creation() {

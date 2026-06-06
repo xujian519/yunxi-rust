@@ -1,7 +1,7 @@
 use crate::tui::components::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
-use crossterm::event::{KeyCode, KeyModifiers};
+use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
@@ -43,7 +43,9 @@ pub struct TextInput {
     multiline: bool,
     masked: bool,
     mask_char: char,
+    #[allow(clippy::type_complexity)]
     on_change: Option<Box<dyn Fn(&str) -> ActionResult + Send + Sync>>,
+    #[allow(clippy::type_complexity)]
     on_submit: Option<Box<dyn Fn(&str) -> ActionResult + Send + Sync>>,
     style: TextInputStyle,
 }
@@ -279,10 +281,6 @@ impl Component for TextInput {
                         return callback(&self.value);
                     }
                     ActionResult::Ignored
-                }
-                KeyCode::Char('u') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                    self.clear();
-                    ActionResult::Handled
                 }
                 _ => ActionResult::Ignored,
             },

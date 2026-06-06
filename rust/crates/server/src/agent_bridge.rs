@@ -97,7 +97,7 @@ pub fn run_agent_turn<F>(
     user_input: &str,
     model: Option<&str>,
     workspace_root: PathBuf,
-    mut on_event: F,
+    on_event: F,
     prompter: Option<&mut dyn PermissionPrompter>,
 ) -> Result<TurnSummary, String>
 where
@@ -108,11 +108,7 @@ where
     let mut runtime = build_runtime(session.clone(), model, workspace_root)?;
 
     let summary = runtime
-        .run_turn_with_stream(
-            user_input,
-            prompter,
-            Some(Box::new(move |event| on_event(event))),
-        )
+        .run_turn_with_stream(user_input, prompter, Some(Box::new(on_event)))
         .map_err(|e| e.to_string())?;
 
     *session = runtime.session().clone();

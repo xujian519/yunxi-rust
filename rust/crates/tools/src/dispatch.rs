@@ -1,6 +1,6 @@
 //! Tool dispatch: maps tool names to their runner functions.
 //!
-//! Dispatch is backed by the global [`ToolRegistry`] populated in
+//! Dispatch is backed by the global `ToolRegistry` populated in
 //! `tool_registry.rs`. The public API `execute_tool()` delegates to
 //! `GLOBAL_REGISTRY.get(name)` — no more 40+-arm match.
 

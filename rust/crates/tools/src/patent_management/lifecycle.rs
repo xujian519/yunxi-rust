@@ -233,7 +233,7 @@ fn handle_get_patent(input: PatentManagerInput) -> Result<serde_json::Value, Str
         .lock()
         .map_err(|e| format!("Failed to acquire patent store lock: {e}"))?;
     let state = store.get(&id).ok_or("Patent not found")?;
-    Ok(serde_json::to_value(state).map_err(|e| e.to_string())?)
+    serde_json::to_value(state).map_err(|e| e.to_string())
 }
 
 /// 列出所有专利操作

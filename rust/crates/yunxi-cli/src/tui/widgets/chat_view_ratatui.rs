@@ -124,7 +124,7 @@ impl Widget for ChatViewWidget<'_> {
         }
 
         let cumulative_heights = compute_cumulative_heights(entries, area.width);
-        let total_height = cumulative_heights
+        let _total_height = cumulative_heights
             .last()
             .copied()
             .unwrap_or(0)
@@ -133,15 +133,13 @@ impl Widget for ChatViewWidget<'_> {
                 area.width,
             ));
 
-        let scroll_offset = self.chat.scroll_offset() as u16;
+        let _scroll_offset = self.chat.scroll_offset() as u16;
         let start_idx = find_first_visible(self.chat.scroll_offset(), &cumulative_heights);
 
         let mut current_y = area.y;
         let max_y = area.y + area.height;
 
-        for idx in start_idx..entry_count {
-            let entry = &entries[idx];
-
+        for (idx, entry) in entries[start_idx..entry_count].iter().enumerate() {
             if entry.text.is_empty()
                 && matches!(entry.role, ChatRole::Assistant)
                 && entry.reasoning.is_none()

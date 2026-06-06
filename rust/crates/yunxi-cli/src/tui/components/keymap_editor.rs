@@ -217,7 +217,7 @@ impl KeymapEditor {
 
     fn format_key_sequence(keys: &[KeyEvent]) -> String {
         keys.iter()
-            .map(|k| Self::format_key(k))
+            .map(Self::format_key)
             .collect::<Vec<_>>()
             .join("+")
     }

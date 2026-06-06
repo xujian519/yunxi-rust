@@ -1,5 +1,4 @@
 use super::base::{generate_component_id, Component, ComponentState};
-use crate::tui::core::action::Action;
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
 use crossterm::event::{KeyCode, KeyModifiers};

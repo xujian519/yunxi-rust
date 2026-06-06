@@ -1,14 +1,14 @@
 use super::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::{Action, ActionResult};
 use crate::tui::core::event::{Event, InputEvent};
-use crate::tui::form::{FormLayoutConfig, RequiredValidator, Validator, ValidatorSet};
+use crate::tui::form::{FormLayoutConfig, Validator, ValidatorSet};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldType {
@@ -136,6 +136,7 @@ pub struct Form {
     selected_field: usize,
     layout_config: FormLayoutConfig,
     show_validation: bool,
+    #[allow(clippy::type_complexity)]
     submit_callback: Option<Box<dyn Fn(&[FormField]) -> ActionResult + Send + Sync>>,
     cancel_callback: Option<Box<dyn Fn() -> ActionResult + Send + Sync>>,
 }
@@ -410,7 +411,7 @@ impl Component for Form {
                 FieldType::SelectField => field
                     .options
                     .get(field.value.parse::<usize>().unwrap_or(0))
-                    .map(|s| s.clone())
+                    .cloned()
                     .unwrap_or_else(|| field.value.clone()),
                 FieldType::MultiSelectField => {
                     format!(
@@ -476,7 +477,7 @@ impl Component for Form {
             y_offset += field_spacing + 1;
         }
 
-        let help_text = format!("[↑/↓]选择 [Enter]确认 [Alt+Enter]提交 [Tab]下一字段 [ESC]取消",);
+        let help_text = "[↑/↓]选择 [Enter]确认 [Alt+Enter]提交 [Tab]下一字段 [ESC]取消".to_string();
 
         let help_style = Style::default().fg(Color::Rgb(150, 150, 150));
         let help_line = Line::from(Span::styled(help_text, help_style));
@@ -518,7 +519,8 @@ impl Component for Form {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tui::form::{FormLayout, LengthValidator};
+    use crate::tui::form::layout::FormLayout;
+    use crate::tui::form::validator::LengthValidator;
 
     #[test]
     fn test_form_creation() {
@@ -656,7 +658,7 @@ mod tests {
         let mut form = Form::new();
         form.add_field(FormField::new("name", "姓名", FieldType::TextField).with_required(true));
 
-        form.validate_all();
+        let _ = form.validate_all();
         assert!(!form.is_valid());
 
         form.set_field_value("name", "张三");
@@ -777,7 +779,7 @@ mod tests {
     #[test]
     fn test_form_field_clear_error() {
         let mut field = FormField::new("name", "姓名", FieldType::TextField).with_required(true);
-        field.validate();
+        let _ = field.validate();
         assert!(field.error_message.is_some());
 
         field.clear_error();
@@ -787,7 +789,7 @@ mod tests {
     #[test]
     fn test_form_field_disabled() {
         let mut field = FormField::new("name", "姓名", FieldType::TextField).with_disabled(true);
-        field.validate();
+        let _ = field.validate();
         assert!(field.validate().is_ok());
     }
 

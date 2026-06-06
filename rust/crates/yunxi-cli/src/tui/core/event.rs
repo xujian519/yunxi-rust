@@ -46,6 +46,7 @@ pub enum TimerEvent {
     Interval(u64),
 }
 
+#[allow(clippy::type_complexity)]
 pub struct EventDispatcher {
     listeners: Vec<Box<dyn Fn(&Event) -> ActionResult + Send + Sync>>,
 }

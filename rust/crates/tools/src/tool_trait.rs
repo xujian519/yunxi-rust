@@ -229,18 +229,18 @@ mod tests {
 
     impl Tool for TestTool {
         fn spec(&self) -> ToolSpec {
-            tool_spec!(
-                "TestTool",
-                "A test tool for unit testing",
-                ToolCategory::Other,
-                {
-                    "type" => "object",
-                    "properties" => {
-                        "message" => { "type" => "string" }
+            ToolSpec {
+                name: "TestTool".to_string(),
+                description: "A test tool for unit testing".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "message": { "type": "string" }
                     },
-                    "required" => ["message"]
-                }
-            )
+                    "required": ["message"]
+                }),
+                category: ToolCategory::Other,
+            }
         }
 
         fn execute(&self, input: &Value) -> Result<String, String> {
@@ -282,7 +282,7 @@ mod tests {
             ToolCategory::PatentCore,
             {
                 "type" => "object",
-                "properties" => { "x" => { "type" => "number" } }
+                "properties" => "x"
             }
         );
         assert_eq!(spec.name, "MyTool");

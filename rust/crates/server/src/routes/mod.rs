@@ -12,7 +12,7 @@ pub mod settings;
 pub mod tools;
 
 use crate::AppState;
-use axum::routing::{get, post, put, Router};
+use axum::routing::{get, post, Router};
 
 /// 构建所有 API 路由
 pub fn build_routes(state: AppState) -> Router {

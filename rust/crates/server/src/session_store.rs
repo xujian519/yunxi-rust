@@ -1,7 +1,7 @@
 //! HTTP Server 会话磁盘存储（`{workspace}/.yunxi/server-sessions/`）。
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use runtime::Session;
@@ -18,6 +18,12 @@ pub struct SessionMeta {
 
 pub struct SessionStore {
     dir: PathBuf,
+}
+
+impl Default for SessionStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SessionStore {

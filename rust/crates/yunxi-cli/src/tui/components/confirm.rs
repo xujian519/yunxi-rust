@@ -1,4 +1,4 @@
-use super::base::{generate_component_id, Component, ComponentState};
+use super::base::{Component, ComponentState};
 use super::button::{Button, ButtonStyle};
 use super::layout::Flex;
 use super::modal::Modal;

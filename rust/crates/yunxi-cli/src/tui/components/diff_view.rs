@@ -142,11 +142,11 @@ impl DiffView {
     fn scroll_to_change(&mut self, change_idx: usize) {
         let changes = self.all_changes();
         if let Some((global_idx, _)) = changes.get(change_idx) {
-            self.scroll_offset = global_idx.saturating_sub(5) as usize;
+            self.scroll_offset = global_idx.saturating_sub(5);
         }
     }
 
-    fn render_line_number(&self, line_num: Option<usize>, width: u16) -> Line<'_> {
+    fn render_line_number(&self, line_num: Option<usize>, _width: u16) -> Line<'_> {
         let colors = DiffColors::active();
         let num_str = line_num
             .map(|n| format!("{:>4}", n))
@@ -157,7 +157,7 @@ impl DiffView {
         ))
     }
 
-    fn render_change_line(&self, change: &DiffChange, width: u16) -> Line<'_> {
+    fn render_change_line(&self, change: &DiffChange, _width: u16) -> Line<'_> {
         let colors = DiffColors::active();
         let (text, style) = match change {
             DiffChange::Added(s) => (
@@ -369,6 +369,6 @@ mod tests {
         assert_eq!(view.scroll_offset, 0);
 
         view.next_change();
-        assert!(view.scroll_offset >= 0);
+        let _ = view.scroll_offset;
     }
 }

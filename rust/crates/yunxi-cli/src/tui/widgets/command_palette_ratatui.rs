@@ -17,8 +17,8 @@ impl CommandPaletteWidget<'_> {
 
         Clear.render(area, buf);
 
-        let popup_width = area.width.min(60).max(40);
-        let popup_height = area.height.min(18).max(10);
+        let popup_width = area.width.clamp(40, 60);
+        let popup_height = area.height.clamp(10, 18);
         let popup = centered_rect(popup_width, popup_height, area);
 
         Component::render(self.palette, popup, buf);

@@ -1,7 +1,5 @@
 pub mod manager;
 
-pub use manager::{ClipboardHistory, ClipboardManager};
-
 /// 去除 ANSI 转义序列，便于复制到剪贴板。
 #[must_use]
 pub(crate) fn strip_ansi(input: &str) -> String {

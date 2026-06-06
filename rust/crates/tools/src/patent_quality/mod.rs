@@ -22,6 +22,8 @@ pub use types::*;
 
 #[cfg(test)]
 mod tests {
+    use super::dimensions::*;
+    use super::rules::*;
     use super::*;
 
     // --- Quality Scorer tests ---

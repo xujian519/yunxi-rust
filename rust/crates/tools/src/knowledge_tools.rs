@@ -107,7 +107,7 @@ pub fn execute_legal_reasoning(input: &LegalReasoningInput) -> Result<Value, Str
         "infringement_elements" => {
             let elements: Vec<String> = input
                 .query
-                .split(|c: char| c == '、' || c == ',' || c == ';')
+                .split(['、', ',', ';'])
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
                 .map(str::to_string)

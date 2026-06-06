@@ -876,6 +876,8 @@ mod tests {
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        // Prevent system proxy from intercepting localhost mock servers
+        std::env::set_var("NO_PROXY", "127.0.0.1,localhost");
         LOCK.get_or_init(|| Mutex::new(()))
             .lock()
             .expect("env lock")
@@ -906,7 +908,9 @@ mod tests {
     fn spawn_token_server(response_body: &'static str) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
         let address = listener.local_addr().expect("local addr");
+        let (tx, rx) = std::sync::mpsc::channel::<()>();
         thread::spawn(move || {
+            let _ = tx.send(()); // signal thread is alive
             let (mut stream, _) = listener.accept().expect("accept connection");
             let mut buffer = [0_u8; 4096];
             let _ = stream.read(&mut buffer).expect("read request");
@@ -919,6 +923,7 @@ mod tests {
                 .write_all(response.as_bytes())
                 .expect("write response");
         });
+        let _ = rx.recv_timeout(std::time::Duration::from_secs(5));
         format!("http://{address}/oauth/token")
     }
 

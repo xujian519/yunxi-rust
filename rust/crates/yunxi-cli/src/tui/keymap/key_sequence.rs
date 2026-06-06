@@ -12,7 +12,7 @@ impl Serialize for KeySequence {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        serializer.serialize_str(&self.display())
     }
 }
 
@@ -132,7 +132,7 @@ impl KeySequence {
                 let num: u8 = s[1..]
                     .parse()
                     .map_err(|_| format!("Invalid F-key: {}", s))?;
-                if num >= 1 && num <= 12 {
+                if (1..=12).contains(&num) {
                     Ok(Key::F(num))
                 } else {
                     Err(format!("Invalid F-key: {}", s))
@@ -143,7 +143,7 @@ impl KeySequence {
         }
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn display(&self) -> String {
         self.keys
             .iter()
             .map(|k| k.to_string())
@@ -154,7 +154,7 @@ impl KeySequence {
 
 impl std::fmt::Display for KeySequence {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", self.display())
     }
 }
 
@@ -248,7 +248,6 @@ impl Default for SequenceTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::KeyModifiers;
 
     #[test]
     fn test_key_sequence_single() {
@@ -341,7 +340,7 @@ mod tests {
             KeyBinding::simple(Key::Char('g')),
             KeyBinding::simple(Key::Char('g')),
         ]);
-        assert_eq!(seq.to_string(), "g g");
+        assert_eq!(seq.display(), "g g");
     }
 
     #[test]

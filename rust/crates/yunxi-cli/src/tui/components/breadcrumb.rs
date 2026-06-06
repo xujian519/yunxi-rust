@@ -1,11 +1,11 @@
 use super::base::{generate_component_id, Component, ComponentState};
 use crate::tui::core::action::{Action, ActionResult};
 use crate::tui::core::event::{Event, InputEvent};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Color, Style};
 use ratatui::widgets::Paragraph;
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,4 @@
-use super::types::{ErrorLevel, ErrorType, YunXiError};
+use super::types::YunXiError;
 use serde::{Deserialize, Serialize};
 use std::backtrace::Backtrace;
 use std::fmt;
@@ -54,7 +54,7 @@ impl ErrorReport {
 
         if !self.error.suggestions.is_empty() {
             report.push_str("建议解决方案:\n");
-            for (i, suggestion) in self.error.suggestions.iter().enumerate() {
+            for suggestion in &self.error.suggestions {
                 report.push_str(&format!("  • {}\n", suggestion));
             }
             report.push('\n');
@@ -174,6 +174,7 @@ impl ErrorReporter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tui::error::types::{ErrorLevel, ErrorType};
 
     #[test]
     fn test_error_report_creation() {

@@ -262,7 +262,7 @@ impl Editor {
         self.insert_text(&spaces);
     }
 
-    pub fn move_cursor(&mut self, direction: Direction) {
+    pub(crate) fn move_cursor(&mut self, direction: Direction) {
         let max_row = self.lines.len().saturating_sub(1);
         let max_col = self
             .lines
@@ -343,7 +343,7 @@ impl Editor {
         }
     }
 
-    fn highlight_syntax(&self, line: &str) -> Line {
+    fn highlight_syntax(&self, line: &str) -> Line<'_> {
         let mut spans = Vec::new();
         let chars: Vec<char> = line.chars().collect();
         let mut i = 0;
@@ -582,7 +582,7 @@ impl Editor {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Direction {
+pub(crate) enum Direction {
     Up,
     Down,
     Left,
@@ -663,23 +663,25 @@ impl Component for Editor {
             height: 1,
         };
 
-        if cursor_area.x < area.right() && cursor_area.y < area.bottom() {
-            if cursor_area.x < buf.area.width && cursor_area.y < buf.area.height {
-                if let Some(cell) = buf.cell_mut((cursor_area.x, cursor_area.y)) {
-                    cell.set_style(
-                        Style::default()
-                            .bg(if self.state.focused {
-                                self.style.cursor_bg
-                            } else {
-                                self.style.fg
-                            })
-                            .fg(if self.state.focused {
-                                self.style.cursor_fg
-                            } else {
-                                self.style.bg
-                            }),
-                    );
-                }
+        if cursor_area.x < area.right()
+            && cursor_area.y < area.bottom()
+            && cursor_area.x < buf.area.width
+            && cursor_area.y < buf.area.height
+        {
+            if let Some(cell) = buf.cell_mut((cursor_area.x, cursor_area.y)) {
+                cell.set_style(
+                    Style::default()
+                        .bg(if self.state.focused {
+                            self.style.cursor_bg
+                        } else {
+                            self.style.fg
+                        })
+                        .fg(if self.state.focused {
+                            self.style.cursor_fg
+                        } else {
+                            self.style.bg
+                        }),
+                );
             }
         }
     }

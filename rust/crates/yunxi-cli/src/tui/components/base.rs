@@ -11,8 +11,8 @@ pub trait Component: Send + Sync {
 
     fn on_mount(&mut self) {}
     fn on_unmount(&mut self) {}
-    fn on_focus(&mut self, focused: bool) {}
-    fn on_resize(&mut self, area: Rect) {}
+    fn on_focus(&mut self, _focused: bool) {}
+    fn on_resize(&mut self, _area: Rect) {}
 }
 
 #[derive(Debug, Clone, PartialEq)]

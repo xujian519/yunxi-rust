@@ -1,7 +1,7 @@
 use super::base::{generate_component_id, Component, ComponentState};
-use crate::tui::core::action::{Action, ActionResult};
+use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::{Event, InputEvent};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Rect};
 use ratatui::prelude::Widget;
@@ -317,7 +317,8 @@ impl Component for Alert {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::KeyEvent;
+    use crate::tui::core::action::Action;
+    use crossterm::event::{KeyEvent, KeyModifiers};
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 

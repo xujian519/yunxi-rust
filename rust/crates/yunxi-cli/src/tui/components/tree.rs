@@ -7,7 +7,6 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::symbols;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
@@ -22,7 +21,9 @@ pub struct Tree<T: Clone + ToString + Send + Sync> {
     indent_size: usize,
     selected_paths: Vec<String>,
     selection_mode: SelectionMode,
+    #[allow(clippy::type_complexity)]
     on_select: Option<Box<dyn Fn(String, &T) -> ActionResult + Send + Sync>>,
+    #[allow(clippy::type_complexity)]
     on_expand: Option<Box<dyn Fn(String, &T) -> ActionResult + Send + Sync>>,
     style: TreeStyle,
 }
@@ -631,7 +632,7 @@ mod tests {
         tree.on_focus(true);
         tree.toggle("/root");
         tree.select_all_visible();
-        assert!(tree.get_selected_paths().len() >= 1);
+        assert!(!tree.get_selected_paths().is_empty());
     }
 
     #[test]

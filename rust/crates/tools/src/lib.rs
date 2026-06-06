@@ -73,6 +73,14 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    // Prevent system proxy from intercepting localhost mock servers
+    fn ensure_no_proxy() {
+        static LOCK: OnceLock<()> = OnceLock::new();
+        LOCK.get_or_init(|| {
+            std::env::set_var("NO_PROXY", "127.0.0.1,localhost");
+        });
+    }
+
     use super::{
         agent_permission_policy, allowed_tools_for_subagent, execute_agent_with_spawn,
         execute_tool, final_assistant_text, mvp_tool_specs, persist_agent_terminal_state,
@@ -125,6 +133,7 @@ mod tests {
 
     #[test]
     fn web_fetch_returns_prompt_aware_summary() {
+        ensure_no_proxy();
         let server = TestServer::spawn(Arc::new(|request_line: &str| {
             if !request_line.starts_with("GET /page ") {
                 return HttpResponse::html(404, "Not Found", "");
@@ -167,6 +176,7 @@ mod tests {
 
     #[test]
     fn web_fetch_supports_plain_text_and_rejects_invalid_url() {
+        ensure_no_proxy();
         let server = TestServer::spawn(Arc::new(|request_line: &str| {
             if !request_line.starts_with("GET /plain ") {
                 return HttpResponse::text(404, "Not Found", "");
@@ -203,6 +213,7 @@ mod tests {
 
     #[test]
     fn web_search_extracts_and_filters_results() {
+        ensure_no_proxy();
         let server = TestServer::spawn(Arc::new(|request_line: &str| {
             if !request_line.contains("GET /search?q=rust+web+search ") {
                 return HttpResponse::html(404, "Not Found", "");

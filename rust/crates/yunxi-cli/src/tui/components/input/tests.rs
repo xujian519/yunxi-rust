@@ -1,8 +1,8 @@
 #[cfg(test)]
-mod tests {
+mod input_tests {
     use crate::tui::components::base::Component;
-    use crate::tui::components::input::*;
-    use crate::tui::core::action::ActionResult;
+    use crate::tui::components::input::prompt::Prompt;
+    use crate::tui::components::input::text_input::TextInput;
     use crate::tui::core::event::{Event, InputEvent};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

@@ -256,24 +256,19 @@ impl Component for Collapsible {
     }
 
     fn handle_event(&mut self, event: &Event) -> ActionResult {
-        match event {
-            Event::Input(input) => {
-                if let InputEvent::Key(key) = input {
-                    match key.code {
-                        KeyCode::Enter => {
-                            return self.toggle();
-                        }
-                        KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
-                            return self.expand();
-                        }
-                        KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
-                            return self.collapse();
-                        }
-                        _ => {}
-                    }
+        if let Event::Input(InputEvent::Key(key)) = event {
+            match key.code {
+                KeyCode::Enter => {
+                    return self.toggle();
                 }
+                KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
+                    return self.expand();
+                }
+                KeyCode::Char('w') if key.modifiers == KeyModifiers::CONTROL => {
+                    return self.collapse();
+                }
+                _ => {}
             }
-            _ => {}
         }
 
         ActionResult::Ignored
@@ -342,7 +337,7 @@ mod tests {
         let toggle_count = Arc::new(AtomicUsize::new(0));
         let count = Arc::clone(&toggle_count);
 
-        let mut collapsible = Collapsible::new("Test").with_on_toggle(move |is_expanded| {
+        let mut collapsible = Collapsible::new("Test").with_on_toggle(move |_is_expanded| {
             count.fetch_add(1, Ordering::SeqCst);
             ActionResult::Handled
         });

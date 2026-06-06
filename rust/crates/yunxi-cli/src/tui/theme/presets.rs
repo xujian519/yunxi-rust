@@ -274,7 +274,7 @@ mod tests {
         ];
 
         for theme in &themes {
-            assert!(theme.is_dark || !theme.is_dark);
+            let _ = theme.is_dark;
         }
     }
 

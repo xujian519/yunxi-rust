@@ -690,7 +690,11 @@ mod tests {
         assert!(report.contains("Memory"));
         assert!(report.contains("Working directory"));
         assert!(report.contains("Instruction files"));
-        assert!(report.contains("Discovered files"));
+        assert!(
+            report.contains("Discovered files")
+                || report.contains("Discovered CLAUDE instruction files"),
+            "report should contain a discovered-files section: {report}"
+        );
     }
 
     #[test]

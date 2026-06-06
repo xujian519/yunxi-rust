@@ -1,5 +1,4 @@
 pub mod manager;
-pub use manager::WorkspaceManager;
 
-pub mod workspace;
-pub use workspace::Workspace;
+mod workspace_data;
+pub use workspace_data::Workspace;

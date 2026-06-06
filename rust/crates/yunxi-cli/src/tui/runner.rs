@@ -1,9 +1,5 @@
 //! TUI entry point using the new architecture (core::App + core::Renderer).
 
-use std::io;
-
-use crossterm::event::{KeyCode, KeyEventKind, KeyModifiers};
-
 use crate::tui::core::app::{App, KeyEvent};
 use crate::tui::core::renderer::Renderer;
 

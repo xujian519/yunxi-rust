@@ -1,4 +1,4 @@
-use crate::tui::components::progress_indicator::{ProgressIndicator, ProgressStyle, ProgressType};
+use crate::tui::components::progress_indicator::{ProgressStyle, ProgressType};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

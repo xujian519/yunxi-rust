@@ -79,28 +79,28 @@ pub fn patent_search(input: PatentSearchInput) -> Result<Value, String> {
 
     let sql = match search_type {
         "applicant" => format!(
-            "SELECT patent_name, application_number, applicant, ipc_main_class, application_date \
+            "SELECT patent_name, application_number, applicant, ipc_main_class, publication_date \
              FROM patents WHERE applicant ILIKE '%{query}%' \
-             ORDER BY application_date DESC LIMIT {limit} OFFSET {offset}"
+             ORDER BY publication_date DESC LIMIT {limit} OFFSET {offset}"
         ),
         "inventor" => format!(
-            "SELECT patent_name, application_number, inventor, applicant, application_date \
+            "SELECT patent_name, application_number, inventor, applicant, publication_date \
              FROM patents WHERE inventor ILIKE '%{query}%' \
-             ORDER BY application_date DESC LIMIT {limit} OFFSET {offset}"
+             ORDER BY publication_date DESC LIMIT {limit} OFFSET {offset}"
         ),
         "ipc" => format!(
-            "SELECT patent_name, application_number, ipc_code, applicant, application_date \
+            "SELECT patent_name, application_number, ipc_code, applicant, publication_date \
              FROM patents WHERE ipc_code ILIKE '{query}%' OR ipc_main_class ILIKE '{query}%' \
-             ORDER BY application_date DESC LIMIT {limit} OFFSET {offset}"
+             ORDER BY publication_date DESC LIMIT {limit} OFFSET {offset}"
         ),
         "fulltext" => format!(
-            "SELECT patent_name, application_number, applicant, ipc_main_class, application_date \
+            "SELECT patent_name, application_number, applicant, ipc_main_class, publication_date \
              FROM patents WHERE search_vector @@ to_tsquery('chinese', '{query}') \
-             ORDER BY application_date DESC LIMIT {limit} OFFSET {offset}"
+             ORDER BY publication_date DESC LIMIT {limit} OFFSET {offset}"
         ),
         "detail" => format!(
             "SELECT patent_name, application_number, publication_number, authorization_number, \
-             application_date, publication_date, authorization_date, \
+             publication_date, publication_date, authorization_date, \
              applicant, applicant_address, current_assignee, inventor, \
              ipc_code, ipc_main_class, abstract, citation_count, cited_count \
              FROM patents WHERE publication_number = '{query}' \
@@ -108,9 +108,9 @@ pub fn patent_search(input: PatentSearchInput) -> Result<Value, String> {
              LIMIT 1"
         ),
         _ => format!(
-            "SELECT patent_name, application_number, applicant, ipc_main_class, application_date \
+            "SELECT patent_name, application_number, applicant, ipc_main_class, publication_date \
              FROM patents WHERE patent_name ILIKE '%{query}%' OR abstract ILIKE '%{query}%' \
-             ORDER BY application_date DESC LIMIT {limit} OFFSET {offset}"
+             ORDER BY publication_date DESC LIMIT {limit} OFFSET {offset}"
         ),
     };
 
@@ -158,11 +158,11 @@ pub fn patent_search(input: PatentSearchInput) -> Result<Value, String> {
         rows.iter()
             .map(|r| {
                 json!({
-                    "patent_name": r.get(0).cloned().unwrap_or_default(),
+                    "patent_name": r.first().cloned().unwrap_or_default(),
                     "application_number": r.get(1).cloned().unwrap_or_default(),
                     "publication_number": r.get(2).cloned().unwrap_or_default(),
                     "authorization_number": r.get(3).cloned().unwrap_or_default(),
-                    "application_date": r.get(4).cloned().unwrap_or_default(),
+                    "publication_date": r.get(4).cloned().unwrap_or_default(),
                     "publication_date": r.get(5).cloned().unwrap_or_default(),
                     "authorization_date": r.get(6).cloned().unwrap_or_default(),
                     "applicant": r.get(7).cloned().unwrap_or_default(),
@@ -181,11 +181,11 @@ pub fn patent_search(input: PatentSearchInput) -> Result<Value, String> {
         rows.iter()
             .map(|r| {
                 json!({
-                    "patent_name": r.get(0).cloned().unwrap_or_default(),
+                    "patent_name": r.first().cloned().unwrap_or_default(),
                     "application_number": r.get(1).cloned().unwrap_or_default(),
                     "applicant": r.get(2).cloned().unwrap_or_default(),
                     "ipc_main_class": r.get(3).cloned().unwrap_or_default(),
-                    "application_date": r.get(4).cloned().unwrap_or_default(),
+                    "publication_date": r.get(4).cloned().unwrap_or_default(),
                 })
             })
             .collect()

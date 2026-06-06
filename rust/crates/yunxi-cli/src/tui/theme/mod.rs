@@ -144,7 +144,7 @@ impl ThemeRegistry {
             .iter()
             .find(|t| t.name == name)
             .cloned()
-            .unwrap_or_else(|| Theme::default_dark())
+            .unwrap_or_else(Theme::default_dark)
     }
 
     pub fn list_names(&self) -> Vec<String> {

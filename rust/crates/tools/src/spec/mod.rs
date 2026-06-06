@@ -6,7 +6,7 @@ mod patent_specs;
 mod session_specs;
 mod types;
 
-pub use types::{ToolManifestEntry, ToolRegistry, ToolSource, ToolSpec};
+pub use types::{ToolManifestEntry, ToolSource, ToolSpec};
 
 /// Returns the full set of MVP tool specifications supported by `YunXi`.
 #[must_use]

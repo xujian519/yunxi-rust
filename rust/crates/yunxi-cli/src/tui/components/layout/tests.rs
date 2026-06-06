@@ -1,7 +1,11 @@
 #[cfg(test)]
-mod tests {
-    use crate::tui::components::layout::*;
-    use crate::tui::components::*;
+mod layout_tests {
+    use crate::tui::components::base::Component;
+    use crate::tui::components::button::Button;
+    use crate::tui::components::label::Label;
+    use crate::tui::components::layout::container::Container;
+    use crate::tui::components::layout::flex::Flex;
+    use crate::tui::components::layout::split::Split;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 

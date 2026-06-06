@@ -24,7 +24,9 @@ pub struct List<T: Clone + ToString + Send + Sync> {
     sorted: bool,
     sort_ascending: bool,
     selection_mode: SelectionMode,
+    #[allow(clippy::type_complexity)]
     on_select: Option<Box<dyn Fn(usize, &T) -> ActionResult + Send + Sync>>,
+    #[allow(clippy::type_complexity)]
     on_double_click: Option<Box<dyn Fn(usize, &T) -> ActionResult + Send + Sync>>,
     style: ListStyle,
 }

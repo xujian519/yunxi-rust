@@ -82,7 +82,11 @@ impl SessionManager {
         }
     }
 
-    pub fn record_file(&mut self, path: String, action: crate::tui::session::session::FileAction) {
+    pub fn record_file(
+        &mut self,
+        path: String,
+        action: crate::tui::session::session_data::FileAction,
+    ) {
         if let Some(id) = &self.active_session {
             if let Some(session) = self.sessions.get_mut(id) {
                 session.add_file_record(path, action);
@@ -124,7 +128,7 @@ impl SessionManager {
             let entry = entry?;
             let path = entry.path();
 
-            if path.extension().map_or(false, |ext| ext == "json") {
+            if path.extension().is_some_and(|ext| ext == "json") {
                 if let Some(stem) = path.file_stem() {
                     if let Some(id) = stem.to_str() {
                         self.load(id)?;

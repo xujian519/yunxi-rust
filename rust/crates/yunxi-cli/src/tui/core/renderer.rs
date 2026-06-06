@@ -2,7 +2,6 @@
 
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::prelude::Widget;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
@@ -67,7 +66,7 @@ impl Renderer {
             .constraints([
                 Constraint::Length(2),
                 Constraint::Min(0),
-                Constraint::Length(input_rows.min(10).max(3)),
+                Constraint::Length(input_rows.clamp(3, 10)),
                 Constraint::Length(1),
             ])
             .split(area);

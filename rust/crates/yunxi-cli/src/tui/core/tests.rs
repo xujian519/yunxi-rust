@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod core_tests {
     use crate::tui::core::action::{Action, ActionResult};
     use crate::tui::core::event::{ActionEvent, Event, EventDispatcher};
     use crate::tui::core::lifecycle::LifecycleManager;

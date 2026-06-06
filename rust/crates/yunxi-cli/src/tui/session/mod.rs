@@ -1,8 +1,6 @@
 pub mod manager;
-pub use manager::SessionManager;
 
-pub mod session;
-pub use session::Session;
+mod session_data;
+pub use session_data::Session;
 
 pub mod replay;
-pub use replay::SessionReplay;

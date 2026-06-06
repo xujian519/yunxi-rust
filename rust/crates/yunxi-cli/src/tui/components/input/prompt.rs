@@ -1,8 +1,6 @@
 use crate::tui::components::base::{generate_component_id, Component, ComponentState};
 use crate::tui::components::button::{Button, ButtonStyle};
 use crate::tui::components::input::text_input::TextInput;
-use crate::tui::components::label::Label;
-use crate::tui::core::action::Action;
 use crate::tui::core::action::ActionResult;
 use crate::tui::core::event::Event;
 use ratatui::buffer::Buffer;

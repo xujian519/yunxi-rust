@@ -47,14 +47,14 @@ impl DiffParser {
                         while i < lines.len() && (old_remaining > 0 || new_remaining > 0) {
                             let change_line = lines[i];
 
-                            if change_line.starts_with('+') {
-                                changes.push(DiffChange::Added(change_line[1..].to_string()));
+                            if let Some(rest) = change_line.strip_prefix('+') {
+                                changes.push(DiffChange::Added(rest.to_string()));
                                 new_remaining = new_remaining.saturating_sub(1);
-                            } else if change_line.starts_with('-') {
-                                changes.push(DiffChange::Deleted(change_line[1..].to_string()));
+                            } else if let Some(rest) = change_line.strip_prefix('-') {
+                                changes.push(DiffChange::Deleted(rest.to_string()));
                                 old_remaining = old_remaining.saturating_sub(1);
-                            } else if change_line.starts_with(' ') {
-                                changes.push(DiffChange::Unchanged(change_line[1..].to_string()));
+                            } else if let Some(rest) = change_line.strip_prefix(' ') {
+                                changes.push(DiffChange::Unchanged(rest.to_string()));
                                 old_remaining = old_remaining.saturating_sub(1);
                                 new_remaining = new_remaining.saturating_sub(1);
                             } else if change_line.starts_with('\\') {
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_parse_hunk_header() {
-        let mut parser = DiffParser::new();
+        let parser = DiffParser::new();
         let (old_start, old_lines, new_start, new_lines) =
             parser.parse_hunk_header("@@ -1,3 +1,4 @@").unwrap();
         assert_eq!(old_start, 1);

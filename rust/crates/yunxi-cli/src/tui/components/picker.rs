@@ -7,7 +7,6 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::prelude::{StatefulWidget, Widget};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::symbols;
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{
     Block, Borders, List, ListItem, ListState, Scrollbar, ScrollbarOrientation, ScrollbarState,
@@ -22,6 +21,7 @@ pub struct Picker {
     page_size: usize,
     filtered_items: Vec<(usize, String)>,
     list_state: ListState,
+    #[allow(clippy::type_complexity)]
     on_select: Option<Box<dyn Fn(usize, &str) -> ActionResult + Send + Sync>>,
     on_cancel: Option<Box<dyn Fn() -> ActionResult + Send + Sync>>,
 }
@@ -250,7 +250,7 @@ impl Component for Picker {
             .map(|(_, text)| ListItem::new(self.highlight_text(text)))
             .collect();
 
-        let mut list_state = self.list_state.clone();
+        let _list_state = self.list_state.clone();
 
         let border_style = if self.state.focused {
             Style::default().fg(Color::Rgb(139, 176, 240))
