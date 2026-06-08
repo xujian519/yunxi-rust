@@ -98,3 +98,29 @@ pub fn list_managed_sessions() -> Result<Vec<ManagedSessionSummary>, Box<dyn std
     sessions.sort_by_key(|s| std::cmp::Reverse(s.modified_epoch_secs));
     Ok(sessions)
 }
+
+pub fn rename_session(
+    old_id: &str,
+    new_id: &str,
+) -> Result<SessionHandle, Box<dyn std::error::Error>> {
+    if new_id.is_empty() {
+        return Err("new session ID cannot be empty".into());
+    }
+    if new_id.contains('/') || new_id.contains('\\') {
+        return Err("session ID cannot contain path separators".into());
+    }
+    let dir = sessions_dir()?;
+    let old_path = dir.join(format!("{old_id}.json"));
+    let new_path = dir.join(format!("{new_id}.json"));
+    std::fs::rename(&old_path, &new_path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            format!("session not found: {old_id}").into()
+        } else {
+            Box::new(e) as Box<dyn std::error::Error>
+        }
+    })?;
+    Ok(SessionHandle {
+        id: new_id.to_string(),
+        path: new_path,
+    })
+}

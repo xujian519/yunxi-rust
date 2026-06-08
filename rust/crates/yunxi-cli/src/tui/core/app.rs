@@ -4,8 +4,6 @@
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crossterm::event::Event as CrosstermEvent;
-
 use runtime::PermissionMode;
 
 use crate::cli_action::AllowedToolSet;
@@ -59,11 +57,16 @@ pub(crate) struct App {
     pub global_state: GlobalState,
     pub theme_manager: ThemeManager,
     pub event_dispatcher: EventDispatcher,
+    pub router: crate::tui::router::Router,
 
     // ── Stream state ──
     pub(crate) stream_state_active: bool,
     pub(crate) stream_state_saw_text: bool,
     pub(crate) spinner_frame: usize,
+
+    // ── Pending modal state ──
+    pub(crate) pending_permission: Option<runtime::PermissionRequest>,
+    pub(crate) pending_flow_hitl: Option<crate::session_meta::SuspendedFlowRecord>,
 
     // ── Internal flags ──
     pub(crate) should_quit: bool,
@@ -129,10 +132,14 @@ impl App {
             global_state,
             theme_manager,
             event_dispatcher: EventDispatcher::new(),
+            router: crate::tui::router::Router::new(),
 
             stream_state_active: false,
             stream_state_saw_text: false,
             spinner_frame: 0,
+
+            pending_permission: None,
+            pending_flow_hitl: None,
 
             should_quit: false,
             active_turn: None,
@@ -174,76 +181,7 @@ impl App {
         self.pending_permission().is_some() || self.pending_flow_hitl().is_some()
     }
 
-    // ── Event loop ──
-
-    pub fn run_event_loop(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        loop {
-            // Poll active turn events
-            // Collect turn events first, then process them to avoid borrow conflicts
-            let turn_events: Vec<TurnEvent> = self
-                .active_turn
-                .as_mut()
-                .map(|t| t.poll())
-                .unwrap_or_default();
-            let turn_finished = self
-                .active_turn
-                .as_ref()
-                .map(|t| t.is_finished())
-                .unwrap_or(false);
-
-            for event in turn_events {
-                self.needs_render = true;
-                self.handle_turn_event(event);
-            }
-            if turn_finished {
-                let finished = self.active_turn.take().expect("turn");
-                finished.join();
-            }
-
-            // Tick spinner when thinking
-            if self.thinking {
-                self.tick_spinner();
-                self.needs_render = true;
-            }
-
-            // Wait for input (non-blocking poll)
-            if !crossterm::event::poll(std::time::Duration::from_millis(50))? {
-                continue;
-            }
-
-            self.needs_render = true;
-
-            match crossterm::event::read()? {
-                CrosstermEvent::Key(key_event) => {
-                    let key = convert_key(&key_event);
-                    let action = self.handle_key(&key);
-
-                    // Dispatch to event dispatcher for component-based handling
-                    let event = Event::Input(InputEvent::Key(key_event));
-                    let _results = self.event_dispatcher.dispatch(&event);
-
-                    if let Some(action) = action {
-                        self.dispatch_action(action)?;
-                    }
-                }
-                CrosstermEvent::Mouse(mouse_event) => {
-                    self.handle_mouse(mouse_event);
-                }
-                CrosstermEvent::Resize(_, _) => {}
-                CrosstermEvent::Paste(text) if !self.has_blocking_modal() => {
-                    self.input.set_content(text);
-                }
-                _ => {}
-            }
-
-            if self.should_quit {
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    /// Public wrapper for runner
+    // ── Public wrappers for runner ──
     pub(crate) fn handle_turn_event_wrapped(&mut self, event: TurnEvent) {
         self.handle_turn_event(event);
     }
@@ -308,17 +246,8 @@ impl App {
             Action::ShowGuide => {
                 self.open_human_guide();
             }
-            Action::ShowSessionPicker => {
-                if let Ok(sessions) = list_managed_sessions() {
-                    self.session_picker =
-                        Some(SessionPicker::new(sessions, self.session_handle.id.clone()));
-                }
-            }
-            Action::OpenSessionPicker => {
-                if let Ok(sessions) = list_managed_sessions() {
-                    self.session_picker =
-                        Some(SessionPicker::new(sessions, self.session_handle.id.clone()));
-                }
+            Action::ShowSessionPicker | Action::OpenSessionPicker => {
+                self.open_session_picker();
             }
             Action::ToggleSidebar => {
                 self.show_sidebar = !self.show_sidebar;
@@ -343,16 +272,14 @@ impl App {
             }
             Action::FlowResume(flow_id, run_id) => {
                 self.handle_flow_resume(&flow_id, &run_id)?;
+                self.set_pending_flow_hitl(None);
             }
             Action::Quit => {
                 self.should_quit = true;
             }
             Action::ExecuteCommand(cmd) => match cmd.as_str() {
                 "sessions" => {
-                    if let Ok(sessions) = list_managed_sessions() {
-                        self.session_picker =
-                            Some(SessionPicker::new(sessions, self.session_handle.id.clone()));
-                    }
+                    self.open_session_picker();
                 }
                 "interrupt" => self.interrupt_turn(),
                 "edit_keymap" => {
@@ -384,7 +311,150 @@ impl App {
                 "navigate_up" => self.chat.scroll_up(),
                 _ => {}
             },
-            _ => {}
+            // ── Navigation ──
+            Action::Navigate(route) => {
+                self.router.navigate(route);
+            }
+            Action::GoBack => {
+                self.router.go_back();
+            }
+            Action::GoForward => {
+                self.router.go_forward();
+            }
+            // ── Dialog / Close ──
+            Action::HideDialog | Action::Close => {
+                self.show_help = false;
+                self.show_guide = false;
+                self.command_palette.hide();
+                self.session_picker = None;
+            }
+            // ── Tab ──
+            Action::SwitchTab(_idx) => {
+                // Tab state reserved for future multi-tab layout
+            }
+            // ── Session management ──
+            Action::NewSession => match create_managed_session_handle() {
+                Ok(handle) => {
+                    let session = runtime::Session::new();
+                    match build_runtime(
+                        session,
+                        self.model.clone(),
+                        self.system_prompt.clone(),
+                        true,
+                        false,
+                        self.allowed_tools.clone(),
+                        self.permission_mode,
+                    ) {
+                        Ok(new_runtime) => {
+                            *self.runtime.lock().map_err(|_| "lock")? = new_runtime;
+                            self.chat.clear();
+                            self.tools.clear();
+                            self.session_handle = handle;
+                            self.session_picker = None;
+                            self.push_system_message("已创建新会话");
+                        }
+                        Err(e) => self.push_system_message(&format!("创建会话失败: {e}")),
+                    }
+                }
+                Err(e) => self.push_system_message(&format!("创建会话句柄失败: {e}")),
+            },
+            Action::SwitchSession(id) => {
+                if let Err(e) = self.switch_session(&id) {
+                    self.push_system_message(&format!("切换会话失败: {e}"));
+                }
+            }
+            Action::DeleteSession(id) => match crate::session_mgr::sessions_dir() {
+                Ok(dir) => {
+                    let path = dir.join(format!("{id}.json"));
+                    if path.exists() {
+                        let _ = std::fs::remove_file(&path);
+                        self.push_system_message(&format!("已删除会话 {id}"));
+                        if self.session_picker.is_some() {
+                            if let Ok(sessions) = list_managed_sessions() {
+                                self.session_picker = Some(SessionPicker::new(
+                                    sessions,
+                                    self.session_handle.id.clone(),
+                                ));
+                            }
+                        }
+                    } else {
+                        self.push_system_message(&format!("会话文件不存在: {id}"));
+                    }
+                }
+                Err(e) => self.push_system_message(&format!("获取会话目录失败: {e}")),
+            },
+            Action::RenameSession(old_id, new_name) => {
+                match crate::session_mgr::rename_session(&old_id, &new_name) {
+                    Ok(handle) => {
+                        if handle.id == self.session_handle.id {
+                            self.session_handle = handle;
+                        }
+                        self.push_system_message(&format!("已重命名会话为 {new_name}"));
+                        if self.session_picker.is_some() {
+                            if let Ok(sessions) = list_managed_sessions() {
+                                self.session_picker = Some(SessionPicker::new(
+                                    sessions,
+                                    self.session_handle.id.clone(),
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => self.push_system_message(&format!("重命名失败: {e}")),
+                }
+            }
+            // ── Command palette ──
+            Action::ShowCommandPalette => {
+                self.command_palette.show();
+            }
+            Action::HideCommandPalette => {
+                self.command_palette.hide();
+            }
+            // ── Clipboard / Editing ──
+            Action::Paste | Action::EditorPaste => {
+                match arboard::Clipboard::new().and_then(|mut cb| cb.get_text()) {
+                    Ok(text) if !self.has_blocking_modal() => {
+                        self.input.set_content(text);
+                    }
+                    _ => {}
+                }
+            }
+            Action::EditorCopy => {
+                let text = self.input.content().to_string();
+                if !text.is_empty() {
+                    if let Ok(()) = crate::tui::clipboard::copy_text_to_clipboard(&text) {
+                        self.push_system_message("已复制输入内容");
+                    }
+                }
+            }
+            Action::EditorCut => {
+                let text = self.input.content().to_string();
+                if !text.is_empty() {
+                    let _ = crate::tui::clipboard::copy_text_to_clipboard(&text);
+                    self.input = InputBar::new();
+                    self.push_system_message("已剪切输入内容");
+                }
+            }
+            Action::EditorUndo => {
+                if self.input.undo() {
+                    self.refresh_slash_completion();
+                }
+            }
+            Action::EditorRedo => {
+                if self.input.redo() {
+                    self.refresh_slash_completion();
+                }
+            }
+            // ── Lifecycle ──
+            Action::Refresh => {
+                self.needs_render = true;
+            }
+            // ── Menu ──
+            Action::ShowSubmenu(_id, _idx) => {}
+            Action::ShowParentMenu(_id) => {}
+            // ── Custom ──
+            Action::Custom(cmd) => {
+                self.push_system_message(&format!("自定义动作: {cmd}"));
+            }
         }
         Ok(())
     }
@@ -509,6 +579,7 @@ impl App {
         self.set_thinking(false);
         self.active_tool = None;
         self.set_pending_permission(None);
+        self.set_pending_flow_hitl(None);
         self.turn_started_at = None;
         self.open_human_guide();
         self.push_system_message("已请求中断当前轮次。请在底栏编辑引导内容后 Enter 发送。");
@@ -522,9 +593,20 @@ impl App {
             return Some(action);
         }
 
+        // Help overlay — any key dismisses
+        if self.show_help {
+            self.show_help = false;
+            return None;
+        }
+
         // Command palette
         if self.command_palette.is_visible() {
             return self.handle_command_palette_key(key);
+        }
+
+        // Session picker
+        if self.session_picker.is_some() {
+            return self.handle_session_picker_key(key);
         }
 
         if self.show_guide && matches!(key, KeyEvent::Esc) {
@@ -659,23 +741,23 @@ impl App {
         }
     }
 
-    fn handle_modal_keys(&self, key: &KeyEvent) -> Option<Action> {
-        if self.pending_flow_hitl().is_some() {
+    fn handle_modal_keys(&mut self, key: &KeyEvent) -> Option<Action> {
+        if let Some(record) = self.pending_flow_hitl() {
             return match key {
                 KeyEvent::Char('y') | KeyEvent::Char('Y') => {
-                    let record = self.pending_flow_hitl().unwrap();
-                    Some(Action::FlowResume(
-                        record.flow_id.clone(),
-                        record.run_id.clone(),
-                    ))
+                    let flow_id = record.flow_id.clone();
+                    let run_id = record.run_id.clone();
+                    self.set_pending_flow_hitl(None);
+                    Some(Action::FlowResume(flow_id, run_id))
                 }
                 KeyEvent::Char('n') | KeyEvent::Char('N') | KeyEvent::Esc => {
-                    None // handled externally
+                    self.set_pending_flow_hitl(None);
+                    None
                 }
                 _ => None,
             };
         }
-        if self.pending_permission().is_some() {
+        if self.pending_permission.is_some() {
             return match key {
                 KeyEvent::Char('y') | KeyEvent::Char('Y') => Some(Action::PermissionDecision(true)),
                 KeyEvent::Char('n') | KeyEvent::Char('N') | KeyEvent::Esc | KeyEvent::Ctrl('c') => {
@@ -703,6 +785,47 @@ impl App {
                 None
             }
         }
+    }
+
+    fn handle_session_picker_key(&mut self, key: &KeyEvent) -> Option<Action> {
+        match key {
+            KeyEvent::Esc | KeyEvent::Ctrl('c') => {
+                self.session_picker = None;
+            }
+            KeyEvent::Enter => {
+                if let Some(id) = self
+                    .session_picker
+                    .as_ref()
+                    .and_then(|p| p.selected_session())
+                    .map(|s| s.id.clone())
+                {
+                    self.session_picker = None;
+                    return Some(Action::SwitchSession(id));
+                }
+            }
+            KeyEvent::Up | KeyEvent::Char('k') => {
+                if let Some(ref mut picker) = self.session_picker {
+                    picker.move_up();
+                }
+            }
+            KeyEvent::Down | KeyEvent::Char('j') => {
+                if let Some(ref mut picker) = self.session_picker {
+                    picker.move_down();
+                }
+            }
+            KeyEvent::Backspace => {
+                if let Some(ref mut picker) = self.session_picker {
+                    picker.pop_filter_char();
+                }
+            }
+            KeyEvent::Char(c) => {
+                if let Some(ref mut picker) = self.session_picker {
+                    picker.push_filter_char(*c);
+                }
+            }
+            _ => {}
+        }
+        None
     }
 
     fn map_core_action(&self, action: Action) -> Option<Action> {
@@ -735,13 +858,14 @@ impl App {
     // ── Flow HITL ──
 
     pub fn pending_flow_hitl(&self) -> Option<&crate::session_meta::SuspendedFlowRecord> {
-        None // simplified; not persisted as state in this version
+        self.pending_flow_hitl.as_ref()
     }
 
     pub fn set_pending_flow_hitl(
         &mut self,
-        _record: Option<crate::session_meta::SuspendedFlowRecord>,
+        record: Option<crate::session_meta::SuspendedFlowRecord>,
     ) {
+        self.pending_flow_hitl = record;
     }
 
     fn handle_flow_resume(
@@ -766,10 +890,12 @@ impl App {
     // ── Permission ──
 
     pub fn pending_permission(&self) -> Option<&runtime::PermissionRequest> {
-        None // simplified
+        self.pending_permission.as_ref()
     }
 
-    pub fn set_pending_permission(&mut self, _request: Option<runtime::PermissionRequest>) {}
+    pub fn set_pending_permission(&mut self, request: Option<runtime::PermissionRequest>) {
+        self.pending_permission = request;
+    }
 
     // ── Stream handling ──
 
@@ -1088,6 +1214,13 @@ impl App {
         format!("<yunxi_human_intervention>\n{lead}\n</yunxi_human_intervention>\n\n{text}")
     }
 
+    fn open_session_picker(&mut self) {
+        if let Ok(sessions) = list_managed_sessions() {
+            self.session_picker =
+                Some(SessionPicker::new(sessions, self.session_handle.id.clone()));
+        }
+    }
+
     fn open_human_guide(&mut self) {
         self.show_guide = true;
         if self.input.content().trim().is_empty() {
@@ -1230,7 +1363,11 @@ impl App {
                 &session,
                 &AthenaSessionMeta {
                     last_routing: None,
-                    suspended_flows: vec![],
+                    suspended_flows: self
+                        .pending_flow_hitl
+                        .as_ref()
+                        .map(|r| vec![r.clone()])
+                        .unwrap_or_default(),
                 },
             );
         }
@@ -1265,7 +1402,7 @@ pub(crate) enum KeyEvent {
     End,
 }
 
-fn convert_key(key: &crossterm::event::KeyEvent) -> KeyEvent {
+pub(crate) fn convert_key(key: &crossterm::event::KeyEvent) -> KeyEvent {
     use crossterm::event::{KeyCode, KeyModifiers};
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.modifiers.contains(KeyModifiers::SHIFT)
     {

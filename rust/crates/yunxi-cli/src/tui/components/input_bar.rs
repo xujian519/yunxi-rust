@@ -8,12 +8,19 @@ use crate::tui::ui_palette::{input_bold, input_faint, input_line_padded, input_t
 /// 输入行提示符可见宽度（`❯ `）。
 pub(crate) const INPUT_PROMPT_WIDTH: u16 = 2;
 
+/// Undo/Redo 栈深度上限。
+const MAX_UNDO_DEPTH: usize = 50;
+
 /// 输入框组件。
 pub(crate) struct InputBar {
     /// 当前输入内容。
     content: String,
     /// 光标位置（字节偏移）。
     cursor: usize,
+    /// Undo 栈 — 保存编辑前的 (content, cursor) 快照。
+    undo_stack: Vec<(String, usize)>,
+    /// Redo 栈 — undo 后可重做的快照。
+    redo_stack: Vec<(String, usize)>,
 }
 
 impl InputBar {
@@ -21,11 +28,55 @@ impl InputBar {
         Self {
             content: String::new(),
             cursor: 0,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+        }
+    }
+
+    /// 保存当前状态到 undo 栈，清空 redo 栈。
+    fn save_undo(&mut self) {
+        if self.undo_stack.len() >= MAX_UNDO_DEPTH {
+            self.undo_stack.remove(0);
+        }
+        self.undo_stack.push((self.content.clone(), self.cursor));
+        self.redo_stack.clear();
+    }
+
+    /// 撤销上一次编辑。返回 `true` 如果成功。
+    pub(crate) fn undo(&mut self) -> bool {
+        if let Some((content, cursor)) = self.undo_stack.pop() {
+            if self.redo_stack.len() >= MAX_UNDO_DEPTH {
+                self.redo_stack.remove(0);
+            }
+            self.redo_stack
+                .push((std::mem::take(&mut self.content), self.cursor));
+            self.content = content;
+            self.cursor = cursor;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// 重做上一次撤销。返回 `true` 如果成功。
+    pub(crate) fn redo(&mut self) -> bool {
+        if let Some((content, cursor)) = self.redo_stack.pop() {
+            if self.undo_stack.len() >= MAX_UNDO_DEPTH {
+                self.undo_stack.remove(0);
+            }
+            self.undo_stack
+                .push((std::mem::take(&mut self.content), self.cursor));
+            self.content = content;
+            self.cursor = cursor;
+            true
+        } else {
+            false
         }
     }
 
     /// 输入字符。
     pub(crate) fn insert(&mut self, ch: char) {
+        self.save_undo();
         self.content.insert(self.cursor, ch);
         self.cursor += ch.len_utf8();
     }
@@ -33,6 +84,7 @@ impl InputBar {
     /// 删除光标前一个字符。
     pub(crate) fn backspace(&mut self) {
         if self.cursor > 0 {
+            self.save_undo();
             let prev = self.content[..self.cursor]
                 .chars()
                 .last()
@@ -46,6 +98,7 @@ impl InputBar {
     /// 删除光标后一个字符。
     pub(crate) fn delete(&mut self) {
         if self.cursor < self.content.len() {
+            self.save_undo();
             let next_len = self.content[self.cursor..]
                 .chars()
                 .next()
@@ -86,6 +139,8 @@ impl InputBar {
 
     /// 取出当前内容并清空。
     pub(crate) fn take(&mut self) -> String {
+        self.undo_stack.clear();
+        self.redo_stack.clear();
         self.cursor = 0;
         std::mem::take(&mut self.content)
     }
@@ -116,6 +171,7 @@ impl InputBar {
 
     /// 设置内容（外部粘贴等）。
     pub(crate) fn set_content(&mut self, text: String) {
+        self.save_undo();
         self.cursor = text.len();
         self.content = text;
     }

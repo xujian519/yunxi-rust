@@ -13,10 +13,16 @@ use crate::tui::core::app::App;
 use crate::tui::ui_palette;
 use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
 use crate::tui::widgets::command_palette_ratatui::CommandPaletteWidget;
+use crate::tui::widgets::flow_hitl_overlay_ratatui::FlowHitlOverlayWidget;
+use crate::tui::widgets::guide_overlay_ratatui::GuideOverlayWidget;
+use crate::tui::widgets::help_overlay_ratatui::HelpOverlay;
 use crate::tui::widgets::input_bar_ratatui::InputBarWidget;
+use crate::tui::widgets::permission_overlay_ratatui::PermissionOverlayWidget;
+use crate::tui::widgets::session_picker_ratatui::SessionPickerWidget;
 use crate::tui::widgets::status_bar_ratatui::StatusBarWidget;
 use crate::tui::widgets::title_bar::TitleBar;
 use crate::tui::widgets::tool_panel_ratatui::ToolPanelWidget;
+use ratatui::prelude::Widget;
 
 pub(crate) struct Renderer {
     terminal: Option<Terminal<CrosstermBackend<io::Stdout>>>,
@@ -185,78 +191,48 @@ impl Renderer {
             return;
         }
 
+        if let Some(ref picker) = app.session_picker {
+            SessionPickerWidget { picker }.render(area, frame.buffer_mut());
+            return;
+        }
+
+        if let Some(ref request) = app.pending_permission {
+            let popup = Self::centered_rect(60, 10, area);
+            frame.render_widget(Clear, popup);
+            PermissionOverlayWidget { request }.render(popup, frame.buffer_mut());
+            return;
+        }
+
+        if let Some(ref record) = app.pending_flow_hitl {
+            let popup = Self::centered_rect(60, 10, area);
+            frame.render_widget(Clear, popup);
+            FlowHitlOverlayWidget { record }.render(popup, frame.buffer_mut());
+            return;
+        }
+
         if app.show_help {
             Self::render_help_overlay(frame, area);
             return;
         }
 
         if app.show_guide {
-            Self::render_guide_overlay(frame, area);
+            Self::render_guide_overlay(frame, area, app);
         }
     }
 
-    fn theme_bg_secondary() -> Color {
-        let c = ui_palette::active::bg_secondary();
-        Color::Rgb(c.0, c.1, c.2)
-    }
-
-    fn theme_border() -> Color {
-        let c = ui_palette::active::border();
-        Color::Rgb(c.0, c.1, c.2)
-    }
-
-    fn theme_text_primary() -> Color {
-        let c = ui_palette::active::text_primary();
-        Color::Rgb(c.0, c.1, c.2)
-    }
-
-    fn overlay_block(title: &str) -> Block<'static> {
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Self::theme_border()))
-            .title(format!(" {title} "))
-            .style(Style::default().bg(Self::theme_bg_secondary()))
-    }
-
     fn render_help_overlay(frame: &mut Frame, area: Rect) {
-        let popup = Self::centered_rect(60, 20, area);
-        frame.render_widget(Clear, popup);
-
-        let help_lines = vec![
-            Line::from(Span::styled(
-                "快捷键帮助",
-                Style::default().fg(Self::theme_text_primary()),
-            )),
-            Line::from(""),
-            Line::from("  Ctrl+H / F1  打开帮助"),
-            Line::from("  Ctrl+P / F3  命令面板"),
-            Line::from("  Ctrl+B       侧边栏"),
-            Line::from("  Ctrl+D       切换主题"),
-            Line::from("  Ctrl+G       人机引导"),
-            Line::from("  Ctrl+I       中断轮次"),
-            Line::from("  Ctrl+Shift+C 复制"),
-            Line::from("  Esc/Ctrl+C   退出/清空输入"),
-            Line::from("  Tab          补全"),
-            Line::from(""),
-            Line::from("按任意键关闭"),
-        ];
-
-        let block = Self::overlay_block("帮助");
-        let paragraph = Paragraph::new(ratatui::text::Text::from(help_lines)).block(block);
-        frame.render_widget(paragraph, popup);
+        frame.render_widget(HelpOverlay, area);
     }
 
-    fn render_guide_overlay(frame: &mut Frame, area: Rect) {
-        let popup = Self::centered_rect(60, 8, area);
+    fn render_guide_overlay(frame: &mut Frame, area: Rect, app: &App) {
+        let popup = Self::centered_rect(60, 14, area);
         frame.render_widget(Clear, popup);
-
-        let guide_text = vec![Line::from(
-            "人机引导模式已开启 — 输入您的引导后按 Enter 发送",
-        )];
-
-        let block = Self::overlay_block("引导");
-        let paragraph = Paragraph::new(ratatui::text::Text::from(guide_text)).block(block);
-        frame.render_widget(paragraph, popup);
+        frame.render_widget(
+            GuideOverlayWidget {
+                thinking: app.thinking,
+            },
+            popup,
+        );
     }
 
     fn centered_rect(w: u16, h: u16, area: Rect) -> Rect {

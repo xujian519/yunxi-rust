@@ -36,7 +36,6 @@ pub mod thinking_block;
 pub mod toast;
 pub mod tree;
 
-// TODO: Fix compilation errors in the following modules
 pub mod error_dialog;
 pub mod form;
 pub mod keymap_editor;

@@ -103,35 +103,5 @@ pub(crate) fn run_tui_repl(
 
 /// Convert a crossterm KeyEvent to our internal KeyEvent.
 fn convert_crossterm_key(key: &crossterm::event::KeyEvent) -> KeyEvent {
-    use crossterm::event::{KeyCode, KeyModifiers};
-    if key.modifiers.contains(KeyModifiers::CONTROL) && key.modifiers.contains(KeyModifiers::SHIFT)
-    {
-        if let KeyCode::Char(c) = key.code {
-            return KeyEvent::CtrlShift(c.to_ascii_lowercase());
-        }
-    }
-    if key.modifiers.contains(KeyModifiers::CONTROL) {
-        if let KeyCode::Char(c) = key.code {
-            return KeyEvent::Ctrl(c.to_ascii_lowercase());
-        }
-    }
-    if key.modifiers.contains(KeyModifiers::SHIFT) && matches!(key.code, KeyCode::Enter) {
-        return KeyEvent::ShiftEnter;
-    }
-    match key.code {
-        KeyCode::Tab => KeyEvent::Tab,
-        KeyCode::Enter => KeyEvent::Enter,
-        KeyCode::Backspace => KeyEvent::Backspace,
-        KeyCode::Delete => KeyEvent::Delete,
-        KeyCode::Left => KeyEvent::Left,
-        KeyCode::Right => KeyEvent::Right,
-        KeyCode::Up => KeyEvent::Up,
-        KeyCode::Down => KeyEvent::Down,
-        KeyCode::Home => KeyEvent::Home,
-        KeyCode::End => KeyEvent::End,
-        KeyCode::Esc => KeyEvent::Esc,
-        KeyCode::F(n) => KeyEvent::F(n),
-        KeyCode::Char(c) => KeyEvent::Char(c),
-        _ => KeyEvent::Char('\0'),
-    }
+    super::core::app::convert_key(key)
 }
