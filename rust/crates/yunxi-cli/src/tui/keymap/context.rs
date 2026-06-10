@@ -1,6 +1,59 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+/// 高层编辑模式（Vim 式模式切换）。
+///
+/// 与 KeyContext 正交：KeyContext 是组件级焦点，KeyMode 是全局编辑模式。
+/// 例如 Insert 模式下按 Esc 切回 Normal，Command 模式对应命令面板激活。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyMode {
+    /// 默认导航模式：快捷键驱动（j/k/Ctrl+P 等）。
+    Normal,
+    /// 文本输入模式：字符直接插入，Esc 返回 Normal。
+    Insert,
+    /// 命令面板模式：搜索/执行命令。
+    Command,
+    /// 文本选择模式（预留）：支持多选复制。
+    Visual,
+}
+
+impl Default for KeyMode {
+    fn default() -> Self {
+        KeyMode::Normal
+    }
+}
+
+impl KeyMode {
+    pub fn name(&self) -> &str {
+        match self {
+            KeyMode::Normal => "NORMAL",
+            KeyMode::Insert => "INSERT",
+            KeyMode::Command => "COMMAND",
+            KeyMode::Visual => "VISUAL",
+        }
+    }
+
+    pub fn display_name(&self) -> &str {
+        match self {
+            KeyMode::Normal => "普通",
+            KeyMode::Insert => "插入",
+            KeyMode::Command => "命令",
+            KeyMode::Visual => "可视",
+        }
+    }
+
+    pub fn all() -> &'static [KeyMode] {
+        &[KeyMode::Normal, KeyMode::Insert, KeyMode::Command, KeyMode::Visual]
+    }
+}
+
+impl fmt::Display for KeyMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyContext {

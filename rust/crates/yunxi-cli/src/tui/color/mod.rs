@@ -1,8 +1,132 @@
+pub mod contrast;
+pub mod oklch;
+pub mod scale;
+
 use std::io::{self, Read, Write};
 
 use crossterm::terminal;
+use ratatui::style::Color;
 
 const COLORFGBG: &str = "COLORFGBG";
+
+// ── 终端色彩能力检测 ──
+
+/// 终端色彩能力等级
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerminalCapability {
+    TrueColor, // 24-bit (1600万色)
+    Ansi256,   // 8-bit (256色)
+    Ansi16,    // 4-bit (16色)
+    NoColor,   // NO_COLOR 环境变量
+}
+
+/// 检测当前终端的色彩能力。
+///
+/// 优先级：NO_COLOR → COLORTERM → TERM → 默认 Ansi16
+pub fn detect_terminal_capability() -> TerminalCapability {
+    // 1. NO_COLOR 标准优先
+    if std::env::var("NO_COLOR")
+        .map(|v| !v.is_empty())
+        .unwrap_or(false)
+    {
+        return TerminalCapability::NoColor;
+    }
+
+    // 2. COLORTERM 检测 TrueColor
+    if let Ok(ct) = std::env::var("COLORTERM") {
+        if ct == "truecolor" || ct == "24bit" || ct == "truecolour" {
+            return TerminalCapability::TrueColor;
+        }
+    }
+
+    // 3. TERM 检测 256 色
+    if let Ok(term) = std::env::var("TERM") {
+        if term.contains("256color") || term.contains("256colour") {
+            return TerminalCapability::Ansi256;
+        }
+        // 部分 TrueColor 终端在 TERM 中标记
+        if term.contains("truecolor") || term.contains("24bit") {
+            return TerminalCapability::TrueColor;
+        }
+    }
+
+    // 4. 已知终端检测
+    match std::env::var("TERM_PROGRAM").as_deref() {
+        Ok(
+            "vscode" | "Visual Studio Code" | "iTerm.app" | "cursor" | "WarpTerminal" | "ghostty"
+            | "Hyper" | "WezTerm",
+        ) => TerminalCapability::TrueColor,
+        Ok("Apple_Terminal") => TerminalCapability::Ansi256,
+        _ => {
+            // tmux 下尝试检测
+            if std::env::var("TMUX").is_ok() {
+                // tmux 通常支持 TrueColor 但需要 COLORTERM
+                if std::env::var("COLORTERM").is_ok() {
+                    TerminalCapability::TrueColor
+                } else {
+                    TerminalCapability::Ansi256
+                }
+            } else {
+                TerminalCapability::Ansi16
+            }
+        }
+    }
+}
+
+/// 根据终端能力将 RGB 色值降级到合适的 Color 值。
+pub fn color_for_capability(rgb: (u8, u8, u8), cap: TerminalCapability) -> Color {
+    match cap {
+        TerminalCapability::TrueColor => Color::Rgb(rgb.0, rgb.1, rgb.2),
+        TerminalCapability::Ansi256 => Color::Indexed(rgb_to_256(rgb)),
+        TerminalCapability::Ansi16 => Color::Indexed(rgb_to_16(rgb)),
+        TerminalCapability::NoColor => Color::Reset,
+    }
+}
+
+/// RGB → 6×6×6 216色 + 24灰度 = 256色索引
+fn rgb_to_256(rgb: (u8, u8, u8)) -> u8 {
+    let r = (rgb.0 as u16 * 5 + 127) / 255;
+    let g = (rgb.1 as u16 * 5 + 127) / 255;
+    let b = (rgb.2 as u16 * 5 + 127) / 255;
+
+    // 灰度检测：如果 R≈G≈B，使用灰度带 (232-255)
+    if r == g && g == b {
+        let gray = (rgb.0 as u16 * 24 + 127) / 255;
+        return 232 + gray as u8;
+    }
+
+    16 + 36 * r as u8 + 6 * g as u8 + b as u8
+}
+
+/// RGB → 16色 ANSI 语义映射
+fn rgb_to_16(rgb: (u8, u8, u8)) -> u8 {
+    // 使用最大通道值判断亮度（更直觉）
+    let max_channel = rgb.0.max(rgb.1).max(rgb.2);
+    let is_bright = max_channel > 128;
+
+    let r_hi = rgb.0 > 96;
+    let g_hi = rgb.1 > 96;
+    let b_hi = rgb.2 > 96;
+
+    match (r_hi, g_hi, b_hi, is_bright) {
+        (false, false, false, false) => 0, // Black
+        (true, false, false, false) => 1,  // Red
+        (false, true, false, false) => 2,  // Green
+        (true, true, false, false) => 3,   // Yellow
+        (false, false, true, false) => 4,  // Blue
+        (true, false, true, false) => 5,   // Magenta
+        (false, true, true, false) => 6,   // Cyan
+        (true, true, true, false) => 7,    // White
+        (false, false, false, true) => 8,  // Bright Black
+        (true, false, false, true) => 9,   // Bright Red
+        (false, true, false, true) => 10,  // Bright Green
+        (true, true, false, true) => 11,   // Bright Yellow
+        (false, false, true, true) => 12,  // Bright Blue
+        (true, false, true, true) => 13,   // Bright Magenta
+        (false, true, true, true) => 14,   // Bright Cyan
+        (true, true, true, true) => 15,    // Bright White
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TerminalBackground {
@@ -227,6 +351,57 @@ mod tests {
         std::env::set_var(COLORFGBG, "15;0");
         assert_eq!(parse_colorfgbg(), Some(TerminalBackground::Dark));
         std::env::remove_var(COLORFGBG);
+    }
+
+    #[test]
+    fn terminal_capability_no_color() {
+        let _guard = env_lock();
+        std::env::set_var("NO_COLOR", "1");
+        assert_eq!(detect_terminal_capability(), TerminalCapability::NoColor);
+        std::env::remove_var("NO_COLOR");
+    }
+
+    #[test]
+    fn terminal_capability_colorterm() {
+        let _guard = env_lock();
+        std::env::remove_var("NO_COLOR");
+        std::env::set_var("COLORTERM", "truecolor");
+        assert_eq!(detect_terminal_capability(), TerminalCapability::TrueColor);
+        std::env::remove_var("COLORTERM");
+    }
+
+    #[test]
+    fn color_degradation_no_color() {
+        assert_eq!(
+            color_for_capability((255, 0, 0), TerminalCapability::NoColor),
+            Color::Reset
+        );
+    }
+
+    #[test]
+    fn color_degradation_truecolor() {
+        assert_eq!(
+            color_for_capability((100, 150, 200), TerminalCapability::TrueColor),
+            Color::Rgb(100, 150, 200)
+        );
+    }
+
+    #[test]
+    fn color_degradation_ansi256() {
+        let c = color_for_capability((128, 128, 128), TerminalCapability::Ansi256);
+        // 灰色应映射到灰度带 (232-255)
+        if let Color::Indexed(idx) = c {
+            assert!(
+                (232..=255).contains(&idx),
+                "Gray should be in grayscale range, got {idx}"
+            );
+        }
+    }
+
+    #[test]
+    fn color_degradation_ansi16() {
+        let c = color_for_capability((255, 0, 0), TerminalCapability::Ansi16);
+        assert_eq!(c, Color::Indexed(9)); // Bright Red
     }
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {

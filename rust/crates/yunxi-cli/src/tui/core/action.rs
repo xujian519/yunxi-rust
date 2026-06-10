@@ -4,6 +4,8 @@ pub enum Action {
     Navigate(String),
     GoBack,
     GoForward,
+    Collapse,
+    Expand,
 
     // ── Dialog / Overlay ──
     ShowDialog(String),
@@ -29,6 +31,7 @@ pub enum Action {
     ExecuteCommand(String),
     ShowCommandPalette,
     HideCommandPalette,
+    StartSearch,
 
     // ── Theme ──
     SwitchTheme(String),
@@ -48,6 +51,7 @@ pub enum Action {
     InterruptTurn,
     PermissionDecision(bool),
     FlowResume(String, String),
+    SwitchModel,
 
     // ── Lifecycle ──
     Quit,

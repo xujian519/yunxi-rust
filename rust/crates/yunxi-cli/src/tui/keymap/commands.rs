@@ -143,6 +143,14 @@ impl CommandRegistry {
         self.register(Command::new("EditorUndo", "编辑器撤销", Action::EditorUndo));
 
         self.register(Command::new("EditorRedo", "编辑器重做", Action::EditorRedo));
+
+        self.register(Command::new("StartSearch", "开始搜索", Action::StartSearch));
+
+        self.register(Command::new("Collapse", "折叠节点", Action::Collapse));
+
+        self.register(Command::new("Expand", "展开节点", Action::Expand));
+
+        self.register(Command::new("SwitchModel", "切换模型", Action::SwitchModel));
     }
 
     pub fn register(&mut self, command: Command) {

@@ -1,13 +1,14 @@
 use ratatui::style::Color;
 
 use super::ColorPalette;
-use crate::tui::theme::Theme;
+use crate::tui::theme::{BorderStyle, StyleSet, Theme};
 
 impl Theme {
     pub fn nord() -> Self {
         Self {
             name: "nord".to_string(),
             is_dark: true,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(136, 192, 208),
                 secondary: Color::Rgb(129, 161, 193),
@@ -37,6 +38,7 @@ impl Theme {
         Self {
             name: "dracula".to_string(),
             is_dark: true,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(189, 147, 249),
                 secondary: Color::Rgb(139, 233, 253),
@@ -66,6 +68,7 @@ impl Theme {
         Self {
             name: "gruvbox".to_string(),
             is_dark: true,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(215, 153, 33),
                 secondary: Color::Rgb(251, 241, 199),
@@ -95,6 +98,7 @@ impl Theme {
         Self {
             name: "solarized_dark".to_string(),
             is_dark: true,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(38, 139, 210),
                 secondary: Color::Rgb(181, 137, 0),
@@ -124,6 +128,7 @@ impl Theme {
         Self {
             name: "solarized_light".to_string(),
             is_dark: false,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(38, 139, 210),
                 secondary: Color::Rgb(133, 153, 0),
@@ -153,6 +158,7 @@ impl Theme {
         Self {
             name: "monokai".to_string(),
             is_dark: true,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(102, 217, 239),
                 secondary: Color::Rgb(249, 38, 114),
@@ -182,6 +188,7 @@ impl Theme {
         Self {
             name: "catppuccin".to_string(),
             is_dark: true,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(137, 180, 250),
                 secondary: Color::Rgb(166, 227, 161),
@@ -203,6 +210,268 @@ impl Theme {
                 border_active: Color::Rgb(166, 227, 161),
                 brand: Color::Rgb(137, 180, 250),
                 brand_shimmer: Color::Rgb(166, 227, 161),
+            },
+        }
+    }
+
+    // ── 规范主推荐方案："墨园"（Ink Garden） ──
+
+    pub fn ink_garden_dark() -> Self {
+        Self {
+            name: "ink_garden_dark".to_string(),
+            is_dark: true,
+            styles: StyleSet {
+                borders: BorderStyle {
+                    border_type: super::BorderType::Rounded,
+                    ..BorderStyle::default()
+                },
+                ..StyleSet::default()
+            },
+            colors: ColorPalette {
+                primary: Color::Rgb(129, 161, 193),        // #81A1C1
+                secondary: Color::Rgb(136, 192, 208),      // #88C0D0
+                accent: Color::Rgb(201, 129, 138),         // #C9818A
+                success: Color::Rgb(159, 184, 154),        // #9FB89A
+                warning: Color::Rgb(208, 135, 112),        // #D08770
+                error: Color::Rgb(191, 97, 106),           // #BF616A
+                info: Color::Rgb(143, 188, 187),           // #8FBCBB
+                bg_primary: Color::Rgb(26, 29, 35),        // #1A1D23
+                bg_secondary: Color::Rgb(35, 39, 48),      // #232730
+                bg_tertiary: Color::Rgb(46, 52, 64),       // #2E3440
+                bg_input: Color::Rgb(35, 39, 48),          // #232730
+                text_primary: Color::Rgb(216, 222, 233),   // #D8DEE9
+                text_secondary: Color::Rgb(171, 178, 191), // #ABBFc1
+                text_muted: Color::Rgb(123, 132, 156),     // #7B849C
+                text_accent: Color::Rgb(136, 192, 208),    // #88C0D0
+                border: Color::Rgb(59, 66, 82),            // #3B4252
+                border_focus: Color::Rgb(129, 161, 193),   // #81A1C1
+                border_active: Color::Rgb(136, 192, 208),  // #88C0D0
+                brand: Color::Rgb(129, 161, 193),          // #81A1C1
+                brand_shimmer: Color::Rgb(136, 192, 208),  // #88C0D0
+            },
+        }
+    }
+
+    pub fn ink_garden_light() -> Self {
+        Self {
+            name: "ink_garden_light".to_string(),
+            is_dark: false,
+            styles: StyleSet::default(),
+            colors: ColorPalette {
+                primary: Color::Rgb(94, 129, 172),        // #5E81AC
+                secondary: Color::Rgb(93, 154, 142),      // #5D9A8E
+                accent: Color::Rgb(179, 93, 106),         // #B35D6A
+                success: Color::Rgb(109, 150, 112),       // #6D9670
+                warning: Color::Rgb(194, 122, 92),        // #C27A5C
+                error: Color::Rgb(179, 93, 106),          // #B35D6A
+                info: Color::Rgb(93, 154, 142),           // #5D9A8E
+                bg_primary: Color::Rgb(245, 245, 240),    // #F5F5F0
+                bg_secondary: Color::Rgb(236, 239, 244),  // #ECEFF4
+                bg_tertiary: Color::Rgb(229, 233, 240),   // #E5E9F0
+                bg_input: Color::Rgb(236, 239, 244),      // #ECEFF4
+                text_primary: Color::Rgb(46, 52, 64),     // #2E3440
+                text_secondary: Color::Rgb(92, 101, 125), // #5C657D
+                text_muted: Color::Rgb(92, 101, 125),     // #5C657D
+                text_accent: Color::Rgb(94, 129, 172),    // #5E81AC
+                border: Color::Rgb(216, 222, 233),        // #D8DEE9
+                border_focus: Color::Rgb(94, 129, 172),   // #5E81AC
+                border_active: Color::Rgb(93, 154, 142),  // #5D9A8E
+                brand: Color::Rgb(94, 129, 172),          // #5E81AC
+                brand_shimmer: Color::Rgb(93, 154, 142),  // #5D9A8E
+            },
+        }
+    }
+
+    // ── "禅径"（Zen Path）低对比度方案 ──
+
+    pub fn zen_path_dark() -> Self {
+        Self {
+            name: "zen_path_dark".to_string(),
+            is_dark: true,
+            styles: StyleSet::default(),
+            colors: ColorPalette {
+                primary: Color::Rgb(140, 176, 211),        // #8CB0D3
+                secondary: Color::Rgb(140, 208, 211),      // #8CD0D3
+                accent: Color::Rgb(204, 147, 147),         // #CC9393
+                success: Color::Rgb(127, 159, 127),        // #7F9F7F
+                warning: Color::Rgb(223, 175, 143),        // #DFAF8F
+                error: Color::Rgb(204, 147, 147),          // #CC9393
+                info: Color::Rgb(140, 208, 211),           // #8CD0D3
+                bg_primary: Color::Rgb(58, 58, 58),        // #3A3A3A
+                bg_secondary: Color::Rgb(67, 67, 67),      // #434343
+                bg_tertiary: Color::Rgb(77, 77, 77),       // #4D4D4D
+                bg_input: Color::Rgb(67, 67, 67),          // #434343
+                text_primary: Color::Rgb(220, 220, 204),   // #DCDCCC
+                text_secondary: Color::Rgb(180, 180, 170), // #B4B4AA
+                text_muted: Color::Rgb(143, 143, 143),     // #8F8F8F
+                text_accent: Color::Rgb(140, 176, 211),    // #8CB0D3
+                border: Color::Rgb(90, 90, 90),            // #5A5A5A
+                border_focus: Color::Rgb(140, 176, 211),   // #8CB0D3
+                border_active: Color::Rgb(140, 208, 211),  // #8CD0D3
+                brand: Color::Rgb(140, 176, 211),          // #8CB0D3
+                brand_shimmer: Color::Rgb(140, 208, 211),  // #8CD0D3
+            },
+        }
+    }
+
+    pub fn zen_path_light() -> Self {
+        Self {
+            name: "zen_path_light".to_string(),
+            is_dark: false,
+            styles: StyleSet::default(),
+            colors: ColorPalette {
+                primary: Color::Rgb(80, 96, 128),         // #506080
+                secondary: Color::Rgb(80, 128, 128),      // #508080
+                accent: Color::Rgb(160, 80, 80),          // #A05050
+                success: Color::Rgb(79, 111, 79),         // #4F6F4F
+                warning: Color::Rgb(138, 122, 80),        // #8A7A50
+                error: Color::Rgb(160, 80, 80),           // #A05050
+                info: Color::Rgb(80, 128, 128),           // #508080
+                bg_primary: Color::Rgb(245, 245, 224),    // #F5F5E0
+                bg_secondary: Color::Rgb(224, 224, 208),  // #E0E0D0
+                bg_tertiary: Color::Rgb(210, 210, 195),   // #D2D2C3
+                bg_input: Color::Rgb(224, 224, 208),      // #E0E0D0
+                text_primary: Color::Rgb(58, 58, 58),     // #3A3A3A
+                text_secondary: Color::Rgb(100, 100, 90), // #64645A
+                text_muted: Color::Rgb(122, 122, 106),    // #7A7A6A
+                text_accent: Color::Rgb(80, 96, 128),     // #506080
+                border: Color::Rgb(192, 192, 176),        // #C0C0B0
+                border_focus: Color::Rgb(80, 96, 128),    // #506080
+                border_active: Color::Rgb(80, 128, 128),  // #508080
+                brand: Color::Rgb(80, 96, 128),           // #506080
+                brand_shimmer: Color::Rgb(80, 128, 128),  // #508080
+            },
+        }
+    }
+
+    // ── "明晰"（Clear Mode）高对比度方案 ──
+
+    pub fn clear_mode_dark() -> Self {
+        Self {
+            name: "clear_mode_dark".to_string(),
+            is_dark: true,
+            styles: StyleSet {
+                borders: BorderStyle {
+                    border_type: super::BorderType::Double,
+                    ..BorderStyle::default()
+                },
+                ..StyleSet::default()
+            },
+            colors: ColorPalette {
+                primary: Color::Rgb(143, 143, 255),        // #8F8FFF
+                secondary: Color::Rgb(95, 255, 95),        // #5FFF5F
+                accent: Color::Rgb(255, 95, 95),           // #FF5F5F
+                success: Color::Rgb(95, 255, 95),          // #5FFF5F
+                warning: Color::Rgb(255, 159, 95),         // #FF9F5F
+                error: Color::Rgb(255, 95, 95),            // #FF5F5F
+                info: Color::Rgb(95, 255, 255),            // #5FFFFF
+                bg_primary: Color::Rgb(0, 0, 0),           // #000000
+                bg_secondary: Color::Rgb(26, 26, 26),      // #1A1A1A
+                bg_tertiary: Color::Rgb(46, 46, 46),       // #2E2E2E
+                bg_input: Color::Rgb(26, 26, 26),          // #1A1A1A
+                text_primary: Color::Rgb(255, 255, 255),   // #FFFFFF
+                text_secondary: Color::Rgb(200, 200, 200), // #C8C8C8
+                text_muted: Color::Rgb(160, 160, 160),     // #A0A0A0
+                text_accent: Color::Rgb(143, 143, 255),    // #8F8FFF
+                border: Color::Rgb(51, 51, 51),            // #333333
+                border_focus: Color::Rgb(143, 143, 255),   // #8F8FFF
+                border_active: Color::Rgb(95, 255, 255),   // #5FFFFF
+                brand: Color::Rgb(143, 143, 255),          // #8F8FFF
+                brand_shimmer: Color::Rgb(95, 255, 255),   // #5FFFFF
+            },
+        }
+    }
+
+    pub fn clear_mode_light() -> Self {
+        Self {
+            name: "clear_mode_light".to_string(),
+            is_dark: false,
+            styles: StyleSet::default(),
+            colors: ColorPalette {
+                primary: Color::Rgb(0, 0, 184),          // #0000B8
+                secondary: Color::Rgb(0, 85, 0),         // #005500
+                accent: Color::Rgb(163, 29, 29),         // #A31D1D
+                success: Color::Rgb(0, 85, 0),           // #005500
+                warning: Color::Rgb(138, 69, 0),         // #8A4500
+                error: Color::Rgb(163, 29, 29),          // #A31D1D
+                info: Color::Rgb(0, 72, 72),             // #004848
+                bg_primary: Color::Rgb(255, 255, 255),   // #FFFFFF
+                bg_secondary: Color::Rgb(240, 240, 240), // #F0F0F0
+                bg_tertiary: Color::Rgb(224, 224, 224),  // #E0E0E0
+                bg_input: Color::Rgb(240, 240, 240),     // #F0F0F0
+                text_primary: Color::Rgb(0, 0, 0),       // #000000
+                text_secondary: Color::Rgb(80, 80, 80),  // #505050
+                text_muted: Color::Rgb(88, 88, 88),      // #585858
+                text_accent: Color::Rgb(0, 0, 184),      // #0000B8
+                border: Color::Rgb(204, 204, 204),       // #CCCCCC
+                border_focus: Color::Rgb(0, 0, 184),     // #0000B8
+                border_active: Color::Rgb(0, 72, 72),    // #004848
+                brand: Color::Rgb(0, 0, 184),            // #0000B8
+                brand_shimmer: Color::Rgb(0, 72, 72),    // #004848
+            },
+        }
+    }
+
+    // ── Tokyo Night ──
+
+    pub fn tokyo_night() -> Self {
+        Self {
+            name: "tokyo_night".to_string(),
+            is_dark: true,
+            styles: StyleSet::default(),
+            colors: ColorPalette {
+                primary: Color::Rgb(122, 162, 247),        // #7AA2F7
+                secondary: Color::Rgb(187, 154, 247),      // #BB9AF7
+                accent: Color::Rgb(247, 118, 142),         // #F7768E
+                success: Color::Rgb(158, 206, 106),        // #9ECE6A
+                warning: Color::Rgb(224, 175, 104),        // #E0AF68
+                error: Color::Rgb(247, 118, 142),          // #F7768E
+                info: Color::Rgb(125, 207, 255),           // #7DCFFF
+                bg_primary: Color::Rgb(26, 27, 46),        // #1A1B2E
+                bg_secondary: Color::Rgb(36, 38, 58),      // #24263A
+                bg_tertiary: Color::Rgb(47, 49, 73),       // #2F3149
+                bg_input: Color::Rgb(36, 38, 58),          // #24263A
+                text_primary: Color::Rgb(192, 202, 245),   // #C0CAF5
+                text_secondary: Color::Rgb(161, 168, 210), // #A1A8D2
+                text_muted: Color::Rgb(92, 100, 138),      // #5C648A
+                text_accent: Color::Rgb(187, 154, 247),    // #BB9AF7
+                border: Color::Rgb(51, 54, 82),            // #333652
+                border_focus: Color::Rgb(122, 162, 247),   // #7AA2F7
+                border_active: Color::Rgb(187, 154, 247),  // #BB9AF7
+                brand: Color::Rgb(122, 162, 247),          // #7AA2F7
+                brand_shimmer: Color::Rgb(187, 154, 247),  // #BB9AF7
+            },
+        }
+    }
+
+    // ── 色盲友好变体（Daltonized） ──
+
+    pub fn daltonized_dark() -> Self {
+        Self {
+            name: "daltonized_dark".to_string(),
+            is_dark: true,
+            styles: StyleSet::default(),
+            colors: ColorPalette {
+                primary: Color::Rgb(122, 162, 247),        // #7AA2F7 蓝
+                secondary: Color::Rgb(125, 207, 255),      // #7DCFFF 浅蓝
+                accent: Color::Rgb(204, 102, 0),           // #CC6600 橙
+                success: Color::Rgb(0, 136, 204),          // #0088CC 蓝（替代绿）
+                warning: Color::Rgb(204, 68, 170),         // #CC44AA 品红（替代黄）
+                error: Color::Rgb(204, 102, 0),            // #CC6600 橙（替代红）
+                info: Color::Rgb(0, 170, 170),             // #00AAAA 青
+                bg_primary: Color::Rgb(20, 20, 24),        // #141418
+                bg_secondary: Color::Rgb(27, 27, 32),      // #1B1B20
+                bg_tertiary: Color::Rgb(35, 35, 40),       // #232328
+                bg_input: Color::Rgb(35, 35, 40),          // #232328
+                text_primary: Color::Rgb(235, 235, 240),   // #EBEBF0
+                text_secondary: Color::Rgb(168, 168, 175), // #A8A8AF
+                text_muted: Color::Rgb(115, 115, 122),     // #73737A
+                text_accent: Color::Rgb(125, 207, 255),    // #7DCFFF
+                border: Color::Rgb(45, 45, 51),            // #2D2D33
+                border_focus: Color::Rgb(122, 162, 247),   // #7AA2F7
+                border_active: Color::Rgb(125, 207, 255),  // #7DCFFF
+                brand: Color::Rgb(122, 162, 247),          // #7AA2F7
+                brand_shimmer: Color::Rgb(125, 207, 255),  // #7DCFFF
             },
         }
     }

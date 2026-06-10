@@ -92,6 +92,25 @@ impl Widget for StatusBarWidget<'_> {
             .map(|s| s.content.as_ref())
             .collect::<Vec<_>>()
             .concat();
+
+        let used = full_text.len() as u16;
+        let available = area.width.saturating_sub(used);
+
+        // Right-aligned shortcut hints (only if space remains)
+        if available > 8 {
+            let hints_full = " ⌃P命令 ⌃B侧栏 ?帮助";
+            let hints_short = " ⌃P ?";
+            let hints = if available >= 30 {
+                hints_full
+            } else {
+                hints_short
+            };
+            spans.push(Span::styled(
+                format!("{:>width$}", hints, width = available as usize),
+                Style::default().fg(muted),
+            ));
+        }
+
         let line = Line::from(spans);
         Paragraph::new(line).render(
             Rect::new(

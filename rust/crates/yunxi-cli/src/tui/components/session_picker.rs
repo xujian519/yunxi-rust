@@ -1,7 +1,11 @@
 //! 交互式会话选择覆盖层（支持模糊筛选）。
 
 use crate::session_mgr::ManagedSessionSummary;
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
+use crate::tui::core::action::{Action, ActionResult};
+use crate::tui::core::event::{Event, InputEvent};
 use crate::tui::layout::Rect;
+use crossterm::event::KeyCode;
 
 /// 会话选择器状态。
 #[derive(Debug, Clone)]
@@ -13,6 +17,7 @@ pub(crate) struct SessionPicker {
     /// 在 `visible` 中的选中下标。
     selected_visible: usize,
     active_session_id: String,
+    state: ComponentState,
 }
 
 impl SessionPicker {
@@ -23,6 +28,7 @@ impl SessionPicker {
             filter: String::new(),
             selected_visible: 0,
             active_session_id,
+            state: ComponentState::new(generate_component_id("session_picker")),
         };
         picker.rebuild_visible();
         picker
@@ -213,6 +219,65 @@ fn truncate_id(id: &str, max: usize) -> String {
         return id.to_string();
     }
     id.chars().take(max.saturating_sub(1)).collect::<String>() + "…"
+}
+
+impl Component for SessionPicker {
+    fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        if !self.state.visible {
+            return;
+        }
+        use ratatui::prelude::Widget;
+        use crate::tui::widgets::session_picker_ratatui::SessionPickerWidget;
+        SessionPickerWidget { picker: self }.render(area, buf);
+    }
+
+    fn handle_event(&mut self, event: &Event) -> ActionResult {
+        if self.state.disabled || !self.state.visible {
+            return ActionResult::Ignored;
+        }
+        match event {
+            Event::Input(InputEvent::Key(key)) => match key.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.move_down();
+                    ActionResult::Handled
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.move_up();
+                    ActionResult::Handled
+                }
+                KeyCode::Char(c) if !c.is_control() => {
+                    self.push_filter_char(c);
+                    ActionResult::Handled
+                }
+                KeyCode::Backspace => {
+                    self.pop_filter_char();
+                    ActionResult::Handled
+                }
+                KeyCode::Esc => ActionResult::Action(Action::HideDialog),
+                KeyCode::Enter => {
+                    if let Some(session) = self.selected_session() {
+                        ActionResult::Action(Action::SwitchSession(session.id.clone()))
+                    } else {
+                        ActionResult::Handled
+                    }
+                }
+                _ => ActionResult::Ignored,
+            },
+            _ => ActionResult::Ignored,
+        }
+    }
+
+    fn get_state(&self) -> ComponentState {
+        self.state.clone()
+    }
+
+    fn on_focus(&mut self, focused: bool) {
+        self.state.focused = focused;
+    }
+
+    fn on_resize(&mut self, area: ratatui::layout::Rect) {
+        self.state.bounds = area;
+    }
 }
 
 #[cfg(test)]

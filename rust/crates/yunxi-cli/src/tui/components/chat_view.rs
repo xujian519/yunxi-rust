@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
 use crate::render::TerminalRenderer;
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
+use crate::tui::core::action::ActionResult;
+use crate::tui::core::event::Event;
 use crate::tui::frame::{truncate_ansi_to_width, visible_width, wrap_ansi_to_width};
 use crate::tui::layout::Rect;
 
@@ -51,6 +54,11 @@ impl ChatRole {
 pub(crate) struct ChatView {
     entries: Vec<ChatEntry>,
     scroll_offset: usize,
+    /// 用户是否手动向上滚动（暂停自动跟随）
+    user_scrolled: bool,
+    /// 用户手动滚动时，未读的新消息数量
+    unread_count: usize,
+    state: ComponentState,
 }
 
 impl ChatView {
@@ -58,6 +66,9 @@ impl ChatView {
         Self {
             entries: Vec::new(),
             scroll_offset: 0,
+            user_scrolled: false,
+            unread_count: 0,
+            state: ComponentState::new(generate_component_id("chat_view")),
         }
     }
 
@@ -112,11 +123,14 @@ impl ChatView {
     /// 向下滚动一行。
     pub(crate) fn scroll_down(&mut self, visible_lines: usize) {
         self.scroll_down_by(1, visible_lines);
+        // 检查是否滚回底部
+        self.check_scrolled_to_bottom(visible_lines);
     }
 
     /// 向上滚动一行。
     pub(crate) fn scroll_up(&mut self) {
         self.scroll_up_by(1);
+        self.user_scrolled = true;
     }
 
     /// 向下滚动多行。
@@ -139,6 +153,47 @@ impl ChatView {
     pub(crate) fn scroll_to_bottom(&mut self, visible_lines: usize) {
         let max = self.total_lines().saturating_sub(visible_lines);
         self.scroll_offset = max;
+        self.user_scrolled = false;
+        self.unread_count = 0;
+    }
+
+    /// 检查是否已滚回底部，如果是则恢复自动跟随。
+    fn check_scrolled_to_bottom(&mut self, visible_lines: usize) {
+        let max = self.total_lines().saturating_sub(visible_lines);
+        if self.scroll_offset >= max {
+            self.user_scrolled = false;
+            self.unread_count = 0;
+        }
+    }
+
+    /// 流式内容追加时的自动滚动策略。
+    /// 返回 true 表示应滚动到底部，false 表示保持当前位置。
+    pub(crate) fn should_auto_scroll(&mut self, visible_lines: usize) -> bool {
+        if self.user_scrolled {
+            self.unread_count += 1;
+            return false;
+        }
+        self.scroll_to_bottom(visible_lines);
+        true
+    }
+
+    /// 用户是否处于手动滚动状态（暂停自动跟随）。
+    pub(crate) fn is_user_scrolled(&self) -> bool {
+        self.user_scrolled
+    }
+
+    /// 未读新消息数量（仅当 user_scrolled 为 true 时有意义）。
+    pub(crate) fn unread_count(&self) -> usize {
+        self.unread_count
+    }
+
+    /// 生成未读新消息提示文本。
+    pub(crate) fn unread_hint(&self) -> Option<String> {
+        if self.user_scrolled && self.unread_count > 0 {
+            Some(format!("↓ {} 条新消息", self.unread_count))
+        } else {
+            None
+        }
     }
 
     /// 估算总行数（简单按换行符计数）。
@@ -255,6 +310,39 @@ impl ChatView {
             .map(|entry| format!("{}: {}", entry.role.label(), strip_ansi(&entry.text)))
             .collect::<Vec<_>>()
             .join("\n\n")
+    }
+}
+
+impl Component for ChatView {
+    fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        if !self.state.visible {
+            return;
+        }
+        use ratatui::prelude::Widget;
+        use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
+        ChatViewWidget {
+            chat: self,
+            thinking: false,
+            spinner_frame: 0,
+        }
+        .render(area, buf);
+    }
+
+    fn handle_event(&mut self, _event: &Event) -> ActionResult {
+        // ChatView 是只读显示，不直接处理输入事件
+        ActionResult::Ignored
+    }
+
+    fn get_state(&self) -> ComponentState {
+        self.state.clone()
+    }
+
+    fn on_focus(&mut self, focused: bool) {
+        self.state.focused = focused;
+    }
+
+    fn on_resize(&mut self, area: ratatui::layout::Rect) {
+        self.state.bounds = area;
     }
 }
 

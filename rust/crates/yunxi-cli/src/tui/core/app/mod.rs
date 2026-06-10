@@ -1,13 +1,16 @@
 //! New-architecture TUI application: combines event loop, state, rendering, and LLM integration.
 //! Replaces the old TuiApp + runner.rs + app_ratatui.rs architecture.
 
+mod chat;
+mod session;
+mod theme;
+
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use runtime::PermissionMode;
 
 use crate::cli_action::AllowedToolSet;
-use crate::model_routing::{load_router_config, select_model_for_request};
 use crate::runtime_bridge::{build_runtime, build_system_prompt};
 use crate::session_meta::{execute_flow_resume, AthenaSessionMeta};
 use crate::session_mgr::{create_managed_session_handle, list_managed_sessions, SessionHandle};
@@ -21,7 +24,7 @@ use crate::tui::core::event::{Event, EventDispatcher, InputEvent};
 use crate::tui::keymap::KeyMap;
 use crate::tui::state::global::GlobalState;
 use crate::tui::theme::ThemeManager;
-use crate::tui::turn::{spawn_turn, ActiveTurn, SharedRuntime, TurnEvent};
+use crate::tui::turn::{ActiveTurn, SharedRuntime, TurnEvent};
 use crate::VERSION;
 
 /// TUI application state.
@@ -233,77 +236,31 @@ impl App {
     }
 
     fn dispatch_action(&mut self, action: Action) -> Result<(), Box<dyn std::error::Error>> {
+        // ── Reducer 委托链：按优先级尝试各 Reducer ──
+        if self.dispatch_theme_action(&action) {
+            return Ok(());
+        }
+        if self.dispatch_session_action(&action)? {
+            return Ok(());
+        }
+        if self.dispatch_chat_action(&action)? {
+            return Ok(());
+        }
+
+        // ── 剩余 UI 开关 / 导航 / 剪贴板类 Action ──
         match action {
-            Action::Submit(text, as_intervention) => {
-                self.handle_submit(text, as_intervention)?;
-            }
-            Action::InterruptTurn => {
-                self.interrupt_turn();
-            }
             Action::ShowHelp => {
                 self.show_help = true;
             }
             Action::ShowGuide => {
                 self.open_human_guide();
             }
-            Action::ShowSessionPicker | Action::OpenSessionPicker => {
-                self.open_session_picker();
-            }
             Action::ToggleSidebar => {
                 self.show_sidebar = !self.show_sidebar;
-            }
-            Action::ToggleDarkMode => {
-                self.cycle_theme();
-            }
-            Action::SwitchTheme(name) => {
-                self.set_theme_by_name(&name);
             }
             Action::CopySelection => {
                 self.copy_visible_text_to_clipboard();
             }
-            Action::SaveSession => {
-                self.persist_session();
-            }
-            Action::PermissionDecision(allow) => {
-                if let Some(turn) = self.active_turn.as_mut() {
-                    let _ = turn.permission_tx.send(allow);
-                }
-                self.set_pending_permission(None);
-            }
-            Action::FlowResume(flow_id, run_id) => {
-                self.handle_flow_resume(&flow_id, &run_id)?;
-                self.set_pending_flow_hitl(None);
-            }
-            Action::Quit => {
-                self.should_quit = true;
-            }
-            Action::ExecuteCommand(cmd) => match cmd.as_str() {
-                "sessions" => {
-                    self.open_session_picker();
-                }
-                "interrupt" => self.interrupt_turn(),
-                "edit_keymap" => {
-                    let bindings: Vec<String> = self
-                        .keymap
-                        .list_all_bindings()
-                        .iter()
-                        .map(|b| format!("{}: {}", b.sequence, b.command))
-                        .collect();
-                    let msg = if bindings.is_empty() {
-                        "暂无快捷键绑定".to_string()
-                    } else {
-                        format!(
-                            "当前快捷键绑定 (共 {} 条):\n{}",
-                            bindings.len(),
-                            bindings.join("\n")
-                        )
-                    };
-                    self.push_system_message(&msg);
-                }
-                _ => {
-                    self.push_system_message(&format!("未接入的命令 '{}'", cmd));
-                }
-            },
             Action::ShowDialog(name) => match name.as_str() {
                 "go_to_top" => self.chat.scroll_to_top(),
                 "go_to_bottom" => self.chat.scroll_to_bottom(10),
@@ -311,7 +268,6 @@ impl App {
                 "navigate_up" => self.chat.scroll_up(),
                 _ => {}
             },
-            // ── Navigation ──
             Action::Navigate(route) => {
                 self.router.navigate(route);
             }
@@ -321,95 +277,22 @@ impl App {
             Action::GoForward => {
                 self.router.go_forward();
             }
-            // ── Dialog / Close ──
+            Action::Collapse => {
+                self.push_system_message("折叠");
+            }
+            Action::Expand => {
+                self.push_system_message("展开");
+            }
             Action::HideDialog | Action::Close => {
                 self.show_help = false;
                 self.show_guide = false;
                 self.command_palette.hide();
                 self.session_picker = None;
             }
-            // ── Tab ──
-            Action::SwitchTab(_idx) => {
-                // Tab state reserved for future multi-tab layout
+            Action::SwitchTab(_idx) => {}
+            Action::StartSearch => {
+                self.push_system_message("搜索模式（开发中）");
             }
-            // ── Session management ──
-            Action::NewSession => match create_managed_session_handle() {
-                Ok(handle) => {
-                    let session = runtime::Session::new();
-                    match build_runtime(
-                        session,
-                        self.model.clone(),
-                        self.system_prompt.clone(),
-                        true,
-                        false,
-                        self.allowed_tools.clone(),
-                        self.permission_mode,
-                    ) {
-                        Ok(new_runtime) => {
-                            *self.runtime.lock().map_err(|_| "lock")? = new_runtime;
-                            self.chat.clear();
-                            self.tools.clear();
-                            self.session_handle = handle;
-                            self.session_picker = None;
-                            self.push_system_message("已创建新会话");
-                        }
-                        Err(e) => self.push_system_message(&format!("创建会话失败: {e}")),
-                    }
-                }
-                Err(e) => self.push_system_message(&format!("创建会话句柄失败: {e}")),
-            },
-            Action::SwitchSession(id) => {
-                if let Err(e) = self.switch_session(&id) {
-                    self.push_system_message(&format!("切换会话失败: {e}"));
-                }
-            }
-            Action::DeleteSession(id) => match crate::session_mgr::sessions_dir() {
-                Ok(dir) => {
-                    let path = dir.join(format!("{id}.json"));
-                    if path.exists() {
-                        let _ = std::fs::remove_file(&path);
-                        self.push_system_message(&format!("已删除会话 {id}"));
-                        if self.session_picker.is_some() {
-                            if let Ok(sessions) = list_managed_sessions() {
-                                self.session_picker = Some(SessionPicker::new(
-                                    sessions,
-                                    self.session_handle.id.clone(),
-                                ));
-                            }
-                        }
-                    } else {
-                        self.push_system_message(&format!("会话文件不存在: {id}"));
-                    }
-                }
-                Err(e) => self.push_system_message(&format!("获取会话目录失败: {e}")),
-            },
-            Action::RenameSession(old_id, new_name) => {
-                match crate::session_mgr::rename_session(&old_id, &new_name) {
-                    Ok(handle) => {
-                        if handle.id == self.session_handle.id {
-                            self.session_handle = handle;
-                        }
-                        self.push_system_message(&format!("已重命名会话为 {new_name}"));
-                        if self.session_picker.is_some() {
-                            if let Ok(sessions) = list_managed_sessions() {
-                                self.session_picker = Some(SessionPicker::new(
-                                    sessions,
-                                    self.session_handle.id.clone(),
-                                ));
-                            }
-                        }
-                    }
-                    Err(e) => self.push_system_message(&format!("重命名失败: {e}")),
-                }
-            }
-            // ── Command palette ──
-            Action::ShowCommandPalette => {
-                self.command_palette.show();
-            }
-            Action::HideCommandPalette => {
-                self.command_palette.hide();
-            }
-            // ── Clipboard / Editing ──
             Action::Paste | Action::EditorPaste => {
                 match arboard::Clipboard::new().and_then(|mut cb| cb.get_text()) {
                     Ok(text) if !self.has_blocking_modal() => {
@@ -444,145 +327,20 @@ impl App {
                     self.refresh_slash_completion();
                 }
             }
-            // ── Lifecycle ──
             Action::Refresh => {
                 self.needs_render = true;
             }
-            // ── Menu ──
             Action::ShowSubmenu(_id, _idx) => {}
             Action::ShowParentMenu(_id) => {}
-            // ── Custom ──
             Action::Custom(cmd) => {
                 self.push_system_message(&format!("自定义动作: {cmd}"));
             }
+            Action::Quit => {
+                self.should_quit = true;
+            }
+            _ => {}
         }
         Ok(())
-    }
-
-    // ── Turn management ──
-
-    fn handle_submit(
-        &mut self,
-        text: String,
-        as_intervention: bool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut interrupted = false;
-        if self.active_turn.is_some() {
-            if let Some(turn) = self.active_turn.take() {
-                turn.request_cancel();
-                turn.join();
-            }
-            interrupted = true;
-            self.end_turn_stream();
-            self.set_thinking(false);
-            self.active_tool = None;
-            self.set_pending_permission(None);
-            self.turn_started_at = None;
-        }
-
-        // Handle slash commands
-        if text.trim().starts_with('/') {
-            let result = self.handle_slash_command(&text)?;
-            if !result {
-                self.push_system_message("未识别的斜杠命令。输入 /help 查看可用命令。");
-            }
-            return Ok(());
-        }
-
-        let prompt = if as_intervention || interrupted {
-            self.wrap_human_intervention(&text, interrupted)
-        } else {
-            text.clone()
-        };
-
-        self.start_llm_turn(&prompt);
-        Ok(())
-    }
-
-    fn start_llm_turn(&mut self, text: &str) {
-        let effective_model = self.resolve_model(text);
-
-        if let Some(msg) = crate::llm_auth::missing_api_key_message(&effective_model) {
-            self.push_assistant_message(&msg);
-            return;
-        }
-
-        self.set_thinking(true);
-        self.begin_turn_stream();
-        self.turn_started_at = Some(Instant::now());
-        self.active_tool = None;
-        self.close_human_guide();
-
-        // Routing
-        let decision = crate::routing::route(text);
-        let prefix = crate::routing::routing_user_prefix(&decision);
-        let _snapshot = crate::routing::RoutingSnapshot::from_decision(&decision);
-        crate::routing::merge_suggested_tools(&mut self.allowed_tools, &decision);
-
-        let routed_input = format!("{prefix}{text}");
-        self.active_turn = Some(spawn_turn(Arc::clone(&self.runtime), routed_input));
-    }
-
-    fn resolve_model(&mut self, text: &str) -> String {
-        if self.model != "auto" {
-            return self.model.clone();
-        }
-
-        let history_rounds = self
-            .runtime
-            .lock()
-            .map_or(0, |r| r.session().messages.len());
-        let router_config = load_router_config();
-        let resolved = select_model_for_request("auto", text, history_rounds, 0, &router_config);
-
-        let need_rebuild = match &self.active_model {
-            None => true,
-            Some(current) => current != &resolved,
-        };
-
-        if need_rebuild {
-            let session = self.runtime.lock().ok().map(|r| r.session().clone());
-            if let Some(session) = session {
-                match build_runtime(
-                    session,
-                    resolved.clone(),
-                    self.system_prompt.clone(),
-                    true,
-                    false,
-                    self.allowed_tools.clone(),
-                    self.permission_mode,
-                ) {
-                    Ok(new_runtime) => {
-                        if let Ok(mut rt) = self.runtime.lock() {
-                            *rt = new_runtime;
-                        }
-                    }
-                    Err(e) => {
-                        self.push_system_message(&format!("auto 路由切换失败: {e}"));
-                    }
-                }
-            } else {
-                self.push_system_message("auto 路由读取会话失败: runtime lock poisoned");
-            }
-            self.last_auto_decision = Some(format!("auto→{}", resolved));
-        }
-        self.active_model = Some(resolved.clone());
-        resolved
-    }
-
-    fn interrupt_turn(&mut self) {
-        if let Some(turn) = self.active_turn.take() {
-            turn.request_cancel();
-            turn.join();
-        }
-        self.end_turn_stream();
-        self.set_thinking(false);
-        self.active_tool = None;
-        self.set_pending_permission(None);
-        self.set_pending_flow_hitl(None);
-        self.turn_started_at = None;
-        self.open_human_guide();
-        self.push_system_message("已请求中断当前轮次。请在底栏编辑引导内容后 Enter 发送。");
     }
 
     // ── Key handling ──
@@ -902,7 +660,24 @@ impl App {
     fn begin_turn_stream(&mut self) {
         self.stream_state_active = true;
         self.stream_state_saw_text = false;
-        self.push_assistant_message("");
+        // 显示打字指示器（趣味动词轮转）
+        let verb = Self::thinking_verb(self.spinner_frame);
+        self.push_assistant_message(&format!("● {verb}..."));
+    }
+
+    /// 根据帧计数轮转思考动词
+    fn thinking_verb(frame: usize) -> &'static str {
+        const VERBS: &[&str] = &[
+            "思考中",
+            "分析中",
+            "推理中",
+            "检索中",
+            "理解中",
+            "整理中",
+            "生成中",
+            "校验中",
+        ];
+        VERBS[frame % VERBS.len()]
     }
 
     fn end_turn_stream(&mut self) {
@@ -1185,24 +960,6 @@ impl App {
         Ok(())
     }
 
-    fn switch_session(&mut self, target: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let handle = crate::session_mgr::resolve_session_reference(target)?;
-        let session = runtime::Session::load_from_path(&handle.path)?;
-        let new_runtime = build_runtime(
-            session,
-            self.model.clone(),
-            self.system_prompt.clone(),
-            true,
-            false,
-            self.allowed_tools.clone(),
-            self.permission_mode,
-        )?;
-        *self.runtime.lock().map_err(|_| "lock")? = new_runtime;
-        self.session_handle = handle;
-        self.push_system_message(&format!("已切换至会话 {}", self.session_handle.id));
-        Ok(())
-    }
-
     // ── Helper methods ──
 
     fn wrap_human_intervention(&self, text: &str, interrupted: bool) -> String {
@@ -1212,13 +969,6 @@ impl App {
             "用户主动发起人机引导。请按以下指示调整当前阶段的方向、材料或检查点。"
         };
         format!("<yunxi_human_intervention>\n{lead}\n</yunxi_human_intervention>\n\n{text}")
-    }
-
-    fn open_session_picker(&mut self) {
-        if let Ok(sessions) = list_managed_sessions() {
-            self.session_picker =
-                Some(SessionPicker::new(sessions, self.session_handle.id.clone()));
-        }
     }
 
     fn open_human_guide(&mut self) {

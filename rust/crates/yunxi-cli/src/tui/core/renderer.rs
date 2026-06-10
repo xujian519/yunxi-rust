@@ -10,6 +10,7 @@ use ratatui::Terminal;
 use std::io;
 
 use crate::tui::core::app::App;
+use crate::tui::layout::breakpoint::Viewport;
 use crate::tui::ui_palette;
 use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
 use crate::tui::widgets::command_palette_ratatui::CommandPaletteWidget;
@@ -115,11 +116,11 @@ impl Renderer {
 
     fn render_main(frame: &mut Frame, area: Rect, app: &App) {
         let show_panel = app.show_tool_panel;
-        let show_sidebar = app.show_sidebar;
+        let show_sidebar = app.show_sidebar && Viewport::from_size(area.width).sidebar_visible();
 
         let mut constraints = Vec::new();
         if show_sidebar {
-            constraints.push(Constraint::Length(16));
+            constraints.push(Constraint::Length(20));
         }
         constraints.push(Constraint::Percentage(if show_panel { 65 } else { 100 }));
         if show_panel {

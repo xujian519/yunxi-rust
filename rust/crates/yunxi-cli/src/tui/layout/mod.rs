@@ -1,5 +1,9 @@
 #![allow(dead_code)]
 
+pub mod breakpoint;
+
+use breakpoint::Viewport;
+
 /// 布局区域定义。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Rect {
@@ -73,6 +77,7 @@ impl Rect {
 /// ```
 pub(crate) struct Layout {
     pub(crate) title_bar: Rect,
+    pub(crate) sidebar: Rect,
     pub(crate) chat_view: Rect,
     pub(crate) tool_panel: Rect,
     pub(crate) input_bar: Rect,
@@ -108,30 +113,59 @@ impl Layout {
             .saturating_sub(input_h)
             .saturating_sub(status_h);
 
-        if with_tool_panel && terminal_width >= 40 {
-            let tool_w = std::cmp::max(20, terminal_width * 35 / 100);
-            let chat_w = terminal_width.saturating_sub(tool_w);
+        // 断点判断：Wide (>=160) 时分配侧边栏
+        let viewport = Viewport::from_size(terminal_width);
+        let (sidebar_w, content_x) = if viewport.sidebar_visible() {
+            (20u16, 20u16)
+        } else {
+            (0u16, 0u16)
+        };
+        let content_w = terminal_width.saturating_sub(sidebar_w);
+
+        if with_tool_panel && content_w >= 40 {
+            let tool_w = std::cmp::max(20, content_w * 35 / 100);
+            let chat_w = content_w.saturating_sub(tool_w);
             Self {
                 title_bar: Rect::new(0, 0, terminal_width, title_h),
-                chat_view: Rect::new(0, title_h, chat_w, remaining),
-                tool_panel: Rect::new(chat_w, title_h, tool_w, remaining),
+                sidebar: if sidebar_w > 0 {
+                    Rect::new(0, title_h, sidebar_w, remaining)
+                } else {
+                    Rect::ZERO
+                },
+                chat_view: Rect::new(content_x, title_h, chat_w, remaining),
+                tool_panel: Rect::new(content_x + chat_w, title_h, tool_w, remaining),
                 input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
-                status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
+                status_bar: Rect::new(
+                    0,
+                    title_h + remaining + input_h,
+                    terminal_width,
+                    status_h,
+                ),
             }
         } else {
             Self {
                 title_bar: Rect::new(0, 0, terminal_width, title_h),
-                chat_view: Rect::new(0, title_h, terminal_width, remaining),
+                sidebar: if sidebar_w > 0 {
+                    Rect::new(0, title_h, sidebar_w, remaining)
+                } else {
+                    Rect::ZERO
+                },
+                chat_view: Rect::new(content_x, title_h, content_w, remaining),
                 tool_panel: Rect::ZERO,
                 input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
-                status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
+                status_bar: Rect::new(
+                    0,
+                    title_h + remaining + input_h,
+                    terminal_width,
+                    status_h,
+                ),
             }
         }
     }
 }
 
-const MIN_WIDTH: u16 = 20;
-const MIN_HEIGHT: u16 = 8;
+const MIN_WIDTH: u16 = 80;
+const MIN_HEIGHT: u16 = 24;
 
 /// 输入区高度：内容行数 + 提示行 + 边框。
 #[must_use]
@@ -167,7 +201,9 @@ mod tests {
         assert_eq!(layout.status_bar.height, 1);
         assert!(layout.chat_view.is_valid());
         assert!(layout.tool_panel.is_valid());
-        // chat + tool 应等于 terminal_width
+        // Standard 断点：无侧边栏
+        assert!(!layout.sidebar.is_valid());
+        // chat + tool 应等于 content_width (无侧边栏时 = 80)
         assert_eq!(layout.chat_view.width + layout.tool_panel.width, 80);
     }
 
@@ -189,22 +225,21 @@ mod tests {
 
     #[test]
     fn layout_handles_tiny_terminal() {
-        let layout = Layout::compute(20, 8);
-        // 即使很小也应该有有效区域
+        let layout = Layout::compute(80, 24);
         assert!(layout.title_bar.is_valid());
     }
 
     #[test]
     fn layout_clamps_to_minimum_size() {
-        let layout = Layout::compute(5, 3);
+        let layout = Layout::compute(50, 16);
         assert!(layout.chat_view.is_valid() || layout.chat_view.height == 0);
         assert!(layout.title_bar.is_valid());
     }
 
     #[test]
-    fn layout_disables_tool_panel_on_narrow_width() {
+    fn layout_shows_tool_panel_at_min_width() {
         let layout = Layout::compute_with_input_rows(30, 20, 2, true);
-        assert!(!layout.tool_panel.is_valid());
+        assert!(layout.tool_panel.is_valid());
     }
 
     #[test]
@@ -212,5 +247,32 @@ mod tests {
         let layout = Layout::compute(0, 0);
         assert_eq!(layout.title_bar.width, MIN_WIDTH);
         assert!(layout.title_bar.is_valid());
+    }
+
+    #[test]
+    fn layout_sidebar_on_wide() {
+        let layout = Layout::compute(160, 24);
+        assert!(layout.sidebar.is_valid());
+        assert_eq!(layout.sidebar.width, 20);
+        assert_eq!(layout.sidebar.x, 0);
+        // chat_view 从侧边栏右边开始
+        assert_eq!(layout.chat_view.x, 20);
+        assert!(layout.tool_panel.is_valid());
+        // chat + tool = content_w (160 - 20 = 140)
+        assert_eq!(layout.chat_view.width + layout.tool_panel.width, 140);
+    }
+
+    #[test]
+    fn layout_sidebar_off_standard() {
+        let layout = Layout::compute(120, 24);
+        assert!(!layout.sidebar.is_valid());
+        assert_eq!(layout.chat_view.x, 0);
+    }
+
+    #[test]
+    fn layout_sidebar_off_compact() {
+        let layout = Layout::compute(79, 24);
+        assert!(!layout.sidebar.is_valid());
+        assert_eq!(layout.chat_view.x, 0);
     }
 }

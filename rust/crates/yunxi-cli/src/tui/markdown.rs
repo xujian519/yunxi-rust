@@ -17,6 +17,74 @@ thread_local! {
     static MARKDOWN_CACHE: RefCell<HashMap<String, Text<'static>>> = RefCell::new(HashMap::new());
 }
 
+/// 流式模式下的安全 Markdown 渲染。
+///
+/// 处理流式接收过程中可能出现的未闭合标记：
+/// - 未闭合的 `**bold` → 保留原文，不应用格式
+/// - 未闭合的 ` ``` ` → 显示为行内代码
+/// - 闭合标记到达后自动重新渲染完整格式
+pub(crate) fn markdown_to_text_streaming(input: &str) -> Text<'static> {
+    // 对于空或很短的内容，直接用标准解析器
+    // pulldown-cmark 天然容错：未闭合标记会作为原文保留
+    if input.len() < 4 {
+        return Text::from(input.to_string());
+    }
+
+    // 检测未闭合的代码围栏：行首的 ``` 没有配对
+    if has_unclosed_code_fence(input) {
+        // 移除最后一个未闭合的 ``` 行，让剩余内容正常渲染
+        let safe_input = strip_last_unclosed_fence(input);
+        return markdown_to_text(&safe_input);
+    }
+
+    // 标准渲染（pulldown-cmark 已对半开 bold/italic 容错）
+    markdown_to_text(input)
+}
+
+/// 检测是否存在未闭合的代码围栏。
+fn has_unclosed_code_fence(text: &str) -> bool {
+    let mut fence_count = 0;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") {
+            fence_count += 1;
+        }
+    }
+    fence_count % 2 != 0
+}
+
+/// 移除最后一个未闭合的代码围栏行。
+fn strip_last_unclosed_fence(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut fence_count = 0;
+    let mut last_fence_idx = None;
+
+    for (i, line) in lines.iter().enumerate() {
+        if line.trim().starts_with("```") {
+            fence_count += 1;
+            last_fence_idx = Some(i);
+        }
+    }
+
+    // 如果围栏数为奇数，移除最后一个
+    if fence_count % 2 != 0 {
+        if let Some(idx) = last_fence_idx {
+            let mut result = String::new();
+            for (i, line) in lines.iter().enumerate() {
+                if i != idx {
+                    if !result.is_empty() {
+                        result.push('\n');
+                    }
+                    result.push_str(line);
+                }
+            }
+            return result;
+        }
+    }
+
+    text.to_string()
+}
+
 pub(crate) fn markdown_to_text(input: &str) -> Text<'static> {
     if input.is_empty() {
         return Text::default();

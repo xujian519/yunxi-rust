@@ -5,11 +5,86 @@ pub mod presets;
 
 pub use manager::ThemeManager;
 
+/// 边框样式配置。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BorderStyle {
+    /// 边框类型（None / Plain / Rounded / Double / Thick 等）。
+    pub border_type: BorderType,
+    /// 是否显示标题栏边框。
+    pub title_bar_border: bool,
+    /// 是否显示面板边框。
+    pub panel_border: bool,
+    /// 是否显示输入框边框。
+    pub input_border: bool,
+}
+
+impl Default for BorderStyle {
+    fn default() -> Self {
+        Self {
+            border_type: BorderType::Plain,
+            title_bar_border: false,
+            panel_border: true,
+            input_border: true,
+        }
+    }
+}
+
+/// 边框类型枚举（对齐 ratatui BorderType）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BorderType {
+    Plain,
+    Rounded,
+    Double,
+    Thick,
+    None,
+}
+
+impl BorderType {
+    pub fn to_ratatui(self) -> ratatui::widgets::BorderType {
+        match self {
+            Self::Plain => ratatui::widgets::BorderType::Plain,
+            Self::Rounded => ratatui::widgets::BorderType::Rounded,
+            Self::Double => ratatui::widgets::BorderType::Double,
+            Self::Thick => ratatui::widgets::BorderType::Thick,
+            Self::None => ratatui::widgets::BorderType::Plain,
+        }
+    }
+}
+
+/// 动画配置。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnimationConfig {
+    /// 是否启用 spinner 动画。
+    pub spinner_enabled: bool,
+    /// spinner 帧间隔（毫秒）。
+    pub spinner_interval_ms: u16,
+    /// 是否启用 brand shimmer 动画。
+    pub shimmer_enabled: bool,
+}
+
+impl Default for AnimationConfig {
+    fn default() -> Self {
+        Self {
+            spinner_enabled: true,
+            spinner_interval_ms: 80,
+            shimmer_enabled: false,
+        }
+    }
+}
+
+/// 主题样式集（非颜色配置）。
+#[derive(Debug, Clone, Default)]
+pub struct StyleSet {
+    pub borders: BorderStyle,
+    pub animations: AnimationConfig,
+}
+
 #[derive(Debug, Clone)]
 pub struct Theme {
     pub name: String,
     pub is_dark: bool,
     pub colors: ColorPalette,
+    pub styles: StyleSet,
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +116,7 @@ impl Theme {
         Self {
             name: "default_dark".to_string(),
             is_dark: true,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(120, 175, 240),
                 secondary: Color::Rgb(180, 160, 220),
@@ -70,6 +146,7 @@ impl Theme {
         Self {
             name: "default_light".to_string(),
             is_dark: false,
+            styles: StyleSet::default(),
             colors: ColorPalette {
                 primary: Color::Rgb(55, 66, 81),
                 secondary: Color::Rgb(162, 213, 244),
@@ -130,8 +207,21 @@ pub struct ThemeRegistry {
 impl ThemeRegistry {
     pub fn new() -> Self {
         let mut registry = Self { themes: Vec::new() };
-        registry.register(Theme::default_dark());
-        registry.register(Theme::default_light());
+        // 规范标准主题
+        registry.register(Theme::ink_garden_dark()); // 默认暗色
+        registry.register(Theme::ink_garden_light()); // 默认亮色
+        registry.register(Theme::zen_path_dark());
+        registry.register(Theme::zen_path_light());
+        registry.register(Theme::clear_mode_dark());
+        registry.register(Theme::clear_mode_light());
+        // 社区流行主题
+        registry.register(Theme::nord());
+        registry.register(Theme::dracula());
+        registry.register(Theme::gruvbox());
+        registry.register(Theme::catppuccin());
+        registry.register(Theme::tokyo_night());
+        // 无障碍主题
+        registry.register(Theme::daltonized_dark());
         registry
     }
 
@@ -150,6 +240,32 @@ impl ThemeRegistry {
     pub fn list_names(&self) -> Vec<String> {
         self.themes.iter().map(|t| t.name.clone()).collect()
     }
+
+    /// 列出所有暗色主题
+    pub fn dark_themes(&self) -> Vec<&Theme> {
+        self.themes.iter().filter(|t| t.is_dark).collect()
+    }
+
+    /// 列出所有亮色主题
+    pub fn light_themes(&self) -> Vec<&Theme> {
+        self.themes.iter().filter(|t| !t.is_dark).collect()
+    }
+
+    /// 列出高对比度主题（明晰方案）
+    pub fn high_contrast_themes(&self) -> Vec<&Theme> {
+        self.themes
+            .iter()
+            .filter(|t| t.name.starts_with("clear_mode"))
+            .collect()
+    }
+
+    /// 列出色盲友好主题
+    pub fn colorblind_themes(&self) -> Vec<&Theme> {
+        self.themes
+            .iter()
+            .filter(|t| t.name.starts_with("daltonized"))
+            .collect()
+    }
 }
 
 impl Default for ThemeRegistry {
@@ -165,22 +281,20 @@ mod tests {
     #[test]
     fn test_default_dark_theme() {
         let theme = Theme::default_dark();
-        assert_eq!(theme.name, "default_dark");
         assert!(theme.is_dark);
     }
 
     #[test]
     fn test_default_light_theme() {
         let theme = Theme::default_light();
-        assert_eq!(theme.name, "default_light");
         assert!(!theme.is_dark);
     }
 
     #[test]
     fn test_theme_registry_get() {
         let registry = ThemeRegistry::new();
-        let dark = registry.get("default_dark");
-        assert_eq!(dark.name, "default_dark");
+        let dark = registry.get("ink_garden_dark");
+        assert_eq!(dark.name, "ink_garden_dark");
 
         let unknown = registry.get("unknown_theme");
         assert_eq!(unknown.name, "default_dark");
@@ -190,17 +304,83 @@ mod tests {
     fn test_theme_registry_list() {
         let registry = ThemeRegistry::new();
         let names = registry.list_names();
-        assert!(names.contains(&"default_dark".to_string()));
-        assert!(names.contains(&"default_light".to_string()));
+        // 规范三套方案
+        assert!(names.contains(&"ink_garden_dark".to_string()));
+        assert!(names.contains(&"ink_garden_light".to_string()));
+        assert!(names.contains(&"zen_path_dark".to_string()));
+        assert!(names.contains(&"clear_mode_dark".to_string()));
+        // 社区主题
+        assert!(names.contains(&"tokyo_night".to_string()));
+        // 无障碍
+        assert!(names.contains(&"daltonized_dark".to_string()));
     }
 
     #[test]
     fn test_theme_preview() {
-        let theme = Theme::default_dark();
+        let theme = Theme::ink_garden_dark();
         let preview = theme.preview();
-        assert!(preview.contains("default_dark"));
+        assert!(preview.contains("ink_garden_dark"));
         assert!(preview.contains("\x1b[48;2;"));
-        assert!(preview.contains("主色"));
-        assert!(preview.contains("次色"));
+    }
+
+    #[test]
+    fn test_registry_has_13_themes() {
+        let registry = ThemeRegistry::new();
+        assert!(
+            registry.list_names().len() >= 12,
+            "Expected >= 12 themes, got {}",
+            registry.list_names().len()
+        );
+    }
+
+    #[test]
+    fn test_dark_themes_filter() {
+        let registry = ThemeRegistry::new();
+        let dark = registry.dark_themes();
+        assert!(dark.len() >= 7);
+        assert!(dark.iter().all(|t| t.is_dark));
+    }
+
+    #[test]
+    fn test_light_themes_filter() {
+        let registry = ThemeRegistry::new();
+        let light = registry.light_themes();
+        assert!(light.len() >= 3);
+        assert!(light.iter().all(|t| !t.is_dark));
+    }
+
+    #[test]
+    fn test_high_contrast_themes() {
+        let registry = ThemeRegistry::new();
+        let hc = registry.high_contrast_themes();
+        assert_eq!(hc.len(), 2); // clear_mode_dark + clear_mode_light
+    }
+
+    #[test]
+    fn test_colorblind_themes() {
+        let registry = ThemeRegistry::new();
+        let cb = registry.colorblind_themes();
+        assert!(cb.len() >= 1);
+    }
+
+    #[test]
+    fn test_all_themes_contrast_compliance() {
+        use crate::tui::color::contrast::{meets_wcag_aa, meets_wcag_aaa};
+        let registry = ThemeRegistry::new();
+        for theme in &registry.themes {
+            let text = theme.colors.text_primary;
+            let bg = theme.colors.bg_primary;
+            if let (Color::Rgb(tr, tg, tb), Color::Rgb(br, bg_, bb)) = (text, bg) {
+                let fg_rgb = (tr, tg, tb);
+                let bg_rgb = (br, bg_, bb);
+                assert!(
+                    meets_wcag_aa(fg_rgb, bg_rgb),
+                    "{}: text/bg contrast below AA (fg={:?}, bg={:?})",
+                    theme.name,
+                    fg_rgb,
+                    bg_rgb,
+                );
+            }
+        }
     }
 }

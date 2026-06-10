@@ -1,9 +1,13 @@
 #![allow(dead_code)]
 
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
+use crate::tui::core::action::ActionResult;
+use crate::tui::core::event::{Event, InputEvent};
 use crate::tui::frame::{truncate_ansi_to_width, visible_width};
 use crate::tui::layout::Rect;
 use crate::tui::slash_complete::SlashCompletion;
 use crate::tui::ui_palette::{input_bold, input_faint, input_line_padded, input_text};
+use crossterm::event::KeyCode;
 
 /// 输入行提示符可见宽度（`❯ `）。
 pub(crate) const INPUT_PROMPT_WIDTH: u16 = 2;
@@ -21,6 +25,7 @@ pub(crate) struct InputBar {
     undo_stack: Vec<(String, usize)>,
     /// Redo 栈 — undo 后可重做的快照。
     redo_stack: Vec<(String, usize)>,
+    state: ComponentState,
 }
 
 impl InputBar {
@@ -30,6 +35,7 @@ impl InputBar {
             cursor: 0,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            state: ComponentState::new(generate_component_id("input_bar")),
         }
     }
 
@@ -246,6 +252,78 @@ impl InputBar {
         ));
 
         lines.join("\n")
+    }
+}
+
+impl Component for InputBar {
+    fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        if !self.state.visible {
+            return;
+        }
+        use ratatui::prelude::Widget;
+        use crate::tui::widgets::input_bar_ratatui::InputBarWidget;
+        InputBarWidget {
+            content: &self.content,
+            slash_completion_count: 0,
+            slash_completion: None,
+        }
+        .render(area, buf);
+    }
+
+    fn handle_event(&mut self, event: &Event) -> ActionResult {
+        if self.state.disabled || !self.state.visible {
+            return ActionResult::Ignored;
+        }
+        match event {
+            Event::Input(InputEvent::Key(key)) => match key.code {
+                KeyCode::Char(c) => {
+                    self.insert(c);
+                    ActionResult::Handled
+                }
+                KeyCode::Backspace => {
+                    self.backspace();
+                    ActionResult::Handled
+                }
+                KeyCode::Delete => {
+                    self.delete();
+                    ActionResult::Handled
+                }
+                KeyCode::Left => {
+                    self.move_left();
+                    ActionResult::Handled
+                }
+                KeyCode::Right => {
+                    self.move_right();
+                    ActionResult::Handled
+                }
+                KeyCode::Home => {
+                    self.move_home();
+                    ActionResult::Handled
+                }
+                KeyCode::End => {
+                    self.move_end();
+                    ActionResult::Handled
+                }
+                _ => ActionResult::Ignored,
+            },
+            Event::Input(InputEvent::Paste(text)) => {
+                self.set_content(text.clone());
+                ActionResult::Handled
+            }
+            _ => ActionResult::Ignored,
+        }
+    }
+
+    fn get_state(&self) -> ComponentState {
+        self.state.clone()
+    }
+
+    fn on_focus(&mut self, focused: bool) {
+        self.state.focused = focused;
+    }
+
+    fn on_resize(&mut self, area: ratatui::layout::Rect) {
+        self.state.bounds = area;
     }
 }
 

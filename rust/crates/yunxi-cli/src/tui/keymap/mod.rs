@@ -4,7 +4,7 @@ mod key_sequence;
 mod keys;
 
 pub use commands::{Command, CommandRegistry};
-pub use context::{ContextPriority, KeyContext};
+pub use context::{ContextPriority, KeyContext, KeyMode};
 pub use key_sequence::{KeySequence, SequenceTracker};
 pub use keys::{Key, KeyBinding};
 
@@ -52,6 +52,8 @@ pub struct KeyMap {
     command_registry: CommandRegistry,
     tracker: SequenceTracker,
     context_priority: ContextPriority,
+    /// 当前编辑模式（Normal/Insert/Command/Visual）。
+    mode: KeyMode,
 }
 
 impl KeyMap {
@@ -61,6 +63,7 @@ impl KeyMap {
             command_registry: CommandRegistry::new(),
             tracker: SequenceTracker::with_default_timeout(),
             context_priority: ContextPriority::global(),
+            mode: KeyMode::Normal,
         };
 
         keymap.register_default_bindings();
@@ -173,6 +176,53 @@ impl KeyMap {
             KeySequence::new(vec![KeyBinding::simple(Char('G'))]),
             "GoToBottom",
             KeyContext::List,
+        );
+
+        // Vim 式 hjkl 导航（List 上下文）
+        self.bind(
+            KeySequence::single(KeyBinding::simple(Char('j'))),
+            "NavigateDown",
+            KeyContext::List,
+        );
+
+        self.bind(
+            KeySequence::single(KeyBinding::simple(Char('k'))),
+            "NavigateUp",
+            KeyContext::List,
+        );
+
+        // / 搜索（List 上下文）
+        self.bind(
+            KeySequence::single(KeyBinding::simple(Char('/'))),
+            "StartSearch",
+            KeyContext::List,
+        );
+
+        // ? 帮助（Global 上下文）
+        self.bind(
+            KeySequence::single(KeyBinding::simple(Char('?'))),
+            "Help",
+            KeyContext::Global,
+        );
+
+        // h/l 树折叠展开（List 上下文）
+        self.bind(
+            KeySequence::single(KeyBinding::simple(Char('h'))),
+            "Collapse",
+            KeyContext::List,
+        );
+
+        self.bind(
+            KeySequence::single(KeyBinding::simple(Char('l'))),
+            "Expand",
+            KeyContext::List,
+        );
+
+        // Ctrl+M 模型切换
+        self.bind(
+            KeySequence::single(KeyBinding::ctrl(Char('m'))),
+            "SwitchModel",
+            KeyContext::Global,
         );
 
         self.bind(
@@ -351,6 +401,25 @@ impl KeyMap {
 
     pub fn get_timeout(&self) -> Duration {
         *self.tracker.timeout()
+    }
+
+    // ── Mode management ──
+
+    /// 获取当前编辑模式。
+    pub fn mode(&self) -> KeyMode {
+        self.mode
+    }
+
+    /// 切换编辑模式。
+    pub fn set_mode(&mut self, mode: KeyMode) {
+        self.mode = mode;
+        // 模式切换时清空按键序列追踪
+        self.tracker.clear();
+    }
+
+    /// 判断当前是否处于指定模式。
+    pub fn is_mode(&self, mode: KeyMode) -> bool {
+        self.mode == mode
     }
 
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {

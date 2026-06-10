@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 
+use crate::tui::components::base::{generate_component_id, Component, ComponentState};
+use crate::tui::core::action::ActionResult;
+use crate::tui::core::event::{Event, InputEvent};
 use crate::tui::layout::Rect;
+use crossterm::event::KeyCode;
 
 /// 工具调用记录。
 #[derive(Debug, Clone)]
@@ -39,6 +43,7 @@ impl ToolEntry {
 pub(crate) struct ToolPanel {
     entries: Vec<ToolEntry>,
     scroll_offset: usize,
+    state: ComponentState,
 }
 
 impl ToolPanel {
@@ -46,6 +51,7 @@ impl ToolPanel {
         Self {
             entries: Vec::new(),
             scroll_offset: 0,
+            state: ComponentState::new(generate_component_id("tool_panel")),
         }
     }
 
@@ -219,6 +225,59 @@ impl ToolPanel {
     /// 获取工具条目列表。
     pub(crate) fn entries(&self) -> &[ToolEntry] {
         &self.entries
+    }
+}
+
+impl Component for ToolPanel {
+    fn render(&self, area: ratatui::layout::Rect, buf: &mut ratatui::buffer::Buffer) {
+        if !self.state.visible {
+            return;
+        }
+        use ratatui::prelude::Widget;
+        use crate::tui::widgets::tool_panel_ratatui::ToolPanelWidget;
+        ToolPanelWidget {
+            tools: self,
+            focus_index: 0,
+        }
+        .render(area, buf);
+    }
+
+    fn handle_event(&mut self, event: &Event) -> ActionResult {
+        if self.state.disabled || !self.state.visible {
+            return ActionResult::Ignored;
+        }
+        match event {
+            Event::Input(InputEvent::Key(key)) => match key.code {
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.scroll_down(10, 40);
+                    ActionResult::Handled
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.scroll_up();
+                    ActionResult::Handled
+                }
+                KeyCode::Enter | KeyCode::Char(' ') => {
+                    if !self.entries.is_empty() {
+                        self.toggle_collapse(0);
+                    }
+                    ActionResult::Handled
+                }
+                _ => ActionResult::Ignored,
+            },
+            _ => ActionResult::Ignored,
+        }
+    }
+
+    fn get_state(&self) -> ComponentState {
+        self.state.clone()
+    }
+
+    fn on_focus(&mut self, focused: bool) {
+        self.state.focused = focused;
+    }
+
+    fn on_resize(&mut self, area: ratatui::layout::Rect) {
+        self.state.bounds = area;
     }
 }
 
