@@ -260,8 +260,8 @@ impl Component for InputBar {
         if !self.state.visible {
             return;
         }
-        use ratatui::prelude::Widget;
         use crate::tui::widgets::input_bar_ratatui::InputBarWidget;
+        use ratatui::prelude::Widget;
         InputBarWidget {
             content: &self.content,
             slash_completion_count: 0,

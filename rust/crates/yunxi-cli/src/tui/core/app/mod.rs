@@ -887,13 +887,10 @@ impl App {
             }
 
             // ── A 类：简单展示命令 ──
-
-            SlashCommand::Config { section } => {
-                match render_config_report(section.as_deref()) {
-                    Ok(report) => self.push_output("Config", &report, 80, 24),
-                    Err(e) => self.push_system_message(&format!("配置加载失败: {e}")),
-                }
-            }
+            SlashCommand::Config { section } => match render_config_report(section.as_deref()) {
+                Ok(report) => self.push_output("Config", &report, 80, 24),
+                Err(e) => self.push_system_message(&format!("配置加载失败: {e}")),
+            },
             SlashCommand::Memory => match render_memory_report() {
                 Ok(report) => self.push_output("Memory", &report, 80, 24),
                 Err(e) => self.push_system_message(&format!("记忆加载失败: {e}")),
@@ -946,7 +943,6 @@ impl App {
             }
 
             // ── B 类：文件操作命令 ──
-
             SlashCommand::Export { path } => {
                 let result = {
                     let Ok(runtime) = self.runtime.lock() else {
@@ -964,16 +960,14 @@ impl App {
                     }
                 };
                 match result {
-                    Some((export_path, text, count)) => {
-                        match std::fs::write(&export_path, &text) {
-                            Ok(()) => self.push_system_message(&format!(
-                                "已导出到 {}（{} 条消息）",
-                                export_path.display(),
-                                count
-                            )),
-                            Err(e) => self.push_system_message(&format!("写入失败: {e}")),
-                        }
-                    }
+                    Some((export_path, text, count)) => match std::fs::write(&export_path, &text) {
+                        Ok(()) => self.push_system_message(&format!(
+                            "已导出到 {}（{} 条消息）",
+                            export_path.display(),
+                            count
+                        )),
+                        Err(e) => self.push_system_message(&format!("写入失败: {e}")),
+                    },
                     None => self.push_system_message("导出路径错误"),
                 }
             }
@@ -1017,7 +1011,6 @@ impl App {
             }
 
             // ── C 类：LLM 轮次命令 ──
-
             SlashCommand::Bughunter { scope } => {
                 let prompt = bughunter_prompt(scope.as_deref());
                 self.push_user_message(input);
@@ -1029,9 +1022,7 @@ impl App {
                 self.start_llm_turn(&prompt);
             }
             SlashCommand::Custom { name, arguments } => {
-                if let Some(prompt) =
-                    commands::resolve_custom_prompt(&name, arguments.as_deref())
-                {
+                if let Some(prompt) = commands::resolve_custom_prompt(&name, arguments.as_deref()) {
                     self.push_user_message(input);
                     self.start_llm_turn(&prompt);
                 } else {

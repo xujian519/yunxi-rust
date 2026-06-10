@@ -178,6 +178,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(non_snake_case)]
     fn roundtrip_sRGB_via_oklch() {
         let original = (200, 100, 50);
         let (l, c, h) = rgb_to_oklch(original.0, original.1, original.2);

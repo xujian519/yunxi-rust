@@ -44,7 +44,12 @@ impl KeyMode {
     }
 
     pub fn all() -> &'static [KeyMode] {
-        &[KeyMode::Normal, KeyMode::Insert, KeyMode::Command, KeyMode::Visual]
+        &[
+            KeyMode::Normal,
+            KeyMode::Insert,
+            KeyMode::Command,
+            KeyMode::Visual,
+        ]
     }
 }
 

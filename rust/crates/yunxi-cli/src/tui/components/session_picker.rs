@@ -226,8 +226,8 @@ impl Component for SessionPicker {
         if !self.state.visible {
             return;
         }
-        use ratatui::prelude::Widget;
         use crate::tui::widgets::session_picker_ratatui::SessionPickerWidget;
+        use ratatui::prelude::Widget;
         SessionPickerWidget { picker: self }.render(area, buf);
     }
 

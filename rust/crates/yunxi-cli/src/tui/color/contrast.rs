@@ -82,7 +82,7 @@ mod tests {
     fn ink_garden_text_contrast() {
         let ratio = contrast_ratio((0xE0, 0xE0, 0xE0), (0x12, 0x12, 0x12));
         assert!(
-            ratio >= 12.0 && ratio <= 15.0,
+            (12.0..=15.0).contains(&ratio),
             "Expected ~13.5:1, got {ratio}"
         );
         assert!(meets_wcag_aaa((0xE0, 0xE0, 0xE0), (0x12, 0x12, 0x12)));

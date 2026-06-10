@@ -135,12 +135,7 @@ impl Layout {
                 chat_view: Rect::new(content_x, title_h, chat_w, remaining),
                 tool_panel: Rect::new(content_x + chat_w, title_h, tool_w, remaining),
                 input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
-                status_bar: Rect::new(
-                    0,
-                    title_h + remaining + input_h,
-                    terminal_width,
-                    status_h,
-                ),
+                status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
             }
         } else {
             Self {
@@ -153,12 +148,7 @@ impl Layout {
                 chat_view: Rect::new(content_x, title_h, content_w, remaining),
                 tool_panel: Rect::ZERO,
                 input_bar: Rect::new(0, title_h + remaining, terminal_width, input_h),
-                status_bar: Rect::new(
-                    0,
-                    title_h + remaining + input_h,
-                    terminal_width,
-                    status_h,
-                ),
+                status_bar: Rect::new(0, title_h + remaining + input_h, terminal_width, status_h),
             }
         }
     }

@@ -109,7 +109,10 @@ impl App {
         }
     }
 
-    pub(super) fn switch_session(&mut self, target: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub(super) fn switch_session(
+        &mut self,
+        target: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let handle = crate::session_mgr::resolve_session_reference(target)?;
         let session = runtime::Session::load_from_path(&handle.path)?;
         let new_runtime = crate::runtime_bridge::build_runtime(

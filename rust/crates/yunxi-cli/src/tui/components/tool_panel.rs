@@ -233,8 +233,8 @@ impl Component for ToolPanel {
         if !self.state.visible {
             return;
         }
-        use ratatui::prelude::Widget;
         use crate::tui::widgets::tool_panel_ratatui::ToolPanelWidget;
+        use ratatui::prelude::Widget;
         ToolPanelWidget {
             tools: self,
             focus_index: 0,

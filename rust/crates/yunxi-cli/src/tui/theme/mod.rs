@@ -360,12 +360,12 @@ mod tests {
     fn test_colorblind_themes() {
         let registry = ThemeRegistry::new();
         let cb = registry.colorblind_themes();
-        assert!(cb.len() >= 1);
+        assert!(!cb.is_empty());
     }
 
     #[test]
     fn test_all_themes_contrast_compliance() {
-        use crate::tui::color::contrast::{meets_wcag_aa, meets_wcag_aaa};
+        use crate::tui::color::contrast::meets_wcag_aa;
         let registry = ThemeRegistry::new();
         for theme in &registry.themes {
             let text = theme.colors.text_primary;

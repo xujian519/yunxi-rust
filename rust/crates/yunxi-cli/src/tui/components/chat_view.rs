@@ -318,8 +318,8 @@ impl Component for ChatView {
         if !self.state.visible {
             return;
         }
-        use ratatui::prelude::Widget;
         use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
+        use ratatui::prelude::Widget;
         ChatViewWidget {
             chat: self,
             thinking: false,
