@@ -38,6 +38,7 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
     activeDocId,
     selectCase,
     openDocument,
+    openExternalFile,
     createCase,
     deleteCase,
     sessions,
@@ -131,7 +132,13 @@ const ExplorerSidebar: FC<ExplorerSidebarProps> = ({ isExpanded, onToggleExpand 
           >
             <button
               type="button"
-              onClick={() => entry.isDir && toggleDir(entry.path)}
+              onClick={() => {
+                if (entry.isDir) {
+                  toggleDir(entry.path);
+                } else {
+                  openExternalFile(entry.path, entry.name);
+                }
+              }}
               className="flex min-w-0 flex-1 items-center truncate text-left"
               style={{ fontSize: 11, color: 'var(--text-secondary)' }}
             >

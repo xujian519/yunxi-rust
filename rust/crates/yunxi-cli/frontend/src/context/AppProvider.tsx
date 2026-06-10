@@ -97,6 +97,7 @@ interface AppContextValue {
   /** @deprecated 请用 openDocument */
   selectDocument: (caseId: string, docId: string, docType?: string) => void;
   openDocument: (caseId: string, docId: string, docType: string, title: string) => void;
+  openExternalFile: (filePath: string, title: string) => void;
   openToolView: (view: ViewType) => void;
   editorTabs: EditorTab[];
   activeTabId: string | null;
@@ -787,6 +788,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setEditorTabs((prev) => {
       if (prev.some((t) => t.id === id)) return prev;
       return [...prev, { id, title: viewLabels[view], view, kind: 'tool' }];
+    });
+  }, []);
+  const openExternalFile = useCallback((filePath: string, title: string) => {
+    const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+    const view: ViewType = 'claims';
+    const id = `ext:${filePath}`;
+    let fileType: EditorTab['fileType'];
+    switch (ext) {
+      case 'pdf':
+        fileType = 'pdf';
+        break;
+      case 'xlsx':
+      case 'xls':
+        fileType = ext === 'xlsx' ? 'xlsx' : 'xls';
+        break;
+      case 'docx':
+      case 'doc':
+        fileType = ext === 'docx' ? 'docx' : 'doc';
+        break;
+      default:
+        fileType = 'txt';
+    }
+    setActiveTabId(id);
+    setEditorTabs((prev) => {
+      if (prev.some((t) => t.id === id)) return prev;
+      return [
+        ...prev,
+        { id, title, view, kind: 'external', filePath, fileType },
+      ];
     });
   }, []);
 
@@ -1714,6 +1744,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       selectCase,
       selectDocument,
       openDocument,
+      openExternalFile,
       openToolView,
       editorTabs,
       activeTabId,
@@ -1815,6 +1846,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       selectCase,
       selectDocument,
       openDocument,
+      openExternalFile,
       openToolView,
       editorTabs,
       activeTabId,

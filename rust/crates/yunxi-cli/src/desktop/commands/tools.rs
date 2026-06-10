@@ -452,3 +452,38 @@ pub fn semantic_compare(
         }),
     )
 }
+
+/// LibreOffice 转换：将 DOC/DOCX/ODT 等转为 PDF 以供预览。
+#[tauri::command]
+pub fn libreoffice_convert(input_path: String) -> Result<String, String> {
+    use std::process::Command;
+    let out_dir = std::env::temp_dir();
+    let output = Command::new("libreoffice")
+        .args([
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            out_dir.to_str().unwrap_or("/tmp"),
+            &input_path,
+        ])
+        .output()
+        .map_err(|e| format!("LibreOffice 启动失败: {e}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("LibreOffice 转换失败: {stderr}"));
+    }
+    // 推断输出文件名
+    let input_name = std::path::Path::new(&input_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "无效输入路径".to_string())?;
+    let pdf_path = out_dir.join(format!("{input_name}.pdf"));
+    if !pdf_path.exists() {
+        return Err("转换后 PDF 文件未找到".to_string());
+    }
+    pdf_path
+        .to_str()
+        .map(String::from)
+        .ok_or_else(|| "无效输出路径".to_string())
+}

@@ -26,9 +26,10 @@ pub use tools::{
     abstract_drafter, claim_formality_check, claim_generator, claim_parse, examiner_simulate,
     execute_tool_raw, formal_check, hybrid_retrieval, infringement_analysis, innovation_evaluator,
     inventiveness_analysis, knowledge_card, knowledge_search, law_query, legal_reasoning,
-    memory_search, novelty_analysis, oa_parse, oa_strategy, patent_compare, patent_search,
-    quality_checker, quality_scorer, record_intent_preference, response_template, semantic_compare,
-    spec_formality_check, specification_drafter, success_predictor, super_reasoning_plan,
+    libreoffice_convert, memory_search, novelty_analysis, oa_parse, oa_strategy, patent_compare,
+    patent_search, quality_checker, quality_scorer, record_intent_preference, response_template,
+    semantic_compare, spec_formality_check, specification_drafter, success_predictor,
+    super_reasoning_plan,
 };
 pub use workspace::{
     list_directory, pick_workspace_folder, scan_workspace_roots, workspace_watch_start,

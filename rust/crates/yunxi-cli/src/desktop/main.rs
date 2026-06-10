@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(dependency_on_unit_never_type_fallback)]
 
 mod commands;
 mod paths;
@@ -15,14 +16,15 @@ use commands::{
     get_mcp_status, get_pipeline_config, get_settings, get_usage, get_version, get_workspace_info,
     greet, hybrid_retrieval, import_project_materials, infringement_analysis, init_claude_md,
     init_workspace, innovation_evaluator, inventiveness_analysis, knowledge_card, knowledge_search,
-    law_query, legal_reasoning, list_directory, list_project_materials, list_reasoning_phases,
-    list_rule_types, llm_auth_configured, memory_search, novelty_analysis, oa_parse, oa_strategy,
-    oauth_login, oauth_logout, oauth_status, patent_compare, patent_search, permission_respond,
-    pick_workspace_folder, quality_checker, quality_scorer, record_intent_preference,
-    response_template, run_doctor_check, run_reasoning, save_llm_api_key, save_settings,
-    scan_workspace_roots, semantic_compare, session_create, session_delete, session_list,
-    session_load, session_save, shell_exec, spec_formality_check, specification_drafter,
-    success_predictor, super_reasoning_plan, workspace_watch_start, workspace_watch_stop,
+    law_query, legal_reasoning, libreoffice_convert, list_directory, list_project_materials,
+    list_reasoning_phases, list_rule_types, llm_auth_configured, memory_search, novelty_analysis,
+    oa_parse, oa_strategy, oauth_login, oauth_logout, oauth_status, patent_compare, patent_search,
+    permission_respond, pick_workspace_folder, quality_checker, quality_scorer,
+    record_intent_preference, response_template, run_doctor_check, run_reasoning, save_llm_api_key,
+    save_settings, scan_workspace_roots, semantic_compare, session_create, session_delete,
+    session_list, session_load, session_save, shell_exec, spec_formality_check,
+    specification_drafter, success_predictor, super_reasoning_plan, workspace_watch_start,
+    workspace_watch_stop,
 };
 use paths::init_desktop_environment;
 use shell_session::{
@@ -125,6 +127,7 @@ fn main() {
             super_reasoning_plan,
             innovation_evaluator,
             semantic_compare,
+            libreoffice_convert,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -38,9 +38,8 @@ export const WORKSPACE_ARCHIVED_PATHS_KEY = 'yunxi.desktop.archivedPaths.v1';
 export const WORKSPACE_WATCH_ENABLED_KEY = 'yunxi.desktop.workspaceWatch.v1';
 export const RIGHT_PANEL_WIDTH_STORAGE_KEY = 'yunxi.desktop.rightPanelWidth.v1';
 
-/** 编辑器标签：案件文档或工具视图 */
-export type EditorTabKind = 'document' | 'tool';
-
+/** 编辑器标签：案件文档、工具视图或外部文件 */
+export type EditorTabKind = 'document' | 'tool' | 'external';
 export interface EditorTab {
   id: string;
   title: string;
@@ -48,6 +47,8 @@ export interface EditorTab {
   kind: EditorTabKind;
   caseId?: string;
   docId?: string;
+  filePath?: string;
+  fileType?: 'pdf' | 'xlsx' | 'xls' | 'docx' | 'doc' | 'txt' | 'md';
 }
 
 export function documentTabId(caseId: string, docId: string): string {

@@ -328,16 +328,9 @@ export const tauriApi = {
       technicalProblem,
       technicalSolution,
     }),
-  semanticCompare: (
-    targetText: string,
-    priorText: string,
-    mode?: string,
-  ) =>
-    invoke<string>('semantic_compare', {
-      targetText,
-      priorText,
-      mode,
-    }),
+
+  libreofficeConvert: (inputPath: string) =>
+    invoke<string>('libreoffice_convert', { inputPath }),
 
   oaParse: (content: string, applicationNumber?: string) =>
     invoke<string>('oa_parse', { content, applicationNumber }),
