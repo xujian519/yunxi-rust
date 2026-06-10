@@ -2718,6 +2718,7 @@ name = "intent"
 version = "0.1.0"
 dependencies = [
  "embedding",
+ "memory",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4756,6 +4757,7 @@ version = "0.1.0"
 dependencies = [
  "embedding",
  "intent",
+ "memory",
  "serde",
  "serde_json",
 ]
@@ -8011,8 +8013,10 @@ dependencies = [
  "api",
  "arboard",
  "commands",
+ "constitutional-engine",
  "crossterm",
  "embedding",
+ "intent",
  "knowledge",
  "llm",
  "mcp-bridge",
@@ -8022,6 +8026,7 @@ dependencies = [
  "portable-pty",
  "pulldown-cmark",
  "ratatui",
+ "reasoning",
  "regex",
  "rfd",
  "router",

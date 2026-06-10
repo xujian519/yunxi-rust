@@ -2,6 +2,7 @@
 //!
 //! 根据领域和复杂度推荐工作流、工具和智能体。
 
+use memory::UnifiedMemory;
 use std::sync::Arc;
 
 use crate::complexity::ComplexityAssessor;
@@ -10,7 +11,6 @@ use crate::detector::DomainDetector;
 use crate::hebbian_hint::HebbianPathHint;
 use crate::types::{Complexity, Domain, RoutingDecision, WorkflowType};
 use intent::IntentClassifier;
-
 /// 工作流路由器
 pub struct WorkflowRouter {
     config: RoutingConfig,
@@ -18,6 +18,8 @@ pub struct WorkflowRouter {
     assessor: ComplexityAssessor,
     /// Hebbian 路径提示（可选）
     hebbian: Option<Arc<dyn HebbianPathHint>>,
+    /// 意图偏好记忆（可选），用于 IntentClassifier 偏好增强
+    intent_memory: Option<Arc<UnifiedMemory>>,
 }
 
 impl WorkflowRouter {
@@ -27,12 +29,19 @@ impl WorkflowRouter {
             detector: DomainDetector::new(),
             assessor: ComplexityAssessor::new(),
             hebbian: None,
+            intent_memory: None,
         }
     }
 
     /// 注入 Hebbian 路径提示（builder 风格）。
     pub fn with_hebbian(mut self, hint: Arc<dyn HebbianPathHint>) -> Self {
         self.hebbian = Some(hint);
+        self
+    }
+
+    /// 注入意图偏好记忆（builder 风格）。
+    pub fn with_intent_memory(mut self, memory: Arc<UnifiedMemory>) -> Self {
+        self.intent_memory = Some(memory);
         self
     }
 
@@ -54,7 +63,13 @@ impl WorkflowRouter {
 
         let (domain, domain_confidence) = self.detector.detect(input);
         let complexity = self.assessor.assess(input);
-        let intent_hint = IntentClassifier::from_user_settings().classify(input);
+        let intent_hint = if let Some(ref memory) = self.intent_memory {
+            IntentClassifier::from_user_settings()
+                .with_memory(Arc::clone(memory))
+                .classify(input)
+        } else {
+            IntentClassifier::from_user_settings().classify(input)
+        };
 
         let (mut suggested_tools, suggested_agents) = self.suggest_resources(domain, complexity);
         Self::augment_tools_for_intent(&mut suggested_tools, intent_hint.intent.to_athena_name());

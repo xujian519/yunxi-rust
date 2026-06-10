@@ -62,6 +62,11 @@ pub fn execute_tool(name: &str, input: &Value) -> Result<String, String> {
     dispatch::execute_tool(name, input)
 }
 
+/// Dispatches tool execution, returning a typed `ToolOutput` (P1-4 migration API).
+pub fn execute_tool_output(name: &str, input: &Value) -> Result<ToolOutput, String> {
+    dispatch::execute_tool_output(name, input)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;

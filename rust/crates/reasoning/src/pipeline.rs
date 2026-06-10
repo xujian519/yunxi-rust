@@ -65,7 +65,7 @@ pub struct ReasoningResult {
 }
 
 /// 推理管道配置
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineConfig {
     pub max_hypotheses: usize,
     pub max_iterations: usize,

@@ -1,19 +1,15 @@
 // patent_analysis.rs - 专利分析工具集
-//
-// 提供4个专利分析相关工具:
-// 1. SemanticCompare - 多模式语义对比
-// 2. InfringementAnalysis - 专利侵权分析
-// 3. SynergyAnalysis - 技术特征协同测试
-// 4. LegalQA - 知识产权法律问答
 
 mod analysis;
 mod compare;
+mod examiner;
 
 pub use analysis::{
     infringement_analysis, legal_qa, synergy_analysis, InfringementAnalysisInput, LegalQAInput,
     SynergyAnalysisInput,
 };
 pub use compare::{semantic_compare, SemanticCompareInput};
+pub use examiner::{examiner_simulate, ExaminerSimulateInput};
 
 #[cfg(test)]
 mod tests {

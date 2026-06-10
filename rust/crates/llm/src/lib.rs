@@ -113,7 +113,12 @@ impl LlmClient {
         Some(tools)
     }
 
-    /// 在已有 tokio 运行时时使用 Handle，否则创建临时运行时执行 future
+    /// 在同步上下文中运行异步 LLM 流式请求。
+    ///
+    /// # Safety
+    /// - 已存在 Handle → `block_in_place` 避免嵌套 Runtime
+    /// - 无 Handle → 创建临时 Runtime 执行 future
+    /// 不存在 tokio 运行时嵌套风险。
     fn block_on<F, T>(&self, future: F) -> Result<T, RuntimeError>
     where
         F: std::future::Future<Output = Result<T, RuntimeError>>,

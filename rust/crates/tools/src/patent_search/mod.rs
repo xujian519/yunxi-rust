@@ -1,12 +1,4 @@
 //! 专利检索工具集
-//!
-//! 提供6个专利检索相关工具:
-//! 1. `SynonymSearch` - 专利同义词词典
-//! 2. `SearchQueryBuilder` - 3阶段查询构建器
-//! 3. `PatentSearch` - 统一专利检索
-//! 4. `GooglePatentsFetch` - Google专利检索
-//! 5. `HighCitationPatents` - 高被引专利查找
-//! 6. `IterativeSearch` - 迭代深度检索
 
 mod query_builder;
 mod search_tools;
@@ -15,6 +7,8 @@ mod synonym;
 pub use query_builder::*;
 pub use search_tools::*;
 pub use synonym::*;
+
+pub mod retrieval;
 
 #[cfg(test)]
 mod tests {

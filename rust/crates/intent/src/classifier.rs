@@ -3,9 +3,12 @@
 //! 基于 Athena `core/intent/intent_recognition_adapter.py` 重写。
 //! 使用关键词匹配 + 可选的嵌入相似度进行意图分类。
 
+use std::sync::Arc;
+
 use crate::intent_types::IntentType;
 use embedding::config::semantic_enabled;
 use embedding::global::shared_optional;
+use memory::UnifiedMemory;
 
 /// 意图分类结果
 #[derive(Debug, Clone, serde::Serialize)]
@@ -16,29 +19,41 @@ pub struct IntentResult {
     pub alternatives: Vec<(IntentType, f64)>,
 }
 
-/// 意图分类器
 pub struct IntentClassifier {
     /// 是否使用嵌入增强（需要 BGE-M3 模型）
     use_embedding: bool,
+    /// 用户偏好记忆（可选）
+    memory: Option<Arc<UnifiedMemory>>,
 }
 
 impl IntentClassifier {
     /// `use_embedding`: 为 true 时在关键词置信度不足时尝试嵌入增强（仍需 `semantic.enabled`）
     pub fn new(use_embedding: bool) -> Self {
-        Self { use_embedding }
+        Self {
+            use_embedding,
+            memory: None,
+        }
     }
 
     /// 按用户配置：仅在 semantic.enabled 时启用嵌入
     pub fn from_user_settings() -> Self {
         Self {
             use_embedding: semantic_enabled(),
+            memory: None,
         }
+    }
+
+    /// 注入记忆系统（用于读取/记录用户偏好）。
+    pub fn with_memory(mut self, memory: Arc<UnifiedMemory>) -> Self {
+        self.memory = Some(memory);
+        self
     }
 
     /// 仅使用关键词匹配
     pub fn keyword_only() -> Self {
         Self {
             use_embedding: false,
+            memory: None,
         }
     }
 
@@ -56,19 +71,107 @@ impl IntentClassifier {
             if let Some(embedding_result) = self.classify_by_embedding(text) {
                 // 如果嵌入分类置信度更高，优先使用
                 if embedding_result.confidence > keyword_result.confidence {
-                    return embedding_result;
+                    let mut result = embedding_result;
+                    self.apply_preference_boost(&mut result);
+                    return result;
                 }
             }
         }
 
-        keyword_result
+        let mut result = keyword_result;
+        self.apply_preference_boost(&mut result);
+        result
+    }
+
+    /// 从记忆系统读取用户意图偏好，调整分类结果。
+    fn apply_preference_boost(&self, result: &mut IntentResult) {
+        let Some(ref memory) = self.memory else {
+            return;
+        };
+
+        // 搜索所有意图偏好记录
+        let prefs = memory.search("intent:preference", 50);
+        if prefs.is_empty() {
+            return;
+        }
+
+        // 解析偏好：content 格式为 "intent:preference:{IntentTypeName}:{count}"
+        let mut boosts: Vec<(String, f64)> = Vec::new();
+        for entry in &prefs {
+            let parts: Vec<&str> = entry.content.split(':').collect();
+            if parts.len() >= 4 && parts[0] == "intent" && parts[1] == "preference" {
+                if let Ok(count) = parts[3].parse::<f64>() {
+                    // 每次使用提升 ~10%，最多累计 +50%
+                    let boost = (count * 0.10).min(0.50);
+                    boosts.push((parts[2].to_string(), boost));
+                }
+            }
+        }
+
+        if boosts.is_empty() {
+            return;
+        }
+
+        // 对主意图和备选意图应用偏好提升
+        for (intent_name, boost) in &boosts {
+            let current_name = format!("{:?}", result.intent);
+            if current_name == *intent_name {
+                result.confidence = (result.confidence * (1.0 + boost)).min(1.0);
+            }
+            for alt in &mut result.alternatives {
+                let alt_name = format!("{:?}", alt.0);
+                if alt_name == *intent_name {
+                    let boosted = (alt.1 * (1.0 + boost)).min(1.0);
+                    // 如果备选超过主意图，向上冒泡
+                    if boosted > result.confidence {
+                        result.confidence = boosted;
+                        result.intent = alt.0;
+                        result.method.push_str("+preference");
+                    }
+                    alt.1 = boosted;
+                }
+            }
+        }
+    }
+
+    /// 记录用户意图偏好（当用户修正了自动分类结果时调用）。
+    ///
+    /// 每次调用增加该意图的偏好计数，使后续分类更倾向于该意图。
+    pub fn record_user_preference(memory: &UnifiedMemory, intent: IntentType) {
+        let name = format!("{intent:?}");
+        let id = format!("intent:preference:{name}");
+
+        // 读取现有计数
+        let count = match memory.retrieve(&id) {
+            Ok(Some(content)) => {
+                content
+                    .split(':')
+                    .next_back()
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .unwrap_or(0)
+                    + 1
+            }
+            _ => 1,
+        };
+
+        let importance = (0.6 + count as f64 * 0.05).min(0.9);
+        let content = format!("intent:preference:{name}:{count}");
+
+        let _ = memory.remember_rich(
+            &id,
+            "intent",
+            &content,
+            None,
+            vec!["intent".into(), "preference".into()],
+            importance,
+            "intent_preference",
+        );
     }
 
     /// 关键词匹配分类
     fn classify_by_keywords(&self, text: &str) -> IntentResult {
         let all_intents = self.active_intents();
         let mut scored: Vec<(IntentType, f64)> = Vec::new();
-
         for intent in &all_intents {
             let keywords = intent.keywords();
             if keywords.is_empty() {

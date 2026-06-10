@@ -139,9 +139,206 @@ export const tauriApi = {
 
   patentSearch: (query: string, limit?: number) =>
     invoke<string>('patent_search', { query, limit }),
+  claimParse: (claims: string) =>
+    invoke<string>('claim_parse', { claims }),
+  noveltyAnalysis: (claims: string, priorArt: string, analysisMode?: string) =>
+    invoke<string>('novelty_analysis', {
+      claims,
+      prior_art: priorArt,
+      analysis_mode: analysisMode,
+    }),
+  inventivenessAnalysis: (claims: string, priorArt: string, technicalField?: string) =>
+    invoke<string>('inventiveness_analysis', {
+      claims,
+      prior_art: priorArt,
+      technical_field: technicalField,
+    }),
+  claimGenerator: (technicalFeatures: string, claimType?: string, scope?: string) =>
+    invoke<string>('claim_generator', {
+      technical_features: technicalFeatures,
+      claim_type: claimType,
+      scope,
+    }),
+  abstractDrafter: (
+    inventionTitle: string,
+    technicalField: string,
+    technicalProblem: string,
+    technicalSolution: string,
+    beneficialEffects?: string,
+  ) =>
+    invoke<string>('abstract_drafter', {
+      invention_title: inventionTitle,
+      technical_field: technicalField,
+      technical_problem: technicalProblem,
+      technical_solution: technicalSolution,
+      beneficial_effects: beneficialEffects,
+    }),
+  specificationDrafter: (
+    claims: string,
+    abstractText: string,
+    technicalField: string,
+    background?: string,
+    detailedDescription?: string,
+  ) =>
+    invoke<string>('specification_drafter', {
+      claims,
+      abstract: abstractText,
+      technical_field: technicalField,
+      background,
+      detailed_description: detailedDescription,
+    }),
+  qualityScorer: (
+    claims: string,
+    abstractText?: string,
+    specification?: string,
+    scoreMode?: string,
+  ) =>
+    invoke<string>('quality_scorer', {
+      claims,
+      abstract: abstractText,
+      specification,
+      score_mode: scoreMode,
+    }),
+  qualityChecker: (
+    claims: string,
+    abstractText?: string,
+    specification?: string,
+    checkMode?: string,
+  ) =>
+    invoke<string>('quality_checker', {
+      claims,
+      abstract: abstractText,
+      specification,
+      check_mode: checkMode,
+    }),
+  formalCheck: (patentText: string, checkType?: string, jurisdiction?: string) =>
+    invoke<string>('formal_check', {
+      patent_text: patentText,
+      check_type: checkType,
+      jurisdiction,
+    }),
+  claimFormalityCheck: (claims: string, jurisdiction?: string) =>
+    invoke<string>('claim_formality_check', {
+      claims,
+      jurisdiction,
+    }),
+  specFormalityCheck: (specification: string, jurisdiction?: string) =>
+    invoke<string>('spec_formality_check', {
+      specification,
+      jurisdiction,
+    }),
+  oaStrategy: (
+    claims: string,
+    priorArt: string,
+    rejectionReasons: string,
+    jurisdiction?: string,
+  ) =>
+    invoke<string>('oa_strategy', {
+      claims,
+      prior_art: priorArt,
+      rejection_reasons: rejectionReasons,
+      jurisdiction,
+    }),
+  responseTemplate: (
+    oaType: string,
+    rejectionReasons: string,
+    strategy?: string,
+    jurisdiction?: string,
+  ) =>
+    invoke<string>('response_template', {
+      oa_type: oaType,
+      rejection_reasons: rejectionReasons,
+      strategy,
+      jurisdiction,
+    }),
+  successPredictor: (
+    claims: string,
+    priorArt: string,
+    technicalField: string,
+    jurisdiction?: string,
+  ) =>
+    invoke<string>('success_predictor', {
+      claims,
+      prior_art: priorArt,
+      technical_field: technicalField,
+      jurisdiction,
+    }),
+  infringementAnalysis: (
+    patentClaims: string,
+    productFeatures: string,
+    analysisMode?: string,
+  ) =>
+    invoke<string>('infringement_analysis', {
+      patent_claims: patentClaims,
+      product_features: productFeatures,
+      analysis_mode: analysisMode,
+    }),
+  legalReasoning: (legalQuestion: string, jurisdiction?: string, context?: string) =>
+    invoke<string>('legal_reasoning', {
+      legal_question: legalQuestion,
+      jurisdiction,
+      context,
+    }),
+  examinerSimulate: (
+    claims: string,
+    priorArt: string,
+    technicalField: string,
+    simulateMode?: string,
+  ) =>
+    invoke<string>('examiner_simulate', {
+      claims,
+      prior_art: priorArt,
+      technical_field: technicalField,
+      simulate_mode: simulateMode,
+    }),
+  hybridRetrieval: (
+    query: string,
+    vectorWeight?: number,
+    graphWeight?: number,
+    legalWeight?: number,
+    topK?: number,
+  ) =>
+    invoke<string>('hybrid_retrieval', {
+      query,
+      vector_weight: vectorWeight,
+      graph_weight: graphWeight,
+      legal_weight: legalWeight,
+      top_k: topK,
+    }),
   knowledgeSearch: (query: string) => invoke<string>('knowledge_search', { query }),
   memorySearch: (query: string, limit?: number) =>
     invoke<string>('memory_search', { query, limit }),
+  recordIntentPreference: (intentType: string) =>
+    invoke<void>('record_intent_preference', { intentType }),
+
+
+  lawQuery: (query: string) => invoke<string>('law_query', { query }),
+  knowledgeCard: (topic: string) => invoke<string>('knowledge_card', { topic }),
+  superReasoningPlan: (query: string) =>
+    invoke<string>('super_reasoning_plan', { query }),
+  innovationEvaluator: (
+    inventionTitle: string,
+    technicalField: string,
+    technicalProblem: string,
+    technicalSolution: string,
+  ) =>
+    invoke<string>('innovation_evaluator', {
+      inventionTitle,
+      technicalField,
+      technicalProblem,
+      technicalSolution,
+    }),
+  semanticCompare: (
+    targetText: string,
+    priorText: string,
+    mode?: string,
+  ) =>
+    invoke<string>('semantic_compare', {
+      targetText,
+      priorText,
+      mode,
+    }),
+
   oaParse: (content: string, applicationNumber?: string) =>
     invoke<string>('oa_parse', { content, applicationNumber }),
 
@@ -178,6 +375,35 @@ export const tauriApi = {
       model,
       workspaceRootArg: workspaceRoot,
     }),
+
+  executeToolRaw: (toolName: string, toolInput: Record<string, unknown>) =>
+    invoke<string>('execute_tool_raw', { toolName, toolInput }),
+
+  runReasoning: (
+    query: string,
+    context?: string,
+    phases?: string[],
+    config?: Record<string, unknown>,
+  ) =>
+    invoke<string>('run_reasoning', {
+      query,
+      context,
+      phases,
+      config,
+    }),
+
+  listReasoningPhases: () => invoke<string[]>('list_reasoning_phases'),
+
+  getPipelineConfig: () => invoke<Record<string, unknown>>('get_pipeline_config'),
+
+  checkCompliance: (text: string, ruleTypes?: string[], context?: string) =>
+    invoke<string>('check_compliance', {
+      text,
+      ruleTypes,
+      context,
+    }),
+
+  listRuleTypes: () => invoke<string[]>('list_rule_types'),
 
   /** 订阅流式事件，返回取消监听函数 */
   async onStream(

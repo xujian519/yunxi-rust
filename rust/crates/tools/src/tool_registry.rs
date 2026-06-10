@@ -369,6 +369,12 @@ fn init_global_registry() -> ToolRegistry {
         patent_search::IterativeSearchInput,
         runners::run_iterative_search
     );
+    reg!(
+        reg,
+        "HybridRetrieval",
+        patent_search::retrieval::HybridRetrievalInput,
+        runners::run_hybrid_retrieval
+    );
 
     // ── Patent OA tools (ref-parameter) ─────────────────────────────────────
 
@@ -416,6 +422,12 @@ fn init_global_registry() -> ToolRegistry {
         "LegalQA",
         patent_analysis::LegalQAInput,
         runners::run_legal_qa
+    );
+    reg!(
+        reg,
+        "ExaminerSimulate",
+        patent_analysis::ExaminerSimulateInput,
+        runners::run_examiner_simulate
     );
 
     // ── Patent visualization tools (mixed) ──────────────────────────────────

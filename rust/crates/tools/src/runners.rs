@@ -367,6 +367,18 @@ pub(super) fn run_legal_reasoning(
     to_pretty_json(knowledge_tools::execute_legal_reasoning(input)?)
 }
 
+pub(super) fn run_examiner_simulate(
+    input: patent_analysis::ExaminerSimulateInput,
+) -> Result<String, String> {
+    to_pretty_json(patent_analysis::examiner_simulate(input)?)
+}
+
+pub(super) fn run_hybrid_retrieval(
+    input: patent_search::retrieval::HybridRetrievalInput,
+) -> Result<String, String> {
+    to_pretty_json(patent_search::retrieval::hybrid_retrieval(input)?)
+}
+
 pub(super) fn run_law_query(input: &knowledge_tools::LawQueryInput) -> Result<String, String> {
     to_pretty_json(knowledge_tools::execute_law_query(input)?)
 }

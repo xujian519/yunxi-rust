@@ -24,6 +24,7 @@ required-features = ["desktop"]
 [dependencies]
 api = { path = "../api" }
 commands = { path = "../commands" }
+intent = { path = "../intent" }
 embedding = { path = "../embedding" }
 knowledge = { path = "../knowledge" }
 router = { path = "../router" }
@@ -31,6 +32,8 @@ llm = { path = "../llm" }
 memory = { path = "../memory" }
 mcp-bridge = { path = "../mcp-bridge" }
 model-router = { path = "../model-router" }
+reasoning = { path = "../reasoning" }
+constitutional-engine = { path = "../constitutional-engine" }
 crossterm = "0.28"
 arboard = "3"
 pulldown-cmark = "0.13"
