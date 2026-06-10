@@ -123,7 +123,7 @@ impl App {
         Ok(())
     }
 
-    fn start_llm_turn(&mut self, text: &str) {
+    pub(super) fn start_llm_turn(&mut self, text: &str) {
         let effective_model = self.resolve_model(text);
 
         if let Some(msg) = crate::llm_auth::missing_api_key_message(&effective_model) {

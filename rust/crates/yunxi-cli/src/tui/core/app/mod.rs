@@ -11,9 +11,18 @@ use std::time::Instant;
 use runtime::PermissionMode;
 
 use crate::cli_action::AllowedToolSet;
+use crate::format_report::{
+    render_config_report, render_connect_report, render_conversation_search, render_diff_report,
+    render_export_text, render_last_tool_debug_report, render_memory_report,
+    render_teleport_report, resolve_export_path,
+};
+use crate::init::initialize_repo;
 use crate::runtime_bridge::{build_runtime, build_system_prompt};
 use crate::session_meta::{execute_flow_resume, AthenaSessionMeta};
-use crate::session_mgr::{create_managed_session_handle, list_managed_sessions, SessionHandle};
+use crate::session_mgr::{
+    create_managed_session_handle, list_managed_sessions, resolve_session_reference, SessionHandle,
+};
+use crate::slash_sync::{bughunter_prompt, run_commit, run_issue, run_pr, ultraplan_prompt};
 use crate::tui::components::chat_view::{ChatEntry, ChatRole, ChatView};
 use crate::tui::components::command_palette::CommandPalette;
 use crate::tui::components::input_bar::InputBar;
@@ -876,8 +885,205 @@ impl App {
                 // Toggle not wired in new arch yet
                 self.push_system_message("推理过程显示: 暂未支持");
             }
-            _ => {
-                self.push_system_message("该命令尚未接入新架构，请使用 /help 查看可用命令。");
+
+            // ── A 类：简单展示命令 ──
+
+            SlashCommand::Config { section } => {
+                match render_config_report(section.as_deref()) {
+                    Ok(report) => self.push_output("Config", &report, 80, 24),
+                    Err(e) => self.push_system_message(&format!("配置加载失败: {e}")),
+                }
+            }
+            SlashCommand::Memory => match render_memory_report() {
+                Ok(report) => self.push_output("Memory", &report, 80, 24),
+                Err(e) => self.push_system_message(&format!("记忆加载失败: {e}")),
+            },
+            SlashCommand::Diff => match render_diff_report() {
+                Ok(report) => self.push_output("Diff", &report, 80, 24),
+                Err(e) => self.push_system_message(&format!("Diff 失败: {e}")),
+            },
+            SlashCommand::Teleport { target } => {
+                let Some(target) = target.as_deref().map(str::trim).filter(|v| !v.is_empty())
+                else {
+                    self.push_system_message("用法：/teleport <symbol-or-path>");
+                    return Ok(true);
+                };
+                match render_teleport_report(target) {
+                    Ok(report) => self.push_output("Teleport", &report, 80, 24),
+                    Err(e) => self.push_system_message(&format!("搜索失败: {e}")),
+                }
+            }
+            SlashCommand::DebugToolCall => {
+                let report = {
+                    let Ok(runtime) = self.runtime.lock() else {
+                        self.push_system_message("runtime 锁失败");
+                        return Ok(true);
+                    };
+                    render_last_tool_debug_report(runtime.session())
+                };
+                match report {
+                    Ok(report) => self.push_output("Debug", &report, 80, 24),
+                    Err(e) => self.push_system_message(&format!("调试报告失败: {e}")),
+                }
+            }
+            SlashCommand::Connect => match render_connect_report() {
+                Ok(report) => self.push_output("Connect", &report, 80, 24),
+                Err(e) => self.push_system_message(&format!("连接报告失败: {e}")),
+            },
+            SlashCommand::Search { query } => {
+                let Some(query) = query.as_deref().map(str::trim).filter(|v| !v.is_empty()) else {
+                    self.push_system_message("用法：/search <关键词>");
+                    return Ok(true);
+                };
+                let report = {
+                    let Ok(runtime) = self.runtime.lock() else {
+                        self.push_system_message("runtime 锁失败");
+                        return Ok(true);
+                    };
+                    render_conversation_search(runtime.session(), query)
+                };
+                self.push_output("Search", &report, 80, 24);
+            }
+
+            // ── B 类：文件操作命令 ──
+
+            SlashCommand::Export { path } => {
+                let result = {
+                    let Ok(runtime) = self.runtime.lock() else {
+                        self.push_system_message("runtime 锁失败");
+                        return Ok(true);
+                    };
+                    let session = runtime.session();
+                    match resolve_export_path(path.as_deref(), session) {
+                        Ok(export_path) => {
+                            let text = render_export_text(session);
+                            let count = session.messages.len();
+                            Some((export_path, text, count))
+                        }
+                        Err(_) => None,
+                    }
+                };
+                match result {
+                    Some((export_path, text, count)) => {
+                        match std::fs::write(&export_path, &text) {
+                            Ok(()) => self.push_system_message(&format!(
+                                "已导出到 {}（{} 条消息）",
+                                export_path.display(),
+                                count
+                            )),
+                            Err(e) => self.push_system_message(&format!("写入失败: {e}")),
+                        }
+                    }
+                    None => self.push_system_message("导出路径错误"),
+                }
+            }
+            SlashCommand::Init => {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                match initialize_repo(&cwd) {
+                    Ok(report) => self.push_system_message(&report.render()),
+                    Err(e) => self.push_system_message(&format!("初始化失败: {e}")),
+                }
+            }
+            SlashCommand::Resume { session_path } => {
+                let Some(ref_path) = session_path else {
+                    self.push_system_message("用法：/resume <session-id>");
+                    return Ok(true);
+                };
+                match resolve_session_reference(&ref_path) {
+                    Ok(handle) => match runtime::Session::load_from_path(&handle.path) {
+                        Ok(loaded) => {
+                            let count = loaded.messages.len();
+                            let new_runtime = build_runtime(
+                                loaded,
+                                self.model.clone(),
+                                self.system_prompt.clone(),
+                                true,
+                                false,
+                                self.allowed_tools.clone(),
+                                self.permission_mode,
+                            )?;
+                            *self.runtime.lock().map_err(|_| "lock")? = new_runtime;
+                            self.chat.clear();
+                            self.persist_session();
+                            self.push_system_message(&format!(
+                                "已恢复会话 {}（{} 条消息）",
+                                handle.id, count
+                            ));
+                        }
+                        Err(e) => self.push_system_message(&format!("加载会话失败: {e}")),
+                    },
+                    Err(e) => self.push_system_message(&format!("找不到会话: {e}")),
+                }
+            }
+
+            // ── C 类：LLM 轮次命令 ──
+
+            SlashCommand::Bughunter { scope } => {
+                let prompt = bughunter_prompt(scope.as_deref());
+                self.push_user_message(input);
+                self.start_llm_turn(&prompt);
+            }
+            SlashCommand::Ultraplan { task } => {
+                let prompt = ultraplan_prompt(task.as_deref());
+                self.push_user_message(input);
+                self.start_llm_turn(&prompt);
+            }
+            SlashCommand::Custom { name, arguments } => {
+                if let Some(prompt) =
+                    commands::resolve_custom_prompt(&name, arguments.as_deref())
+                {
+                    self.push_user_message(input);
+                    self.start_llm_turn(&prompt);
+                } else {
+                    self.push_system_message(&format!("自定义命令 /{name} 未找到。"));
+                }
+            }
+            SlashCommand::Commit => {
+                self.push_system_message("正在生成提交...");
+                let result = run_commit(
+                    Arc::clone(&self.runtime),
+                    self.model.clone(),
+                    self.system_prompt.clone(),
+                    self.allowed_tools.clone(),
+                    self.permission_mode,
+                );
+                match result {
+                    Ok(report) => self.push_output("Commit", &report, 80, 24),
+                    Err(e) => self.push_system_message(&format!("提交失败: {e}")),
+                }
+            }
+            SlashCommand::Pr { context } => {
+                self.push_system_message("正在生成 PR...");
+                let result = run_pr(
+                    Arc::clone(&self.runtime),
+                    self.model.clone(),
+                    self.system_prompt.clone(),
+                    self.allowed_tools.clone(),
+                    self.permission_mode,
+                    context.as_deref(),
+                );
+                match result {
+                    Ok(report) => self.push_output("PR", &report, 80, 24),
+                    Err(e) => self.push_system_message(&format!("PR 失败: {e}")),
+                }
+            }
+            SlashCommand::Issue { context } => {
+                self.push_system_message("正在生成 Issue...");
+                let result = run_issue(
+                    Arc::clone(&self.runtime),
+                    self.model.clone(),
+                    self.system_prompt.clone(),
+                    self.allowed_tools.clone(),
+                    self.permission_mode,
+                    context.as_deref(),
+                );
+                match result {
+                    Ok(report) => self.push_output("Issue", &report, 80, 24),
+                    Err(e) => self.push_system_message(&format!("Issue 失败: {e}")),
+                }
+            }
+            SlashCommand::Unknown(name) => {
+                self.push_system_message(&format!("未知命令 /{name}，输入 /help 查看帮助。"));
             }
         }
         Ok(true)
