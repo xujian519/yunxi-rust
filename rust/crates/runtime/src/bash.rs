@@ -90,6 +90,45 @@ pub struct BashCommandOutput {
     pub sandbox_status: Option<SandboxStatus>,
 }
 
+/// 命令最大长度限制
+const MAX_COMMAND_LENGTH: usize = 100_000;
+
+/// 危险命令模式 — 禁止不可逆的破坏性操作
+const DANGEROUS_PATTERNS: &[&str] = &[
+    "rm -rf /",
+    "rm -rf /*",
+    "mkfs.",
+    "dd if=",
+    "> /dev/sd",
+    "chmod 000",
+    "chown root",
+    ":(){ :|:& };:",
+];
+
+/// 验证命令安全性
+fn validate_command(command: &str) -> io::Result<()> {
+    if command.len() > MAX_COMMAND_LENGTH {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("命令超过最大长度限制 ({MAX_COMMAND_LENGTH} 字符)"),
+        ));
+    }
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "命令不能为空"));
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    for pattern in DANGEROUS_PATTERNS {
+        if lower.contains(pattern) {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                format!("命令包含禁止的危险模式: {pattern}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// 执行 Bash 命令
 ///
 /// # 参数
@@ -103,6 +142,7 @@ pub struct BashCommandOutput {
 /// - 如果当前目录不可访问,返回 IO 错误
 /// - 如果命令执行失败,返回 IO 错误
 pub fn execute_bash(input: BashCommandInput) -> io::Result<BashCommandOutput> {
+    validate_command(&input.command)?;
     let cwd = env::current_dir()?;
     let sandbox_status = sandbox_status_for_input(&input, &cwd);
 

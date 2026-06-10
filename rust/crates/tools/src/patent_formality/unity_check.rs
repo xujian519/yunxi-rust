@@ -26,7 +26,7 @@ pub(super) struct UcClaimInput {
     pub(super) content: String,
     #[serde(default)]
     #[allow(dead_code)]
-    pub(super) depends_on: Option<u32>,
+    pub(super) depends_on: Option<u32>, // 保留原因: 预留给权利要求依赖关系的单一性分析
     #[serde(default)]
     #[allow(dead_code)]
     pub(super) category: Option<String>, // 保留原因: 预留给按产品/方法分类的单一性分析

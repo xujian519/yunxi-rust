@@ -36,6 +36,7 @@ impl SpinnerStyle {
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给 TUI 组件内嵌 spinner 显示
 pub(crate) fn spinner_span(style: SpinnerStyle, frame: usize, label: &str) -> Span<'static> {
     let glyph = style.glyph(frame);
     Span::styled(

@@ -182,7 +182,10 @@ impl EmbeddingService {
     /// 编码单个文本为 1024 维向量
     pub fn encode(&self, text: &str) -> Result<Embedding, EmbeddingError> {
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             if let Some(cached) = cache.get(text) {
                 return Ok(cached.clone());
             }
@@ -194,7 +197,10 @@ impl EmbeddingService {
         };
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             cache.put(text.to_string(), embedding.clone());
         }
 
@@ -208,7 +214,10 @@ impl EmbeddingService {
         let mut uncached_texts = Vec::new();
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             for (i, text) in texts.iter().enumerate() {
                 if let Some(cached) = cache.get(text) {
                     results.push((i, cached.clone()));
@@ -225,7 +234,10 @@ impl EmbeddingService {
                 EmbeddingBackend::Onnx(onnx) => onnx.encode_batch_impl(&uncached_texts)?,
                 EmbeddingBackend::Http(http) => http.encode_batch(&uncached_texts)?,
             };
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             for (i, embedding) in new_embeddings.into_iter().enumerate() {
                 let original_idx = uncached_indices[i];
                 cache.put(uncached_texts[i].to_string(), embedding.clone());
@@ -240,7 +252,10 @@ impl EmbeddingService {
     /// 异步编码单个文本（HTTP backend 使用 spawn_blocking，避免阻塞 tokio 运行时）
     pub async fn encode_async(&self, text: &str) -> Result<Embedding, EmbeddingError> {
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             if let Some(cached) = cache.get(text) {
                 return Ok(cached.clone());
             }
@@ -252,7 +267,10 @@ impl EmbeddingService {
         };
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             cache.put(text.to_string(), embedding.clone());
         }
 
@@ -269,7 +287,10 @@ impl EmbeddingService {
         let mut uncached_texts = Vec::new();
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             for (i, text) in texts.iter().enumerate() {
                 if let Some(cached) = cache.get(text) {
                     results.push((i, cached.clone()));
@@ -286,7 +307,10 @@ impl EmbeddingService {
                 EmbeddingBackend::Onnx(onnx) => onnx.encode_batch_impl(&uncached_texts)?,
                 EmbeddingBackend::Http(http) => http.encode_batch_async(&uncached_texts).await?,
             };
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self
+                .cache
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             for (i, embedding) in new_embeddings.into_iter().enumerate() {
                 let original_idx = uncached_indices[i];
                 cache.put(uncached_texts[i].to_string(), embedding.clone());
@@ -349,7 +373,10 @@ impl OnnxBackend {
     /// 批量编码核心实现（ONNX 推理）
     fn encode_batch_impl(&self, texts: &[&str]) -> Result<Vec<Embedding>, EmbeddingError> {
         let encodings: Vec<_> = {
-            let tokenizer = self.tokenizer.lock().unwrap();
+            let tokenizer = self
+                .tokenizer
+                .lock()
+                .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
             texts
                 .iter()
                 .map(|text| {
@@ -410,7 +437,10 @@ impl OnnxBackend {
         };
 
         // ONNX 推理
-        let mut session = self.session.lock().unwrap();
+        let mut session = self
+            .session
+            .lock()
+            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
         let outputs = session
             .run(inputs)
             .map_err(|e| EmbeddingError::Inference(e.to_string()))?;
@@ -473,6 +503,8 @@ pub enum EmbeddingError {
     Output(String),
     #[error("vector store error: {0}")]
     Store(#[from] VectorStoreError),
+    #[error("lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 #[cfg(test)]

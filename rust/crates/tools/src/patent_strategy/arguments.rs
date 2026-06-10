@@ -68,7 +68,7 @@ pub struct ArgumentOAParseResult {
     pub(crate) rejection_reasons: Vec<ArgumentRejectionReason>,
     #[serde(default)]
     #[allow(dead_code)]
-    pub(crate) rejection_types: Vec<ArgumentRejectionType>,
+    pub(crate) rejection_types: Vec<ArgumentRejectionType>, // 保留原因: 预留给驳回类型统计和答复策略选择
     #[serde(default)]
     pub(crate) affected_claims: Vec<u32>,
     #[serde(default)]

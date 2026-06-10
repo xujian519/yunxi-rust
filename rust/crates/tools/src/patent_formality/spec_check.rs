@@ -35,7 +35,7 @@ pub(super) struct SfSpecificationInput {
 pub(super) struct SfClaimInput {
     #[serde(rename = "type")]
     #[allow(dead_code)]
-    pub(super) claim_type: String,
+    pub(super) claim_type: String, // 保留原因: 预留给权利要求类型（独立/从属）分析
     pub(super) number: u32,
     pub(super) content: String,
     #[serde(default)]

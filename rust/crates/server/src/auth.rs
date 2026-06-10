@@ -3,6 +3,19 @@
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 
+/// Constant-time comparison to prevent timing attacks.
+/// Always compares all bytes regardless of where the first difference is.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut result: u8 = 0;
+    for (x, y) in a.iter().zip(b.iter()) {
+        result |= x ^ y;
+    }
+    result == 0
+}
+
 /// 认证配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
@@ -42,7 +55,11 @@ pub fn verify_auth(headers: &HeaderMap, config: &AuthConfig) -> Result<(), Strin
 
     let token = token.ok_or("缺少认证令牌")?;
 
-    if config.api_keys.iter().any(|k| k == token) {
+    if config
+        .api_keys
+        .iter()
+        .any(|k| constant_time_eq(k.as_bytes(), token.as_bytes()))
+    {
         Ok(())
     } else {
         Err("无效的认证令牌".into())

@@ -117,6 +117,7 @@ pub struct SseTransport {
     post_endpoint: Option<String>,
     incoming_rx: Option<mpsc::Receiver<Result<JsonValue, String>>>,
     connected: bool,
+    io_task: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl SseTransport {
@@ -132,6 +133,15 @@ impl SseTransport {
             post_endpoint: None,
             incoming_rx: None,
             connected: false,
+            io_task: None,
+        }
+    }
+}
+
+impl Drop for SseTransport {
+    fn drop(&mut self) {
+        if let Some(handle) = self.io_task.take() {
+            handle.abort();
         }
     }
 }
@@ -152,7 +162,7 @@ impl McpTransportConnection for SseTransport {
         let headers = self.headers.clone();
 
         let sse_url_clone = sse_url.clone();
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let request = client.get(&sse_url_clone);
             let request = apply_reqwest_headers(request, &headers);
 
@@ -166,13 +176,17 @@ impl McpTransportConnection for SseTransport {
                             Ok(event) => {
                                 let data = event.data.clone();
                                 if let Ok(value) = serde_json::from_str::<JsonValue>(&data) {
-                                    let _ = tx.send(Ok(value)).await;
+                                    if tx.send(Ok(value)).await.is_err() {
+                                        break;
+                                    }
                                 } else {
                                     let endpoint_msg = serde_json::json!({
                                         "_sse_event": event.event.clone(),
                                         "_sse_data": data,
                                     });
-                                    let _ = tx.send(Ok(endpoint_msg)).await;
+                                    if tx.send(Ok(endpoint_msg)).await.is_err() {
+                                        break;
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -188,6 +202,7 @@ impl McpTransportConnection for SseTransport {
             }
         });
 
+        self.io_task = Some(handle);
         self.incoming_rx = Some(rx);
 
         // 等待 endpoint 事件
@@ -387,6 +402,7 @@ pub struct WsTransport {
     incoming_rx: Option<mpsc::Receiver<Result<JsonValue, String>>>,
     ping_stop_tx: Option<mpsc::Sender<()>>,
     connected: bool,
+    io_task: Option<tokio::task::JoinHandle<()>>,
 }
 
 /// WebSocket 流类型别名。
@@ -403,6 +419,15 @@ impl WsTransport {
             incoming_rx: None,
             ping_stop_tx: None,
             connected: false,
+            io_task: None,
+        }
+    }
+}
+
+impl Drop for WsTransport {
+    fn drop(&mut self) {
+        if let Some(handle) = self.io_task.take() {
+            handle.abort();
         }
     }
 }
@@ -439,7 +464,7 @@ impl McpTransportConnection for WsTransport {
         let io_url = self.url.clone();
 
         // 统一 I/O 任务
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             let (mut ws_write, mut ws_read) = ws_stream.split();
             let mut ping_interval = time::interval(Duration::from_secs(30));
 
@@ -506,6 +531,7 @@ impl McpTransportConnection for WsTransport {
         self.send_tx = Some(io_send_tx);
         self.incoming_rx = Some(msg_rx);
         self.ping_stop_tx = Some(io_ping_stop_tx);
+        self.io_task = Some(handle);
         self.connected = true;
 
         eprintln!("[mcp] 远程连接: WS {} [connected]", self.url);

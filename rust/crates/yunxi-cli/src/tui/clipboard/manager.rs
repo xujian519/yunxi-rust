@@ -74,11 +74,16 @@ impl ClipboardManager {
         Self::new(10)
     }
 
+    /// 辅助方法：获取锁，lock poisoning 时恢复内部数据继续运行
+    fn locked(&self) -> std::sync::MutexGuard<'_, ClipboardHistory> {
+        self.history.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     /// 复制文本到系统剪贴板并记录历史
     pub fn copy(&self, text: &str) -> Result<(), String> {
         let stripped = strip_ansi(text);
         copy_text_to_clipboard(&stripped)?;
-        self.history.lock().unwrap().push(stripped);
+        self.locked().push(stripped);
         Ok(())
     }
 
@@ -92,35 +97,27 @@ impl ClipboardManager {
 
     /// 获取历史记录中的条目
     pub fn get_history(&self, index: usize) -> Option<String> {
-        self.history
-            .lock()
-            .unwrap()
-            .get(index)
-            .map(|s| s.to_string())
+        self.locked().get(index).map(|s| s.to_string())
     }
 
     /// 获取最新历史记录
     pub fn get_latest_history(&self) -> Option<String> {
-        self.history
-            .lock()
-            .unwrap()
-            .get_latest()
-            .map(|s| s.to_string())
+        self.locked().get_latest().map(|s| s.to_string())
     }
 
     /// 获取历史记录长度
     pub fn history_len(&self) -> usize {
-        self.history.lock().unwrap().len()
+        self.locked().len()
     }
 
     /// 清空历史记录
     pub fn clear_history(&self) {
-        self.history.lock().unwrap().clear();
+        self.locked().clear();
     }
 
     /// 检查历史记录是否为空
     pub fn is_history_empty(&self) -> bool {
-        self.history.lock().unwrap().is_empty()
+        self.locked().is_empty()
     }
 }
 

@@ -63,11 +63,12 @@ pub(super) enum RejectionType {
     Unity,
     Formality,
     #[allow(dead_code)]
-    Other,
+    Other, // 保留原因: 预留给无法归类的驳回类型
 }
 
 #[allow(dead_code)]
 impl RejectionType {
+    // 保留原因: from_str 方法预留给 OA 答复生成时分类驳回
     pub(super) fn from_str(s: &str) -> Self {
         match s {
             "Novelty" => RejectionType::Novelty,

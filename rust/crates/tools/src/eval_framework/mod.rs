@@ -41,15 +41,21 @@ impl UnifiedEvaluator {
     pub fn evaluate(&self, eval_request: &EvalRequest) -> Result<EvalResponse, String> {
         // 检查缓存
         let cache_key = self.generate_cache_key(eval_request);
-        if let Some(cached) = self.cache.lock().unwrap().get(&cache_key) {
-            return Ok(cached.clone());
+        {
+            let mut cache = self.cache.lock().map_err(|e| format!("评估缓存锁异常: {e}"))?;
+            if let Some(cached) = cache.get(&cache_key) {
+                return Ok(cached.clone());
+            }
         }
 
         // 执行评估
         let response = self.evaluate_uncached(eval_request)?;
 
         // 缓存结果
-        self.cache.lock().unwrap().put(cache_key, response.clone());
+        {
+            let mut cache = self.cache.lock().map_err(|e| format!("评估缓存锁异常: {e}"))?;
+            cache.put(cache_key, response.clone());
+        }
 
         Ok(response)
     }

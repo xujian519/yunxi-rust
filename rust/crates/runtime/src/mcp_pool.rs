@@ -35,6 +35,13 @@ struct PooledConnection {
 /// - `release`: 释放连接（不关闭，返回池中）
 /// - `cleanup_idle`: 清理超时连接
 /// - 复用外部 tokio Runtime（通过 Handle）
+///
+/// # 使用约束
+///
+/// 所有方法均要求 `&mut self`，池本身不是 `Sync` 的。
+/// 当通过 [`SharedConnectionPool`]（`Arc<Mutex<Self>>` 包装）跨线程共享时，
+/// Mutex 在单次方法调用期间持有，不会跨 `.await` 点，因此不会产生死锁。
+/// **不要**在持有 `MutexGuard` 的同时 `.await` 其他需要同一把锁的操作。
 pub struct McpConnectionPool {
     /// 连接池条目。
     connections: BTreeMap<String, PooledConnection>,

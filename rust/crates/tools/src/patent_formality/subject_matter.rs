@@ -31,7 +31,7 @@ pub(super) struct SmClaimInput {
 pub(super) struct SmSpecInput {
     #[serde(default)]
     #[allow(dead_code)]
-    pub(super) technical_field: Option<String>,
+    pub(super) technical_field: Option<String>, // 保留原因: 预留给技术领域匹配检查
     #[serde(default)]
     pub(super) background_art: Option<String>,
     #[serde(default)]

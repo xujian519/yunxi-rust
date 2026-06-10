@@ -409,6 +409,7 @@ pub(crate) fn default_permission_mode() -> PermissionMode {
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给按权限过滤工具列表的 CLI 模式
 pub(crate) fn filter_tool_specs(allowed_tools: Option<&AllowedToolSet>) -> Vec<tools::ToolSpec> {
     mvp_tool_specs()
         .into_iter()

@@ -3,6 +3,8 @@
 //! 将 patent-domain / patent-knowledge / patent-workflow 的能力
 //! 封装为 LLM 可调用的工具。
 
+use std::collections::HashSet;
+
 use patent_domain::claim_parser::ClaimParser;
 use patent_domain::drafting::DraftQualityReport;
 use patent_domain::models::ClaimType;
@@ -297,10 +299,10 @@ pub fn execute_formal_check(input: &FormalCheckInput) -> Result<Value, String> {
     let parser = ClaimParser::new();
 
     // 1. 权利要求编号连续性检查
-    let mut seen_numbers = Vec::new();
+    let mut seen_numbers = HashSet::new();
     for (i, text) in input.claims.iter().enumerate() {
         let claim = parser.parse((i + 1) as u32, text);
-        seen_numbers.push(claim.claim_number);
+        seen_numbers.insert(claim.claim_number);
     }
 
     // 检查是否有缺失的编号
@@ -680,6 +682,7 @@ fn query_json_kg(input: &KnowledgeGraphQueryInput) -> Result<Value, String> {
     let mut results: Vec<KgQueryResultItem> = Vec::new();
 
     // 查询审查指南图谱
+    // TODO: 当节点数量超过千级时，构建 HashMap<String, Vec<NodeId>> 搜索索引优化为 O(1)
     if let Some(graph) = guideline_loaded {
         let kw_lower = input.query.to_lowercase();
         for node in &graph.nodes {
@@ -729,6 +732,7 @@ fn query_json_kg(input: &KnowledgeGraphQueryInput) -> Result<Value, String> {
     }
 
     // 查询法律知识图谱
+    // TODO: 同上，构建实体名→ID 反向索引
     if results.len() < input.limit {
         if let Some(graph) = legal_loaded {
             let kw_lower = input.query.to_lowercase();

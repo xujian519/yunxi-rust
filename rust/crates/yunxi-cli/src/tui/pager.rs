@@ -41,6 +41,7 @@ impl Pager {
     }
 
     #[allow(dead_code)]
+    // 保留原因: 预留给分页器滚动百分比显示
     pub(crate) fn line_count(&self) -> usize {
         self.lines.len()
     }

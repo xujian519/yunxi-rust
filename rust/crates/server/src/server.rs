@@ -8,9 +8,11 @@ use crate::auth::AuthConfig;
 use crate::permission::PermissionWaiters;
 use crate::routes;
 use crate::session_store::SessionStore;
+use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
+use axum::http::Method;
 use knowledge::{KnowledgePaths, UnifiedSearch};
 use runtime::Session;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 /// 应用共享状态
 #[derive(Clone)]
@@ -71,9 +73,9 @@ pub async fn start(config: ServerConfig) -> Result<(), Box<dyn std::error::Error
     };
 
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(tower_http::cors::Any) // TODO: 限制为指定域名
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
 
     let app = routes::build_routes(state).layer(cors);
 

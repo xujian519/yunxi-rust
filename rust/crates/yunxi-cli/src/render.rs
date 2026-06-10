@@ -118,12 +118,14 @@ impl Spinner {
 /// 思考指示器——显示模型推理计时。
 #[derive(Debug)]
 #[allow(dead_code)]
+// 保留原因: 预留给 CLI 模式思考过程计时显示
 pub struct ThinkingIndicator {
     started_at: std::time::Instant,
     spinner: Spinner,
 }
 
 #[allow(dead_code)]
+// 保留原因: ThinkingIndicator 方法集，随 CLI 模式启用
 impl ThinkingIndicator {
     #[must_use]
     pub fn new() -> Self {
@@ -158,6 +160,7 @@ impl ThinkingIndicator {
 /// 进度条——显示工具/步骤完成进度。
 #[derive(Debug)]
 #[allow(dead_code)]
+// 保留原因: 预留给 CLI 模式工具步骤进度显示
 pub struct ProgressBar {
     completed: usize,
     total: usize,
@@ -165,6 +168,7 @@ pub struct ProgressBar {
 }
 
 #[allow(dead_code)]
+// 保留原因: ProgressBar 方法集，随 CLI 模式启用
 impl ProgressBar {
     #[must_use]
     pub fn new(total: usize) -> Self {
@@ -678,12 +682,14 @@ impl TerminalRenderer {
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给流式 Markdown 渲染的状态追踪
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct MarkdownStreamState {
     pending: String,
 }
 
 #[allow(dead_code)]
+// 保留原因: MarkdownStreamState 方法集，随流式渲染启用
 impl MarkdownStreamState {
     #[must_use]
     pub fn push(&mut self, renderer: &TerminalRenderer, delta: &str) -> Option<String> {
@@ -718,6 +724,7 @@ fn apply_code_block_background(line: &str) -> String {
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给流式 Markdown 渲染的安全断点查找
 fn find_stream_safe_boundary(markdown: &str) -> Option<usize> {
     let mut in_fence = false;
     let mut last_boundary = None;

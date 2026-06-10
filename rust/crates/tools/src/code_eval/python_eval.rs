@@ -45,9 +45,30 @@ fn run_python_tests(
     let mut results = Vec::new();
 
     for tc in test_cases {
-        let mut temp_file = NamedTempFile::new().unwrap();
+        let mut temp_file = match NamedTempFile::new() {
+            Ok(f) => f,
+            Err(e) => {
+                results.push(TestCaseResult {
+                    input: tc.input.clone(),
+                    expected: tc.expected_output.clone(),
+                    actual: format!("临时文件创建失败: {e}"),
+                    success: false,
+                    execution_time_ms: 0,
+                });
+                continue;
+            }
+        };
 
-        write!(temp_file, "{}", code).unwrap();
+        if let Err(e) = write!(temp_file, "{}", code) {
+            results.push(TestCaseResult {
+                input: tc.input.clone(),
+                expected: tc.expected_output.clone(),
+                actual: format!("临时文件写入失败: {e}"),
+                success: false,
+                execution_time_ms: 0,
+            });
+            continue;
+        }
 
         let start = std::time::Instant::now();
         let output = Command::new("python3")

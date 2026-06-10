@@ -134,7 +134,7 @@ pub trait ReflectionMemory: Send + Sync {
         suggestions: &[String],
     ) -> Result<(), String>;
 
-    /// 写入完整推理结果到记忆系统。
+    /// 存储推理结果到记忆。默认为空操作——实现者可选择性覆写。
     ///
     /// # Arguments
     /// * `session_id` - 会话 ID

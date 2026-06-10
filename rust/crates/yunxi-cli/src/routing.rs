@@ -51,6 +51,7 @@ pub fn route(input: &str) -> RoutingDecision {
 /// 状态栏短标签（如 `专利·复杂·规划+人机`）。
 #[must_use]
 #[allow(dead_code)]
+// 保留原因: 预留给状态栏短标签显示（如「专利·复杂·规划+人机」）
 pub fn route_status_line(input: &str) -> Option<String> {
     let text = input.trim();
     if text.is_empty() {

@@ -167,6 +167,7 @@ pub fn merge_save_session(
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给用户从 UI 主动取消挂起的工作流
 pub fn remove_suspended_flow(meta: &mut AthenaSessionMeta, flow_id: &str, run_id: &str) {
     meta.suspended_flows
         .retain(|f| !(f.flow_id == flow_id && f.run_id == run_id));
@@ -186,6 +187,7 @@ pub fn execute_flow_resume(flow_id: &str, run_id: &str, approved: bool) -> Resul
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给工作流引擎主动挂起时记录状态
 pub fn push_suspended_flow(meta: &mut AthenaSessionMeta, record: SuspendedFlowRecord) {
     if meta
         .suspended_flows

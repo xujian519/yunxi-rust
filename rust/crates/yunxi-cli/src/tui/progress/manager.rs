@@ -92,13 +92,18 @@ impl ProgressManager {
         }
     }
 
+    /// 辅助方法：获取锁，lock poisoning 时恢复内部数据继续运行
+    fn locked<'a, T>(&self, lock: &'a Mutex<T>) -> std::sync::MutexGuard<'a, T> {
+        lock.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     pub fn create(&self, title: impl Into<String>) -> ProgressId {
-        let mut next_id = self.next_id.lock().unwrap();
+        let mut next_id = self.locked(&self.next_id);
         let id = ProgressId::Id(*next_id);
         *next_id += 1;
 
         let data = ProgressIndicatorData::new(id.clone(), title);
-        self.indicators.lock().unwrap().insert(id.clone(), data);
+        self.locked(&self.indicators).insert(id.clone(), data);
 
         id
     }
@@ -106,13 +111,13 @@ impl ProgressManager {
     pub fn create_named(&self, name: impl Into<String>, title: impl Into<String>) -> ProgressId {
         let id = ProgressId::Named(name.into());
         let data = ProgressIndicatorData::new(id.clone(), title);
-        self.indicators.lock().unwrap().insert(id.clone(), data);
+        self.locked(&self.indicators).insert(id.clone(), data);
 
         id
     }
 
     pub fn update(&self, id: &ProgressId, current: f32, total: Option<f32>) {
-        if let Some(indicator) = self.indicators.lock().unwrap().get_mut(id) {
+        if let Some(indicator) = self.locked(&self.indicators).get_mut(id) {
             indicator.current = current;
             if let Some(total) = total {
                 indicator.total = total;
@@ -121,72 +126,68 @@ impl ProgressManager {
     }
 
     pub fn set_message(&self, id: &ProgressId, message: impl Into<String>) {
-        if let Some(indicator) = self.indicators.lock().unwrap().get_mut(id) {
+        if let Some(indicator) = self.locked(&self.indicators).get_mut(id) {
             indicator.message = Some(message.into());
         }
     }
 
     pub fn set_type(&self, id: &ProgressId, progress_type: ProgressType) {
-        if let Some(indicator) = self.indicators.lock().unwrap().get_mut(id) {
+        if let Some(indicator) = self.locked(&self.indicators).get_mut(id) {
             indicator.progress_type = progress_type;
         }
     }
 
     pub fn set_style(&self, id: &ProgressId, style: ProgressStyle) {
-        if let Some(indicator) = self.indicators.lock().unwrap().get_mut(id) {
+        if let Some(indicator) = self.locked(&self.indicators).get_mut(id) {
             indicator.style = style;
         }
     }
 
     pub fn complete(&self, id: &ProgressId) {
-        if let Some(indicator) = self.indicators.lock().unwrap().get_mut(id) {
+        if let Some(indicator) = self.locked(&self.indicators).get_mut(id) {
             indicator.current = indicator.total;
         }
     }
 
     pub fn reset(&self, id: &ProgressId) {
-        if let Some(indicator) = self.indicators.lock().unwrap().get_mut(id) {
+        if let Some(indicator) = self.locked(&self.indicators).get_mut(id) {
             indicator.current = 0.0;
         }
     }
 
     pub fn remove(&self, id: &ProgressId) {
-        self.indicators.lock().unwrap().remove(id);
+        self.locked(&self.indicators).remove(id);
     }
 
     pub fn get(&self, id: &ProgressId) -> Option<ProgressIndicatorData> {
-        self.indicators.lock().unwrap().get(id).cloned()
+        self.locked(&self.indicators).get(id).cloned()
     }
 
     pub fn get_all(&self) -> Vec<ProgressIndicatorData> {
-        self.indicators.lock().unwrap().values().cloned().collect()
+        self.locked(&self.indicators).values().cloned().collect()
     }
 
     pub fn count(&self) -> usize {
-        self.indicators.lock().unwrap().len()
+        self.locked(&self.indicators).len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.indicators.lock().unwrap().is_empty()
+        self.locked(&self.indicators).is_empty()
     }
 
     pub fn clear(&self) {
-        self.indicators.lock().unwrap().clear();
+        self.locked(&self.indicators).clear();
     }
 
     pub fn get_active_count(&self) -> usize {
-        self.indicators
-            .lock()
-            .unwrap()
+        self.locked(&self.indicators)
             .values()
             .filter(|i| !i.is_complete())
             .count()
     }
 
     pub fn get_completed_count(&self) -> usize {
-        self.indicators
-            .lock()
-            .unwrap()
+        self.locked(&self.indicators)
             .values()
             .filter(|i| i.is_complete())
             .count()

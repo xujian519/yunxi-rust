@@ -127,8 +127,11 @@ impl LlmClient {
             // 使用 block_in_place 在当前线程执行，避免跨线程 Send 约束
             tokio::task::block_in_place(|| handle.block_on(future))
         } else {
-            let rt = tokio::runtime::Runtime::new()
-                .map_err(|e| RuntimeError::new(format!("创建运行时失败: {e}")))?;
+            static FALLBACK_RT: std::sync::OnceLock<tokio::runtime::Runtime> =
+                std::sync::OnceLock::new();
+            let rt = FALLBACK_RT.get_or_init(|| {
+                tokio::runtime::Runtime::new().expect("fallback tokio runtime creation failed")
+            });
             rt.block_on(future)
         }
     }

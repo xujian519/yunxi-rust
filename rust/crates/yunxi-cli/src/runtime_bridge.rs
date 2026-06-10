@@ -181,6 +181,7 @@ pub(crate) fn collect_tool_results(summary: &runtime::TurnSummary) -> Vec<serde_
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给非 TUI 模式的输出块推送
 pub(crate) fn push_output_block(
     block: OutputContentBlock,
     out: &mut (impl Write + ?Sized),
@@ -214,6 +215,7 @@ pub(crate) fn push_output_block(
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给将 HTTP 响应转为事件流的桥接模式
 pub(crate) fn response_to_events(
     response: MessageResponse,
     out: &mut (impl Write + ?Sized),
@@ -319,6 +321,7 @@ fn tool_permission_specs() -> Vec<ToolSpec> {
 }
 
 #[allow(dead_code)]
+// 保留原因: 预留给会话恢复时的消息格式转换
 pub(crate) fn convert_messages(messages: &[ConversationMessage]) -> Vec<InputMessage> {
     messages
         .iter()
