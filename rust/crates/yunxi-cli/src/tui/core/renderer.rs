@@ -2,16 +2,13 @@
 
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::Clear;
 use ratatui::Frame;
 use ratatui::Terminal;
 use std::io;
 
 use crate::tui::core::app::App;
 use crate::tui::layout::breakpoint::Viewport;
-use crate::tui::ui_palette;
 use crate::tui::widgets::chat_view_ratatui::ChatViewWidget;
 use crate::tui::widgets::command_palette_ratatui::CommandPaletteWidget;
 use crate::tui::widgets::flow_hitl_overlay_ratatui::FlowHitlOverlayWidget;
@@ -20,8 +17,10 @@ use crate::tui::widgets::help_overlay_ratatui::HelpOverlay;
 use crate::tui::widgets::input_bar_ratatui::InputBarWidget;
 use crate::tui::widgets::permission_overlay_ratatui::PermissionOverlayWidget;
 use crate::tui::widgets::session_picker_ratatui::SessionPickerWidget;
+use crate::tui::widgets::sidebar_ratatui::SidebarWidget;
 use crate::tui::widgets::status_bar_ratatui::StatusBarWidget;
 use crate::tui::widgets::title_bar::TitleBar;
+use crate::tui::widgets::toast_ratatui::ToastWidget;
 use crate::tui::widgets::tool_panel_ratatui::ToolPanelWidget;
 use ratatui::prelude::Widget;
 
@@ -99,6 +98,12 @@ impl Renderer {
         );
 
         // Status bar
+        let progress_msg = app
+            .progress_manager
+            .get(&crate::tui::progress::manager::ProgressId::named(
+                "llm_turn",
+            ))
+            .and_then(|p| p.message.clone());
         frame.render_widget(
             StatusBarWidget {
                 model: &app.model,
@@ -106,6 +111,7 @@ impl Renderer {
                 input_tokens: 0,
                 output_tokens: 0,
                 active_tool: app.active_tool.as_deref(),
+                progress_message: progress_msg.as_deref(),
             },
             vertical[3],
         );
@@ -135,7 +141,11 @@ impl Renderer {
         let mut idx = 0;
 
         if show_sidebar {
-            Self::render_sidebar(frame, horizontal[idx]);
+            SidebarWidget {
+                current_route: app.router.current_route(),
+                focus_index: app.sidebar_focus,
+            }
+            .render(frame, horizontal[idx]);
             idx += 1;
         }
 
@@ -159,28 +169,6 @@ impl Renderer {
                 horizontal[idx],
             );
         }
-    }
-
-    fn render_sidebar(frame: &mut Frame, area: Rect) {
-        let c = ui_palette::active::bg_secondary();
-        let bg = Color::Rgb(c.0, c.1, c.2);
-        let tc = ui_palette::active::text_primary();
-        let text = Color::Rgb(tc.0, tc.1, tc.2);
-        let bc = ui_palette::active::border();
-        let border_c = Color::Rgb(bc.0, bc.1, bc.2);
-
-        let items = vec!["💬 Chat", "🔧 Tools", "⚙️ Settings"];
-        let lines: Vec<Line> = items
-            .iter()
-            .map(|label| Line::from(Span::styled(*label, Style::default().fg(text))))
-            .collect();
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_c))
-            .title(" 导航 ")
-            .style(Style::default().bg(bg));
-        let paragraph = Paragraph::new(ratatui::text::Text::from(lines)).block(block);
-        frame.render_widget(paragraph, area);
     }
 
     fn render_overlays(frame: &mut Frame, area: Rect, app: &App) {
@@ -218,6 +206,11 @@ impl Renderer {
 
         if app.show_guide {
             Self::render_guide_overlay(frame, area, app);
+        }
+
+        // Toast layer — always on top (lowest overlay priority)
+        if let Some(ref toast) = app.toast {
+            ToastWidget { toast }.render(frame, area);
         }
     }
 

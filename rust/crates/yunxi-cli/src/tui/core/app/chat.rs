@@ -137,6 +137,9 @@ impl App {
         self.active_tool = None;
         self.close_human_guide();
 
+        // Create progress indicator for the turn
+        self.progress_manager.create_named("llm_turn", "AI 思考中…");
+
         // Routing
         let decision = crate::routing::route(text);
         let prefix = crate::routing::routing_user_prefix(&decision);
@@ -205,7 +208,12 @@ impl App {
         self.set_pending_permission(None);
         self.set_pending_flow_hitl(None);
         self.turn_started_at = None;
+
+        // Clean up progress
+        let progress_id = crate::tui::progress::manager::ProgressId::named("llm_turn");
+        self.progress_manager.remove(&progress_id);
+
         self.open_human_guide();
-        self.push_system_message("已请求中断当前轮次。请在底栏编辑引导内容后 Enter 发送。");
+        self.push_toast("已请求中断当前轮次。请在底栏编辑引导内容后 Enter 发送。");
     }
 }

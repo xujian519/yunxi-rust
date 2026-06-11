@@ -13,6 +13,7 @@ pub(crate) struct StatusBarWidget<'a> {
     pub(crate) input_tokens: u32,
     pub(crate) output_tokens: u32,
     pub(crate) active_tool: Option<&'a str>,
+    pub(crate) progress_message: Option<&'a str>,
 }
 
 impl Widget for StatusBarWidget<'_> {
@@ -87,13 +88,21 @@ impl Widget for StatusBarWidget<'_> {
             ));
         }
 
+        if let Some(msg) = self.progress_message {
+            spans.push(Span::styled(" | ", Style::default().fg(muted)));
+            spans.push(Span::styled(
+                format!("⏳ {msg}"),
+                Style::default().fg(Color::Yellow),
+            ));
+        }
+
         let full_text: String = spans
             .iter()
             .map(|s| s.content.as_ref())
             .collect::<Vec<_>>()
             .concat();
 
-        let used = full_text.len() as u16;
+        let used = crate::tui::frame::visible_width(&full_text);
         let available = area.width.saturating_sub(used);
 
         // Right-aligned shortcut hints (only if space remains)
@@ -112,14 +121,6 @@ impl Widget for StatusBarWidget<'_> {
         }
 
         let line = Line::from(spans);
-        Paragraph::new(line).render(
-            Rect::new(
-                area.x,
-                area.y,
-                area.width.min(full_text.len() as u16 + 2),
-                1,
-            ),
-            buf,
-        );
+        Paragraph::new(line).render(Rect::new(area.x, area.y, area.width.min(used + 2), 1), buf);
     }
 }

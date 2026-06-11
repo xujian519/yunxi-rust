@@ -151,6 +151,44 @@ impl CommandRegistry {
         self.register(Command::new("Expand", "展开节点", Action::Expand));
 
         self.register(Command::new("SwitchModel", "切换模型", Action::SwitchModel));
+
+        self.register(Command::new("ShowHelp", "显示帮助", Action::ShowHelp));
+        self.register(Command::new("ShowGuide", "人机引导", Action::ShowGuide));
+        self.register(Command::new("HideDialog", "关闭对话框", Action::HideDialog));
+        self.register(Command::new(
+            "InterruptTurn",
+            "中断当前轮次",
+            Action::InterruptTurn,
+        ));
+
+        self.register(Command::new(
+            "ShowSessionPicker",
+            "打开会话列表",
+            Action::ShowSessionPicker,
+        ));
+        self.register(Command::new(
+            "OpenSessionPicker",
+            "打开会话列表",
+            Action::OpenSessionPicker,
+        ));
+
+        self.register(Command::new(
+            "ToggleToolPanel",
+            "切换工具面板",
+            Action::ShowDialog("toggle_tool_panel".to_string()),
+        ));
+
+        self.register(Command::new(
+            "EditorCopy",
+            "复制输入内容",
+            Action::EditorCopy,
+        ));
+        self.register(Command::new("EditorCut", "剪切输入内容", Action::EditorCut));
+        self.register(Command::new(
+            "EditorPaste",
+            "粘贴到输入",
+            Action::EditorPaste,
+        ));
     }
 
     pub fn register(&mut self, command: Command) {

@@ -14,6 +14,9 @@ pub(crate) fn run_tui_repl(
     let mut renderer = Renderer::new();
     renderer.initialize()?;
 
+    // Fire lifecycle on_mount
+    app.lifecycle.on_mount();
+
     // Show welcome banner
     {
         let cwd = std::env::current_dir()
@@ -26,7 +29,7 @@ pub(crate) fn run_tui_repl(
         );
         app.push_system_message(&banner);
         app.push_system_message(
-            "\x1b[2mF3/Ctrl+P 命令 · Ctrl+B 面板 · Ctrl+D 主题 · Ctrl+G 引导 · Ctrl+I 中断\x1b[0m",
+            "\x1b[2mF3/Ctrl+P 命令 · Ctrl+B 面板 · Ctrl+D 主题 · Ctrl+G 引导 · Ctrl+I 中断 · Ctrl+Q 退出\x1b[0m",
         );
     }
     renderer.render(&app)?;
@@ -62,6 +65,16 @@ pub(crate) fn run_tui_repl(
         if app.thinking {
             app.spinner_frame = app.spinner_frame.wrapping_add(1);
             app.needs_render = true;
+        }
+
+        // Tick toast expiration
+        app.tick_toast();
+
+        // Dispatch system tick event
+        {
+            let tick_event =
+                crate::tui::core::event::Event::System(crate::tui::core::event::SystemEvent::Tick);
+            app.event_dispatcher.dispatch(&tick_event);
         }
 
         // Render if needed

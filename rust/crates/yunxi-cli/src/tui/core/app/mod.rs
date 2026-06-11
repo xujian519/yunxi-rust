@@ -4,6 +4,7 @@
 mod chat;
 mod session;
 mod theme;
+pub(crate) mod ui;
 
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -29,8 +30,11 @@ use crate::tui::components::input_bar::InputBar;
 use crate::tui::components::session_picker::SessionPicker;
 use crate::tui::components::tool_panel::{ToolEntry, ToolPanel};
 use crate::tui::core::action::{Action, ActionResult};
+use crate::tui::core::app::ui::ToastData;
 use crate::tui::core::event::{Event, EventDispatcher, InputEvent};
-use crate::tui::keymap::KeyMap;
+use crate::tui::core::lifecycle::LifecycleManager;
+use crate::tui::keymap::{Key, KeyBinding, KeyContext, KeyMap};
+use crate::tui::progress::manager::ProgressManager;
 use crate::tui::state::global::GlobalState;
 use crate::tui::theme::ThemeManager;
 use crate::tui::turn::{ActiveTurn, SharedRuntime, TurnEvent};
@@ -70,6 +74,12 @@ pub(crate) struct App {
     pub theme_manager: ThemeManager,
     pub event_dispatcher: EventDispatcher,
     pub router: crate::tui::router::Router,
+    pub lifecycle: LifecycleManager,
+    pub progress_manager: ProgressManager,
+
+    // ── UI state (new) ──
+    pub toast: Option<ToastData>,
+    pub sidebar_focus: usize,
 
     // ── Stream state ──
     pub(crate) stream_state_active: bool,
@@ -145,6 +155,11 @@ impl App {
             theme_manager,
             event_dispatcher: EventDispatcher::new(),
             router: crate::tui::router::Router::new(),
+            lifecycle: LifecycleManager::new(),
+            progress_manager: ProgressManager::new(),
+
+            toast: None,
+            sidebar_focus: 0,
 
             stream_state_active: false,
             stream_state_saw_text: false,
@@ -202,9 +217,21 @@ impl App {
         match event {
             TurnEvent::Stream(stream_event) => {
                 self.append_stream_event(&stream_event);
+                // Update progress message during streaming
+                use runtime::AssistantEvent;
+                if matches!(stream_event, AssistantEvent::TextDelta(_)) {
+                    self.progress_manager.set_message(
+                        &crate::tui::progress::manager::ProgressId::named("llm_turn"),
+                        "生成文本中…",
+                    );
+                }
             }
             TurnEvent::ToolUse { name } => {
-                self.active_tool = Some(name);
+                self.active_tool = Some(name.clone());
+                self.progress_manager.set_message(
+                    &crate::tui::progress::manager::ProgressId::named("llm_turn"),
+                    format!("调用 {name}…"),
+                );
             }
             TurnEvent::Permission(req) => {
                 self.set_pending_permission(Some(req));
@@ -212,6 +239,11 @@ impl App {
             TurnEvent::Done(result) => {
                 let is_streamed = self.turn_was_streamed();
                 self.end_turn_stream();
+                // Complete and remove progress indicator
+                let progress_id = crate::tui::progress::manager::ProgressId::named("llm_turn");
+                self.progress_manager.complete(&progress_id);
+                self.progress_manager.remove(&progress_id);
+
                 if !self.active_turn.as_ref().is_some_and(|t| t.is_cancelled()) {
                     match result {
                         Ok(summary) => self.ingest_turn_summary(&summary, is_streamed),
@@ -225,7 +257,7 @@ impl App {
                         }
                     }
                 } else {
-                    self.push_system_message("已中断上一轮；新指示已发送。");
+                    self.push_toast("已中断上一轮；新指示已发送。");
                 }
                 self.set_thinking(false);
                 self.active_tool = None;
@@ -287,10 +319,10 @@ impl App {
                 self.router.go_forward();
             }
             Action::Collapse => {
-                self.push_system_message("折叠");
+                self.push_toast("折叠");
             }
             Action::Expand => {
-                self.push_system_message("展开");
+                self.push_toast("展开");
             }
             Action::HideDialog | Action::Close => {
                 self.show_help = false;
@@ -300,7 +332,7 @@ impl App {
             }
             Action::SwitchTab(_idx) => {}
             Action::StartSearch => {
-                self.push_system_message("搜索模式（开发中）");
+                self.push_toast("搜索模式（开发中）");
             }
             Action::Paste | Action::EditorPaste => {
                 match arboard::Clipboard::new().and_then(|mut cb| cb.get_text()) {
@@ -342,7 +374,7 @@ impl App {
             Action::ShowSubmenu(_id, _idx) => {}
             Action::ShowParentMenu(_id) => {}
             Action::Custom(cmd) => {
-                self.push_system_message(&format!("自定义动作: {cmd}"));
+                self.push_toast(&format!("自定义动作: {cmd}"));
             }
             Action::Quit => {
                 self.should_quit = true;
@@ -355,124 +387,89 @@ impl App {
     // ── Key handling ──
 
     pub fn handle_key(&mut self, key: &KeyEvent) -> Option<Action> {
-        // Modal overlays take priority
+        // 1. Modal overlays — highest priority, always hardcoded
         if let Some(action) = self.handle_modal_keys(key) {
             return Some(action);
         }
 
-        // Help overlay — any key dismisses
+        // 2. Help overlay — any key dismisses
         if self.show_help {
             self.show_help = false;
             return None;
         }
 
-        // Command palette
+        // 3. Command palette — self-contained key handling
         if self.command_palette.is_visible() {
             return self.handle_command_palette_key(key);
         }
 
-        // Session picker
+        // 4. Session picker — self-contained key handling
         if self.session_picker.is_some() {
             return self.handle_session_picker_key(key);
         }
 
+        // 5. Guide overlay — Esc dismisses
         if self.show_guide && matches!(key, KeyEvent::Esc) {
             self.show_guide = false;
             return None;
         }
 
-        if matches!(key, KeyEvent::CtrlShift('c')) {
-            self.copy_visible_text_to_clipboard();
+        // 5.5 Esc / Ctrl+C — quit or clear input
+        if matches!(key, KeyEvent::Ctrl('c') | KeyEvent::Esc) {
+            if self.input.is_empty() {
+                self.should_quit = true;
+            } else {
+                self.input = InputBar::new();
+            }
             return None;
         }
 
+        // 5.6 Convenience slash-command shortcuts
+        if let KeyEvent::Ctrl('u') = key {
+            self.input.set_content("/import ".to_string());
+            self.refresh_slash_completion();
+            return None;
+        }
+        if let KeyEvent::Ctrl('f') = key {
+            self.input.set_content("/search ".to_string());
+            self.refresh_slash_completion();
+            return None;
+        }
+
+        // 6. Text editor keys — handle directly for low latency
+        if let Some(action) = self.handle_editor_keys(key) {
+            return Some(action);
+        }
+
+        // 7. KeyMap-driven command resolution
+        let binding = convert_app_key_to_binding(key);
+        let context = self.current_key_context();
+        if let Some(actions) = self.keymap.handle_key(binding, context) {
+            // Special handling for certain keymap-resolved actions
+            if let Some(action) = actions.into_iter().next() {
+                return Some(self.post_process_keymap_action(action));
+            }
+        }
+
+        // 8. Fallback: Enter to submit when input is non-empty
+        if matches!(key, KeyEvent::Enter) && !self.input.is_empty() && !self.has_blocking_modal() {
+            let text = self.input.take();
+            let as_interv = self.show_guide;
+            self.show_guide = false;
+            self.chat.push(ChatEntry {
+                role: ChatRole::User,
+                text: text.clone(),
+                reasoning: None,
+            });
+            self.chat.scroll_to_bottom(10);
+            return Some(Action::Submit(text, as_interv));
+        }
+        None
+    }
+
+    /// Text editor keys handled directly for low-latency input.
+    fn handle_editor_keys(&mut self, key: &KeyEvent) -> Option<Action> {
         match key {
-            KeyEvent::Char('q') if self.input.is_empty() => {
-                self.should_quit = true;
-                None
-            }
-            KeyEvent::Ctrl('c') | KeyEvent::Esc => {
-                if self.input.is_empty() {
-                    self.should_quit = true;
-                } else {
-                    self.input = InputBar::new();
-                }
-                None
-            }
-            KeyEvent::Enter if !self.input.is_empty() && !self.has_blocking_modal() => {
-                let text = self.input.take();
-                let as_interv = self.show_guide;
-                self.show_guide = false;
-                self.chat.push(ChatEntry {
-                    role: ChatRole::User,
-                    text: text.clone(),
-                    reasoning: None,
-                });
-                self.chat.scroll_to_bottom(10);
-                Some(Action::Submit(text, as_interv))
-            }
-            KeyEvent::Ctrl('h') | KeyEvent::F(1) => Some(Action::ShowHelp),
-            KeyEvent::Ctrl('p') | KeyEvent::F(3) => {
-                self.command_palette.show();
-                None
-            }
-            KeyEvent::Ctrl('b') => {
-                self.show_sidebar = !self.show_sidebar;
-                None
-            }
-            KeyEvent::Ctrl('e') => {
-                self.tools.toggle_all();
-                None
-            }
-            KeyEvent::Ctrl('d') => {
-                let name = self.cycle_theme();
-                self.push_system_message(&format!("主题: {name}"));
-                None
-            }
-            KeyEvent::Ctrl('g') => {
-                self.open_human_guide();
-                None
-            }
-            KeyEvent::Ctrl('i') => Some(Action::InterruptTurn),
-            KeyEvent::Ctrl('u') => {
-                self.input.set_content("/import ".to_string());
-                self.refresh_slash_completion();
-                None
-            }
-            KeyEvent::Ctrl('f') => {
-                self.input.set_content("/search ".to_string());
-                self.refresh_slash_completion();
-                None
-            }
-            KeyEvent::Tab => {
-                let _ = self.apply_tab_completion();
-                None
-            }
-            KeyEvent::ShiftEnter => {
-                self.input.insert('\n');
-                self.refresh_slash_completion();
-                None
-            }
-            KeyEvent::F(2) => {
-                self.show_tool_panel = !self.show_tool_panel;
-                None
-            }
-            KeyEvent::Char('j') | KeyEvent::Down if self.input.is_empty() => {
-                if self.show_tool_panel {
-                    self.tools.scroll_down(1, 80);
-                } else {
-                    self.chat.scroll_down(10);
-                }
-                None
-            }
-            KeyEvent::Char('k') | KeyEvent::Up if self.input.is_empty() => {
-                if self.show_tool_panel {
-                    self.tools.scroll_up();
-                } else {
-                    self.chat.scroll_up();
-                }
-                None
-            }
             KeyEvent::Char(c) => {
                 self.input.insert(*c);
                 self.refresh_slash_completion();
@@ -504,8 +501,130 @@ impl App {
                 self.input.move_end();
                 None
             }
+            KeyEvent::Tab => {
+                let _ = self.apply_tab_completion();
+                None
+            }
+            KeyEvent::ShiftEnter => {
+                self.input.insert('\n');
+                self.refresh_slash_completion();
+                None
+            }
             _ => None,
         }
+    }
+
+    /// Post-process actions resolved by KeyMap that need side effects
+    /// (e.g., ToggleToolPanel needs to toggle show_tool_panel, etc.)
+    fn post_process_keymap_action(&mut self, action: Action) -> Action {
+        match &action {
+            Action::ShowDialog(name) if name == "toggle_tool_panel" => {
+                self.show_tool_panel = !self.show_tool_panel;
+                return Action::Refresh;
+            }
+            Action::ToggleSidebar => {
+                self.show_sidebar = !self.show_sidebar;
+                return Action::Refresh;
+            }
+            Action::ShowCommandPalette => {
+                self.command_palette.show();
+                return Action::Refresh;
+            }
+            Action::ToggleDarkMode => {
+                let name = self.cycle_theme();
+                self.push_toast(&format!("主题: {name}"));
+                return Action::Refresh;
+            }
+            Action::ShowGuide => {
+                self.open_human_guide();
+                return Action::Refresh;
+            }
+            Action::ShowHelp => {
+                self.show_help = true;
+                return Action::Refresh;
+            }
+            Action::HideDialog | Action::Close => {
+                self.show_help = false;
+                self.show_guide = false;
+                self.command_palette.hide();
+                self.session_picker = None;
+                return Action::Refresh;
+            }
+            Action::CopySelection => {
+                self.copy_visible_text_to_clipboard();
+                return Action::Refresh;
+            }
+            Action::Paste | Action::EditorPaste => {
+                match arboard::Clipboard::new().and_then(|mut cb| cb.get_text()) {
+                    Ok(text) if !self.has_blocking_modal() => {
+                        self.input.set_content(text);
+                    }
+                    _ => {}
+                }
+                return Action::Refresh;
+            }
+            Action::EditorUndo => {
+                if self.input.undo() {
+                    self.refresh_slash_completion();
+                }
+                return Action::Refresh;
+            }
+            Action::EditorRedo => {
+                if self.input.redo() {
+                    self.refresh_slash_completion();
+                }
+                return Action::Refresh;
+            }
+            Action::EditorCopy => {
+                let text = self.input.content().to_string();
+                if !text.is_empty() {
+                    if let Ok(()) = crate::tui::clipboard::copy_text_to_clipboard(&text) {
+                        self.push_toast("已复制输入内容");
+                    }
+                }
+                return Action::Refresh;
+            }
+            Action::EditorCut => {
+                let text = self.input.content().to_string();
+                if !text.is_empty() {
+                    let _ = crate::tui::clipboard::copy_text_to_clipboard(&text);
+                    self.input = InputBar::new();
+                    self.push_toast("已剪切输入内容");
+                }
+                return Action::Refresh;
+            }
+            Action::Navigate(route) => {
+                self.router.navigate(route.clone());
+                return Action::Refresh;
+            }
+            Action::GoBack => {
+                self.router.go_back();
+                return Action::Refresh;
+            }
+            Action::GoForward => {
+                self.router.go_forward();
+                return Action::Refresh;
+            }
+            _ => {}
+        }
+        action
+    }
+
+    /// Determine the current key context based on UI state.
+    fn current_key_context(&self) -> KeyContext {
+        if self.command_palette.is_visible() {
+            return KeyContext::CommandPalette;
+        }
+        if self.pending_permission.is_some() || self.pending_flow_hitl.is_some() {
+            return KeyContext::Modal;
+        }
+        if !self.input.is_empty() {
+            return KeyContext::Editor;
+        }
+        if self.show_tool_panel || self.show_sidebar {
+            return KeyContext::List;
+        }
+        KeyContext::Global
     }
 
     fn handle_modal_keys(&mut self, key: &KeyEvent) -> Option<Action> {
@@ -1323,6 +1442,7 @@ impl App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        self.lifecycle.on_unmount();
         self.persist_session();
     }
 }
@@ -1407,4 +1527,26 @@ fn app_key_to_event(key: &KeyEvent) -> Event {
         ),
     };
     Event::Input(InputEvent::Key(ck))
+}
+
+/// Convert App's internal KeyEvent to keymap module's KeyBinding.
+fn convert_app_key_to_binding(key: &KeyEvent) -> KeyBinding {
+    match key {
+        KeyEvent::Char(c) => KeyBinding::simple(Key::Char(*c)),
+        KeyEvent::Enter => KeyBinding::simple(Key::Enter),
+        KeyEvent::Esc => KeyBinding::simple(Key::Esc),
+        KeyEvent::Backspace => KeyBinding::simple(Key::Backspace),
+        KeyEvent::Delete => KeyBinding::simple(Key::Delete),
+        KeyEvent::Up => KeyBinding::simple(Key::Up),
+        KeyEvent::Down => KeyBinding::simple(Key::Down),
+        KeyEvent::Left => KeyBinding::simple(Key::Left),
+        KeyEvent::Right => KeyBinding::simple(Key::Right),
+        KeyEvent::Tab => KeyBinding::simple(Key::Tab),
+        KeyEvent::Home => KeyBinding::simple(Key::Home),
+        KeyEvent::End => KeyBinding::simple(Key::End),
+        KeyEvent::F(n) => KeyBinding::simple(Key::F(*n)),
+        KeyEvent::ShiftEnter => KeyBinding::shift(Key::Enter),
+        KeyEvent::Ctrl(c) => KeyBinding::ctrl(Key::Char(*c)),
+        KeyEvent::CtrlShift(c) => KeyBinding::ctrl_shift(Key::Char(*c)),
+    }
 }

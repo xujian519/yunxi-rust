@@ -236,6 +236,69 @@ impl KeyMap {
             "NavigateUp",
             KeyContext::List,
         );
+
+        // Ctrl+G 人机引导
+        self.bind(
+            KeySequence::single(KeyBinding::ctrl(Char('g'))),
+            "ShowGuide",
+            KeyContext::Global,
+        );
+
+        // Ctrl+I 中断轮次
+        self.bind(
+            KeySequence::single(KeyBinding::ctrl(Char('i'))),
+            "InterruptTurn",
+            KeyContext::Global,
+        );
+
+        // F1 帮助
+        self.bind(
+            KeySequence::single(KeyBinding::simple(F(1))),
+            "ShowHelp",
+            KeyContext::Global,
+        );
+
+        // F2 工具面板
+        self.bind(
+            KeySequence::single(KeyBinding::simple(F(2))),
+            "ToggleToolPanel",
+            KeyContext::Global,
+        );
+
+        // F3 命令面板
+        self.bind(
+            KeySequence::single(KeyBinding::simple(F(3))),
+            "ShowCommandPalette",
+            KeyContext::Global,
+        );
+
+        // Ctrl+E 切换工具面板
+        self.bind(
+            KeySequence::single(KeyBinding::ctrl(Char('e'))),
+            "ToggleToolPanel",
+            KeyContext::Global,
+        );
+
+        // Ctrl+Shift+C 复制
+        self.bind(
+            KeySequence::single(KeyBinding::ctrl_shift(Char('c'))),
+            "Copy",
+            KeyContext::Global,
+        );
+
+        // Ctrl+Shift+V 粘贴
+        self.bind(
+            KeySequence::single(KeyBinding::ctrl_shift(Char('v'))),
+            "EditorPaste",
+            KeyContext::Global,
+        );
+
+        // Ctrl+Shift+X 剪切
+        self.bind(
+            KeySequence::single(KeyBinding::ctrl_shift(Char('x'))),
+            "EditorCut",
+            KeyContext::Global,
+        );
     }
 
     pub fn bind(

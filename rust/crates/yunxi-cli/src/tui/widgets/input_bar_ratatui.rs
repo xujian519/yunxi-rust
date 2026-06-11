@@ -97,7 +97,7 @@ impl Widget for InputBarWidget<'_> {
         }
 
         let block = Block::default()
-            .borders(Borders::ALL)
+            .borders(Borders::TOP)
             .border_style(Style::default().fg(border))
             .style(Style::default().bg(tertiary_bg));
 
